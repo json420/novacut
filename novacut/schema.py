@@ -22,21 +22,58 @@
 """
 Test-driven definition of novacut edit node schema.
 
-Example of edit node:
-
+Example of a slice node:
 
 >>> doc = {
 ...     '_id': '3HHSRSVXT5ZGY2B6LJPN457P',
-...     'ver': 0,
 ...     'type': 'novacut/node',
-...     'time': 1234567890,
 ...     'node': {
-...         'src': 'VYUG4ON2APZK3GEJULB4I7PHJTKZLXTOIRGU2LU2LW7JBOCU',
 ...         'type': 'slice',
-...         'start_frame': 123,
-...         'end_frame': 456,
+...         'src': 'VYUG4ON2APZK3GEJULB4I7PHJTKZLXTOIRGU2LU2LW7JBOCU',
+...         'start': {
+...             'frame': 123,
+...         },
+...         'stop': {
+...             'frame': 456,
+...         },
 ...     },
 ... }
+
+
+Another slice from of the same clip:
+
+>>> doc = {
+...     '_id': 'RXJM24DMCRZ4YS6L6FOPDQRX',
+...     'type': 'novacut/node',
+...     'node': {
+...         'type': 'slice',
+...         'src': 'VYUG4ON2APZK3GEJULB4I7PHJTKZLXTOIRGU2LU2LW7JBOCU',
+...         'start': {
+...             'frame': 1023,
+...         },
+...         'stop': {
+...             'frame': 1776,
+...         },
+...     },
+... }
+
+
+A sequence with these two slices back-to-back:
+
+>>> doc = {
+...     '_id': 'JG444OBNF5JUUNSPCCE5YPIK',
+...     'type': 'novacut/node',
+...     'node': {
+...         'type': 'sequence',
+...         'src': [
+...             '3HHSRSVXT5ZGY2B6LJPN457P',
+...             'RXJM24DMCRZ4YS6L6FOPDQRX',
+...         ],
+...     },
+... }
+
+
+
 
 
 Design Decision: hashable semantic content
@@ -66,7 +103,7 @@ is enormously useful for two reasons:
     1. It gives us an easy unique ID for caching pre-rendered corresponding to
        a specific node (semantically speaking)
 
-    2.
+    2. It gives us a globally unique way to refer.
 
 
 """
