@@ -73,6 +73,20 @@ A sequence with these two slices back-to-back:
 ... }
 
 
+Above sequence with "nigelb" effect applied:
+
+>>> doc = {
+...     '_id': 'AJU33MYHLQLVSRPTEUZA5KQ3',
+...     'type': 'novacut/node',
+...     'node': {
+...         'type': 'nigelb',
+...         'src': 'JG444OBNF5JUUNSPCCE5YPIK',
+...         'alpha': 0.7,
+...         'awesome': True,
+...     },
+... }
+
+Happy birthday, Nigel!
 
 
 
