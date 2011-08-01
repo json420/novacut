@@ -1,4 +1,4 @@
-# novacut: the distributed video editor
+# novacut: the collaborative video editor
 # Copyright (C) 2011 Novacut Inc
 #
 # This file is part of `novacut`.
@@ -20,11 +20,12 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 """
-Build GnonLin composition from Novacut edit description.
+Unit tests for the `novacut.renderer` module.
 """
 
-import gst
+from unittest import TestCase
 
 
-def build_slice(doc):
-    pass
+class TestFunctions(TestCase):
+    def test_build_slice(self):
+        assert True
