@@ -26,14 +26,45 @@ Build GnonLin composition from Novacut edit description.
 import gst
 
 
-def build_slice(doc):
+def build_slice(doc, builder):
     element = gst.element_factory_make('gnlfilesource')
-    numerator = doc['framerate']['numerator']
-    denominator = doc['framerate']['denominator']
-    start = doc['node']['start']['frame'] * gst.SECOND * denominator / numerator
-    stop = doc['node']['stop']['frame'] * gst.SECOND * denominator / numerator
+    num = doc['framerate']['num']
+    denom = doc['framerate']['denom']
+    start = doc['node']['start']['frame'] * gst.SECOND * denom / num
+    stop = doc['node']['stop']['frame'] * gst.SECOND * denom / num
     duration = stop - start
     element.set_property('media-start', start)
     element.set_property('media-duration', duration)
     element.set_property('duration', duration)
     return element
+
+
+def build_sequence(doc, builder):
+    element = gst.element_factory_make('gnlcomposition')
+    start = 0
+    for src in doc['node']['src']:
+        child = builder.build(src)
+        element.add(child)
+        child.set_property('start', start)
+        start += child.get_property('duration')
+    element.set_property('duration', start)
+    return element
+
+
+_builders = {
+    'slice': build_slice,
+    'sequence': build_sequence,
+}
+
+
+class Builder(object):
+    def build(self, _id):
+        doc = self.get_doc(_id)
+        func = _builders[doc['node']['type']]
+        return func(doc, self)
+
+    def resolve_file(self, _id):
+        pass
+
+    def get_doc(self, _id):
+        pass

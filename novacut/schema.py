@@ -123,3 +123,18 @@ is enormously useful for two reasons:
 """
 
 import json
+from os import urandom
+from base64 import b32encode
+
+
+def random_id():
+    """
+    Returns a 120-bit base32-encoded random ID.
+
+    The ID will be 24-characters long, URL and filesystem safe.  For example:
+
+    >>> random_id()  #doctest: +SKIP
+    'OVRHK3TUOUQCWIDMNFXGC4TP'
+
+    """
+    return b32encode(urandom(15))

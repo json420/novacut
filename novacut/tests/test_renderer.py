@@ -25,23 +25,130 @@ Unit tests for the `novacut.renderer` module.
 
 from unittest import TestCase
 
+from novacut.schema import random_id
 from novacut import renderer
 
 import gst
 
 
+slice1 = random_id()
+slice2 = random_id()
+slice3 = random_id()
+sequence1 = random_id()
+sequence2 = random_id()
+docs = [
+    {
+        '_id': slice1,
+        'type': 'novacut/node',
+        'framerate': {'num': 25, 'denom': 1},
+        'node': {
+            'type': 'slice',
+            'start': {'frame': 200},
+            'stop': {'frame': 300},
+        },
+    },
+
+    {
+        '_id': slice2,
+        'type': 'novacut/node',
+        'framerate': {'num': 25, 'denom': 1},
+        'node': {
+            'type': 'slice',
+            'start': {'frame': 800},
+            'stop': {'frame': 875},
+        },
+    },
+
+    {
+        '_id': slice3,
+        'type': 'novacut/node',
+        'framerate': {'num': 25, 'denom': 1},
+        'node': {
+            'type': 'slice',
+            'start': {'frame': 40},
+            'stop': {'frame': 90},
+        },
+    },
+
+    {
+        '_id': sequence1,
+        'type': 'novacut/node',
+        'node': {
+            'type': 'sequence',
+            'src': [
+                slice1,
+                slice2,
+            ],
+        },
+    },
+
+    {
+        '_id': sequence1,
+        'type': 'novacut/node',
+        'node': {
+            'type': 'sequence',
+            'src': [
+                slice1,
+                slice2,
+            ],
+        },
+    },
+
+    {
+        '_id': sequence2,
+        'type': 'novacut/node',
+        'node': {
+            'type': 'sequence',
+            'src': [
+                slice3,
+                sequence1,
+            ],
+        },
+    },
+]
+
+
+class DummyBuilder(renderer.Builder):
+    def __init__(self, docs):
+        self._docmap = dict(
+            (doc['_id'], doc) for doc in docs
+        )
+
+    def get_doc(self, _id):
+        return self._docmap[_id]
+
+
 class TestFunctions(TestCase):
     def test_build_slice(self):
         doc = {
-            'framerate': {'numerator': 25, 'denominator': 1},
+            'framerate': {'num': 25, 'denom': 1},
             'node': {
+                'type': 'slice',
                 'start': {'frame': 200},
                 'stop': {'frame': 300},
             },
         }
-        element = renderer.build_slice(doc)
+        element = renderer.build_slice(doc, None)
         self.assertIsInstance(element, gst.Element)
         self.assertEqual(element.get_factory().get_name(), 'gnlfilesource')
         self.assertEqual(element.get_property('media-start'), 8 * gst.SECOND)
         self.assertEqual(element.get_property('media-duration'), 4 * gst.SECOND)
         self.assertEqual(element.get_property('duration'), 4 * gst.SECOND)
+
+    def test_build_sequence(self):
+        b = DummyBuilder(docs)
+
+        element = renderer.build_sequence(b.get_doc(sequence1), b)
+        self.assertIsInstance(element, gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'gnlcomposition')
+        self.assertEqual(element.get_property('duration'), 7 * gst.SECOND)
+
+        element = b.build(sequence1)
+        self.assertIsInstance(element, gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'gnlcomposition')
+        self.assertEqual(element.get_property('duration'), 7 * gst.SECOND)
+
+        element = b.build(sequence2)
+        self.assertIsInstance(element, gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'gnlcomposition')
+        self.assertEqual(element.get_property('duration'), 9 * gst.SECOND)
