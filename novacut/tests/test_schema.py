@@ -1,4 +1,4 @@
-# novacut: the distributed video editor
+# novacut: the collaborative video editor
 # Copyright (C) 2011 Novacut Inc
 #
 # This file is part of `novacut`.
@@ -22,3 +22,10 @@
 """
 Unit tests for the `novacut.schema` module.
 """
+
+from unittest import TestCase
+
+
+class TestFunctions(TestCase):
+    def test_foo(self):
+        assert True

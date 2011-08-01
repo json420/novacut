@@ -1,4 +1,4 @@
-# novacut: the distributed video editor
+# novacut: the collaborative video editor
 # Copyright (C) 2011 Novacut Inc
 #
 # This file is part of `novacut`.
@@ -18,3 +18,10 @@
 #
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
+
+"""
+`novacut` - the collaborative video editor.
+"""
+
+
+__version__ = '11.08.0'

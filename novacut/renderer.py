@@ -49,10 +49,10 @@ docs = [
             'type': 'slice',
             'src': 'NPY3IW5SQJUNSP2KV47GVB24G7SWX6XF',
             'start': {
-                'frame': 120,
+                'frame': 200,
             },
             'stop': {
-                'frame': 400,
+                'frame': 200 + 4 * 25,
             },
         },
     },
@@ -322,5 +322,5 @@ job = {
     'ext': 'ogv',
 }
 
-r = Renderer(job)
-r.run()
+#r = Renderer(job)
+#r.run()

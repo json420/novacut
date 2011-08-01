@@ -1,4 +1,4 @@
-# novacut: the distributed video editor
+# novacut: the collaborative video editor
 # Copyright (C) 2011 Novacut Inc
 #
 # This file is part of `novacut`.
@@ -18,6 +18,7 @@
 #
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
+
 
 """
 Unit tests for the `novacut` package.
