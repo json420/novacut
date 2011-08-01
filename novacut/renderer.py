@@ -27,4 +27,13 @@ import gst
 
 
 def build_slice(doc):
-    pass
+    element = gst.element_factory_make('gnlfilesource')
+    numerator = doc['framerate']['numerator']
+    denominator = doc['framerate']['denominator']
+    start = doc['node']['start']['frame'] * gst.SECOND * denominator / numerator
+    stop = doc['node']['stop']['frame'] * gst.SECOND * denominator / numerator
+    duration = stop - start
+    element.set_property('media-start', start)
+    element.set_property('media-duration', duration)
+    element.set_property('duration', duration)
+    return element

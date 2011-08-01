@@ -25,7 +25,23 @@ Unit tests for the `novacut.renderer` module.
 
 from unittest import TestCase
 
+from novacut import renderer
+
+import gst
+
 
 class TestFunctions(TestCase):
     def test_build_slice(self):
-        assert True
+        doc = {
+            'framerate': {'numerator': 25, 'denominator': 1},
+            'node': {
+                'start': {'frame': 200},
+                'stop': {'frame': 300},
+            },
+        }
+        element = renderer.build_slice(doc)
+        self.assertIsInstance(element, gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'gnlfilesource')
+        self.assertEqual(element.get_property('media-start'), 8 * gst.SECOND)
+        self.assertEqual(element.get_property('media-duration'), 4 * gst.SECOND)
+        self.assertEqual(element.get_property('duration'), 4 * gst.SECOND)
