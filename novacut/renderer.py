@@ -31,12 +31,38 @@ stream_map = {
 }
 
 
+def to_gst_time(spec, doc):
+    """
+    Convert a time specified by frame or sample to nanoseconds.
+
+    For example, both of these specify 2 seconds into a stream, first by frame,
+    then by sample:
+
+    >>> doc = {
+    ...     'framerate': {'num': 24, 'denom': 1},
+    ...     'samplerate': 48000,
+    ... }
+    ...
+    >>> to_gst_time({'frame': 48}, doc)
+    2000000000
+    >>> to_gst_time({'sample': 96000}, doc)
+    2000000000
+
+    """
+    if 'frame' in spec:
+        num = doc['framerate']['num']
+        denom = doc['framerate']['denom']
+        return spec['frame'] * gst.SECOND * denom / num
+    if 'sample' in spec:
+        rate = doc['samplerate']
+        return spec['sample'] * gst.SECOND / rate
+    raise ValueError('invalid time spec: {!r}'.format(spec))
+
+
 def build_slice(doc, builder):
     element = gst.element_factory_make('gnlfilesource')
-    num = doc['framerate']['num']
-    denom = doc['framerate']['denom']
-    start = doc['node']['start']['frame'] * gst.SECOND * denom / num
-    stop = doc['node']['stop']['frame'] * gst.SECOND * denom / num
+    start = to_gst_time(doc['node']['start'], doc)
+    stop = to_gst_time(doc['node']['stop'], doc)
     duration = stop - start
     element.set_property('media-start', start)
     element.set_property('media-duration', duration)

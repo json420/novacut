@@ -156,6 +156,27 @@ class TestFunctions(TestCase):
             'audio/x-raw-int; audio/x-raw-float'
         )
 
+        # When specified by sample instead:
+        doc = {
+            'samplerate': 48000,
+            'node': {
+                'type': 'slice',
+                'stream': 'video',
+                'start': {'sample': 8 * 48000},
+                'stop': {'sample': 12 * 48000},
+            },
+        }
+        element = renderer.build_slice(doc, None)
+        self.assertIsInstance(element, gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'gnlfilesource')
+        self.assertEqual(element.get_property('media-start'), 8 * gst.SECOND)
+        self.assertEqual(element.get_property('media-duration'), 4 * gst.SECOND)
+        self.assertEqual(element.get_property('duration'), 4 * gst.SECOND)
+        self.assertEqual(
+            element.get_property('caps').to_string(),
+            'video/x-raw-rgb'
+        )
+
     def test_build_sequence(self):
         b = DummyBuilder(docs)
 
