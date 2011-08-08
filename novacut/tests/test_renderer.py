@@ -135,6 +135,9 @@ class DummyBuilder(renderer.Builder):
     def get_doc(self, _id):
         return self._docmap[_id]
 
+    def resolve_file(self, _id):
+        return '/path/to/' + _id
+
 
 class TestFunctions(TestCase):
     def test_build_slice(self):
@@ -156,6 +159,7 @@ class TestFunctions(TestCase):
         self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
         self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
         self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw-rgb')
+        self.assertEqual(el.get_property('location'), '/path/to/' + clip1)
 
         # Now with audio stream:
         doc['node']['stream'] = 'audio'
@@ -169,6 +173,7 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'audio/x-raw-int; audio/x-raw-float'
         )
+        self.assertEqual(el.get_property('location'), '/path/to/' + clip1)
 
         # When specified by sample instead:
         doc = {
@@ -190,21 +195,22 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'video/x-raw-rgb'
         )
+        self.assertEqual(el.get_property('location'), '/path/to/' + clip1)
 
     def test_build_sequence(self):
         b = DummyBuilder(docs)
 
-        element = renderer.build_sequence(b.get_doc(sequence1), b)
-        self.assertIsInstance(element, gst.Element)
-        self.assertEqual(element.get_factory().get_name(), 'gnlcomposition')
-        self.assertEqual(element.get_property('duration'), 7 * gst.SECOND)
+        el = renderer.build_sequence(b.get_doc(sequence1), b)
+        self.assertIsInstance(el, gst.Element)
+        self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
+        self.assertEqual(el.get_property('duration'), 7 * gst.SECOND)
 
-        element = b.build(sequence1)
-        self.assertIsInstance(element, gst.Element)
-        self.assertEqual(element.get_factory().get_name(), 'gnlcomposition')
-        self.assertEqual(element.get_property('duration'), 7 * gst.SECOND)
+        el = b.build(sequence1)
+        self.assertIsInstance(el, gst.Element)
+        self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
+        self.assertEqual(el.get_property('duration'), 7 * gst.SECOND)
 
-        element = b.build(sequence2)
-        self.assertIsInstance(element, gst.Element)
-        self.assertEqual(element.get_factory().get_name(), 'gnlcomposition')
-        self.assertEqual(element.get_property('duration'), 9 * gst.SECOND)
+        el = b.build(sequence2)
+        self.assertIsInstance(el, gst.Element)
+        self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
+        self.assertEqual(el.get_property('duration'), 9 * gst.SECOND)

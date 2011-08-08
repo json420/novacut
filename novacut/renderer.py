@@ -61,29 +61,29 @@ def to_gst_time(spec, doc):
 
 def build_slice(doc, builder):
     src = builder.get_doc(doc['node']['src'])
-    element = gst.element_factory_make('gnlfilesource')
+    el = gst.element_factory_make('gnlfilesource')
     start = to_gst_time(doc['node']['start'], src)
     stop = to_gst_time(doc['node']['stop'], src)
     duration = stop - start
-    element.set_property('media-start', start)
-    element.set_property('media-duration', duration)
-    element.set_property('duration', duration)
+    el.set_property('media-start', start)
+    el.set_property('media-duration', duration)
+    el.set_property('duration', duration)
     stream = doc['node']['stream']
-    assert stream in ('video', 'audio')
-    element.set_property('caps', gst.caps_from_string(stream_map[stream]))
-    return element
+    el.set_property('caps', gst.caps_from_string(stream_map[stream]))
+    el.set_property('location', builder.resolve_file(src['_id']))
+    return el
 
 
 def build_sequence(doc, builder):
-    element = gst.element_factory_make('gnlcomposition')
+    el = gst.element_factory_make('gnlcomposition')
     start = 0
     for src in doc['node']['src']:
         child = builder.build(src)
-        element.add(child)
+        el.add(child)
         child.set_property('start', start)
         start += child.get_property('duration')
-    element.set_property('duration', start)
-    return element
+    el.set_property('duration', start)
+    return el
 
 
 _builders = {
