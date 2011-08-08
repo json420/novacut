@@ -25,6 +25,11 @@ Build GnonLin composition from Novacut edit description.
 
 import gst
 
+stream_map = {
+    'video': 'video/x-raw-rgb',
+    'audio': 'audio/x-raw-int; audio/x-raw-float',
+}
+
 
 def build_slice(doc, builder):
     element = gst.element_factory_make('gnlfilesource')
@@ -36,6 +41,9 @@ def build_slice(doc, builder):
     element.set_property('media-start', start)
     element.set_property('media-duration', duration)
     element.set_property('duration', duration)
+    stream = doc['node']['stream']
+    assert stream in ('video', 'audio')
+    element.set_property('caps', gst.caps_from_string(stream_map[stream]))
     return element
 
 

@@ -43,6 +43,7 @@ docs = [
         'framerate': {'num': 25, 'denom': 1},
         'node': {
             'type': 'slice',
+            'stream': 'video',
             'start': {'frame': 200},
             'stop': {'frame': 300},
         },
@@ -54,6 +55,7 @@ docs = [
         'framerate': {'num': 25, 'denom': 1},
         'node': {
             'type': 'slice',
+            'stream': 'video',
             'start': {'frame': 800},
             'stop': {'frame': 875},
         },
@@ -65,6 +67,7 @@ docs = [
         'framerate': {'num': 25, 'denom': 1},
         'node': {
             'type': 'slice',
+            'stream': 'video',
             'start': {'frame': 40},
             'stop': {'frame': 90},
         },
@@ -124,6 +127,7 @@ class TestFunctions(TestCase):
             'framerate': {'num': 25, 'denom': 1},
             'node': {
                 'type': 'slice',
+                'stream': 'video',
                 'start': {'frame': 200},
                 'stop': {'frame': 300},
             },
@@ -134,6 +138,23 @@ class TestFunctions(TestCase):
         self.assertEqual(element.get_property('media-start'), 8 * gst.SECOND)
         self.assertEqual(element.get_property('media-duration'), 4 * gst.SECOND)
         self.assertEqual(element.get_property('duration'), 4 * gst.SECOND)
+        self.assertEqual(
+            element.get_property('caps').to_string(),
+            'video/x-raw-rgb'
+        )
+
+        # Now with audio stream:
+        doc['node']['stream'] = 'audio'
+        element = renderer.build_slice(doc, None)
+        self.assertIsInstance(element, gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'gnlfilesource')
+        self.assertEqual(element.get_property('media-start'), 8 * gst.SECOND)
+        self.assertEqual(element.get_property('media-duration'), 4 * gst.SECOND)
+        self.assertEqual(element.get_property('duration'), 4 * gst.SECOND)
+        self.assertEqual(
+            element.get_property('caps').to_string(),
+            'audio/x-raw-int; audio/x-raw-float'
+        )
 
     def test_build_sequence(self):
         b = DummyBuilder(docs)
