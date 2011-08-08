@@ -60,9 +60,10 @@ def to_gst_time(spec, doc):
 
 
 def build_slice(doc, builder):
+    src = builder.get_doc(doc['node']['src'])
     element = gst.element_factory_make('gnlfilesource')
-    start = to_gst_time(doc['node']['start'], doc)
-    stop = to_gst_time(doc['node']['stop'], doc)
+    start = to_gst_time(doc['node']['start'], src)
+    stop = to_gst_time(doc['node']['stop'], src)
     duration = stop - start
     element.set_property('media-start', start)
     element.set_property('media-duration', duration)

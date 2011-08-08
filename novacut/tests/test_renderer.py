@@ -30,7 +30,8 @@ from novacut import renderer
 
 import gst
 
-
+clip1 = random_id()
+clip2 = random_id()
 slice1 = random_id()
 slice2 = random_id()
 slice3 = random_id()
@@ -38,38 +39,52 @@ sequence1 = random_id()
 sequence2 = random_id()
 docs = [
     {
+        '_id': clip1,
+        'type': 'dmedia/file',
+        'framerate': {'num': 24, 'denom': 1},
+        'samplerate': 48000,
+    },
+
+    {
+        '_id': clip2,
+        'type': 'dmedia/file',
+        'framerate': {'num': 24, 'denom': 1},
+        'samplerate': 48000,
+    },
+
+    {
         '_id': slice1,
         'type': 'novacut/node',
-        'framerate': {'num': 25, 'denom': 1},
         'node': {
+            'src': clip1,
             'type': 'slice',
             'stream': 'video',
-            'start': {'frame': 200},
-            'stop': {'frame': 300},
+            'start': {'frame': 8 * 24},
+            'stop': {'frame': 12 * 24},
         },
     },
 
     {
         '_id': slice2,
         'type': 'novacut/node',
-        'framerate': {'num': 25, 'denom': 1},
         'node': {
+            'src': clip2,
             'type': 'slice',
             'stream': 'video',
-            'start': {'frame': 800},
-            'stop': {'frame': 875},
+            'start': {'frame': 32 * 24},
+            'stop': {'frame': 35 * 24},
         },
     },
 
     {
         '_id': slice3,
         'type': 'novacut/node',
-        'framerate': {'num': 25, 'denom': 1},
         'node': {
+            'src': clip1,
             'type': 'slice',
             'stream': 'video',
             'start': {'frame': 40},
-            'stop': {'frame': 90},
+            'stop': {'frame': 88},
         },
     },
 
@@ -123,57 +138,56 @@ class DummyBuilder(renderer.Builder):
 
 class TestFunctions(TestCase):
     def test_build_slice(self):
+        b = DummyBuilder(docs)
+
         doc = {
-            'framerate': {'num': 25, 'denom': 1},
             'node': {
+                'src': clip1,
                 'type': 'slice',
                 'stream': 'video',
-                'start': {'frame': 200},
-                'stop': {'frame': 300},
+                'start': {'frame': 8 * 24},
+                'stop': {'frame': 12 * 24},
             },
         }
-        element = renderer.build_slice(doc, None)
-        self.assertIsInstance(element, gst.Element)
-        self.assertEqual(element.get_factory().get_name(), 'gnlfilesource')
-        self.assertEqual(element.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(element.get_property('media-duration'), 4 * gst.SECOND)
-        self.assertEqual(element.get_property('duration'), 4 * gst.SECOND)
-        self.assertEqual(
-            element.get_property('caps').to_string(),
-            'video/x-raw-rgb'
-        )
+        el = renderer.build_slice(doc, b)
+        self.assertIsInstance(el, gst.Element)
+        self.assertEqual(el.get_factory().get_name(), 'gnlfilesource')
+        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw-rgb')
 
         # Now with audio stream:
         doc['node']['stream'] = 'audio'
-        element = renderer.build_slice(doc, None)
-        self.assertIsInstance(element, gst.Element)
-        self.assertEqual(element.get_factory().get_name(), 'gnlfilesource')
-        self.assertEqual(element.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(element.get_property('media-duration'), 4 * gst.SECOND)
-        self.assertEqual(element.get_property('duration'), 4 * gst.SECOND)
+        el = renderer.build_slice(doc, b)
+        self.assertIsInstance(el, gst.Element)
+        self.assertEqual(el.get_factory().get_name(), 'gnlfilesource')
+        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
         self.assertEqual(
-            element.get_property('caps').to_string(),
+            el.get_property('caps').to_string(),
             'audio/x-raw-int; audio/x-raw-float'
         )
 
         # When specified by sample instead:
         doc = {
-            'samplerate': 48000,
             'node': {
+                'src': clip1,
                 'type': 'slice',
                 'stream': 'video',
                 'start': {'sample': 8 * 48000},
                 'stop': {'sample': 12 * 48000},
             },
         }
-        element = renderer.build_slice(doc, None)
-        self.assertIsInstance(element, gst.Element)
-        self.assertEqual(element.get_factory().get_name(), 'gnlfilesource')
-        self.assertEqual(element.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(element.get_property('media-duration'), 4 * gst.SECOND)
-        self.assertEqual(element.get_property('duration'), 4 * gst.SECOND)
+        el = renderer.build_slice(doc, b)
+        self.assertIsInstance(el, gst.Element)
+        self.assertEqual(el.get_factory().get_name(), 'gnlfilesource')
+        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
         self.assertEqual(
-            element.get_property('caps').to_string(),
+            el.get_property('caps').to_string(),
             'video/x-raw-rgb'
         )
 
