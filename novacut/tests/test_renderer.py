@@ -25,10 +25,14 @@ Unit tests for the `novacut.renderer` module.
 
 from unittest import TestCase
 
+import gst
+
 from novacut.schema import random_id
 from novacut import renderer
 
-import gst
+from .base import LiveTestCase, TempDir
+
+
 
 clip1 = random_id()
 clip2 = random_id()
@@ -214,3 +218,8 @@ class TestFunctions(TestCase):
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
         self.assertEqual(el.get_property('duration'), 9 * gst.SECOND)
+
+
+class TestAbusively(LiveTestCase):
+    def test_canned(self):
+        pass
