@@ -310,7 +310,7 @@ class TestEncodeBin(TestCase):
     def test_init(self):
         # with props
         d = {
-            'enc': {
+            'encoder': {
                 'name': 'vorbisenc',
                 'props': {
                     'quality': 0.5,
@@ -333,7 +333,7 @@ class TestEncodeBin(TestCase):
         self.assertIsNone(inst._caps)
 
         # default properties
-        d = {'enc': {'name': 'vorbisenc'}}
+        d = {'encoder': {'name': 'vorbisenc'}}
         inst = self.klass(d)
         self.assertTrue(inst._d is d)
 
@@ -354,7 +354,7 @@ class TestEncodeBin(TestCase):
 
         # with mime and caps
         d = {
-            'enc': {
+            'encoder': {
                 'name': 'vorbisenc',
                 'props': {
                     'quality': 0.5,
@@ -375,7 +375,7 @@ class TestEncodeBin(TestCase):
 
     def test_repr(self):
         d = {
-            'enc': 'vorbisenc',
+            'encoder': 'vorbisenc',
             'props': {
                 'quality': 0.5,
             },
@@ -396,7 +396,7 @@ class TestEncodeBin(TestCase):
         )
 
     def test_make(self):
-        d = {'enc': 'vorbisenc'}
+        d = {'encoder': 'vorbisenc'}
         inst = self.klass(d)
 
         enc = inst._make('theoraenc')
@@ -419,7 +419,7 @@ class TestAudioEncoder(TestCase):
 
     def test_init(self):
         d = {
-            'enc': {
+            'encoder': {
                 'name': 'vorbisenc',
                 'props': {
                     'quality': 0.5,
@@ -432,7 +432,7 @@ class TestAudioEncoder(TestCase):
         self.assertEqual(inst._enc.get_property('quality'), 0.5)
 
         d = {
-            'enc': {
+            'encoder': {
                 'name': 'vorbisenc',
                 'props': {'quality': 0.25},
             },
