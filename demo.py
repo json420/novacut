@@ -21,9 +21,14 @@
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
+from os import path
+import json
+
 from novacut.schema import random_id
 from novacut.renderer import Renderer
 from novacut.tests.test_renderer import DummyBuilder, sample1, sample2
+
+tree = path.dirname(path.abspath(__file__))
 
 docs = [
     {
@@ -82,28 +87,36 @@ docs.append(
 )
 
 
-
-job = {
-    'src': sequence_id,
-    'muxer': {'name': 'oggmux'},
-    'video': {
-        'encoder': {
-            'name': 'theoraenc',
-            'props': {
-                'quality': 44,
+render = {
+    '_id': random_id(),
+    'type': 'novacut/render',
+    'node': {
+        'src': sequence_id,
+        'muxer': {'name': 'oggmux'},
+        'video': {
+            'encoder': {
+                'name': 'theoraenc',
+                'props': {
+                    'quality': 44,
+                },
+            },
+            'filter': {
+                'mime': 'video/x-raw-yuv',
+                'caps': {
+                    'width': '960',
+                    'height': '540',
+                },
             },
         },
-        'filter': {
-            'mime': 'video/x-raw-yuv',
-            'caps': {
-                'width': '960',
-                'height': '540',
-            },
-        },
-    },
+    }
 }
+docs.append(render)
 
 
 b = DummyBuilder(docs)
-r = Renderer(job, b, 'tmp-demo.ogv')
+r = Renderer(render['node'], b, path.join(tree, 'tmp-demo.ogv'))
 r.run()
+
+docs.reverse()
+fp = open(path.join(tree, 'tmp-demo.json'), 'wb')
+json.dump(docs, fp, sort_keys=True, indent=4)
