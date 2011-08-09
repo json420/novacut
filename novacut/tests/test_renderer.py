@@ -235,10 +235,11 @@ class TestFunctions(TestCase):
         self.assertEqual(el.get_property('duration'), 9 * gst.SECOND)
 
 
-class test_TranscodBin(TestCase):
+class TestEncodeBin(TestCase):
     klass = renderer.EncoderBin
 
     def test_init(self):
+        # with props
         d = {
             'enc': 'vorbisenc',
             'props': {
@@ -261,6 +262,9 @@ class test_TranscodBin(TestCase):
         self.assertTrue(isinstance(inst._q2, gst.Element))
         self.assertEqual(inst._q2.get_factory().get_name(), 'queue')
 
+        self.assertIsNone(inst._caps)
+
+        # default properties
         d = {'enc': 'vorbisenc'}
         inst = self.klass(d)
         self.assertTrue(inst._d is d)
@@ -277,6 +281,38 @@ class test_TranscodBin(TestCase):
         self.assertTrue(inst._q2.get_parent() is inst)
         self.assertTrue(isinstance(inst._q2, gst.Element))
         self.assertEqual(inst._q2.get_factory().get_name(), 'queue')
+
+        self.assertIsNone(inst._caps)
+
+        # with mime and caps
+        d = {
+            'enc': 'vorbisenc',
+            'mime': 'audio/x-raw-float',
+            'caps': {'rate': 44100, 'channels': 1},
+        }
+        inst = self.klass(d)
+        self.assertTrue(inst._d is d)
+        self.assertIsInstance(inst._caps, gst.Caps)
+        self.assertEqual(
+            inst._caps.to_string(),
+            'audio/x-raw-float, channels=(int)1, rate=(int)44100'
+        )
+
+        # Test with caps but no mime:
+        d = {
+            'enc': 'vorbisenc',
+            'caps': {'rate': 44100, 'channels': 1},
+        }
+        inst = self.klass(d)
+        self.assertIsNone(inst._caps)
+
+        # Test with mime but no caps:
+        d = {
+            'enc': 'vorbisenc',
+            'mime': 'audio/x-raw-float',
+        }
+        inst = self.klass(d)
+        self.assertIsNone(inst._caps)
 
     def test_repr(self):
         d = {
@@ -317,6 +353,32 @@ class test_TranscodBin(TestCase):
         self.assertEqual(enc.get_factory().get_name(), 'theoraenc')
         self.assertEqual(enc.get_property('quality'), 50)
         self.assertEqual(enc.get_property('keyframe-force'), 32)
+
+
+class TestAudioEncoder(TestCase):
+    klass = renderer.AudioEncoder
+
+    def test_init(self):
+        d = {
+            'enc': 'vorbisenc',
+            'props': {
+                'quality': 0.5,
+            },
+        }
+        inst = self.klass(d)
+        self.assertTrue(isinstance(inst._enc, gst.Element))
+        self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
+        self.assertEqual(inst._enc.get_property('quality'), 0.5)
+
+        d = {
+            'enc': 'vorbisenc',
+            'caps': {'rate': 44100},
+            'props': {'quality': 0.25},
+        }
+        inst = self.klass(d)
+        self.assertTrue(isinstance(inst._enc, gst.Element))
+        self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
+        self.assertEqual(inst._enc.get_property('quality'), 0.25)
 
 
 class TestAbusively(LiveTestCase):

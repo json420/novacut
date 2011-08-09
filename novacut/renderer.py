@@ -143,6 +143,15 @@ class EncoderBin(gst.Bin):
             gst.GhostPad('src', self._q2.get_pad('src'))
         )
 
+        # Create the filter caps
+        if d.get('caps') and d.get('mime'):
+            self._caps = gst.caps_from_string(
+                caps_string(d['mime'], d['caps'])
+            )
+        else:
+            self._caps = None
+
+
     def __repr__(self):
         return '{}({!r})'.format(self.__class__.__name__, self._d)
 
@@ -156,3 +165,22 @@ class EncoderBin(gst.Bin):
                 element.set_property(key, value)
         self.add(element)
         return element
+
+
+class AudioEncoder(EncoderBin):
+    def __init__(self, d):
+        super(AudioEncoder, self).__init__(d)
+
+        # Create processing elements:
+        self._conv = self._make('audioconvert')
+        self._rsp = self._make('audioresample', {'quality': 10})
+        self._rate = self._make('audiorate')
+
+        # Link elements:
+        self._q1.link(self._conv)
+        self._conv.link(self._rsp)
+        if self._caps is None:
+            self._rsp.link(self._rate)
+        else:
+            self._rsp.link(self._rate, self._caps)
+        self._rate.link(self._enc)
