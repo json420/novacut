@@ -39,6 +39,7 @@ slice1 = random_id()
 slice2 = random_id()
 slice3 = random_id()
 slice4 = random_id()
+slice5 = random_id()
 sequence1 = random_id()
 sequence2 = random_id()
 sequence3 = random_id()
@@ -58,8 +59,20 @@ docs = [
             'src': sample_id,
             'type': 'slice',
             'stream': 'video',
-            'start': {'frame': 120},
-            'stop': {'frame': 400},
+            'start': {'frame': 6 * 25},
+            'stop': {'frame': 10 * 25},
+        },
+    },
+
+    {
+        '_id': slice5,
+        'type': 'novacut/node',
+        'node': {
+            'src': sample_id,
+            'type': 'slice',
+            'stream': 'video',
+            'start': {'frame': 18 * 25},
+            'stop': {'frame': 21 * 25},
         },
     },
 
@@ -69,6 +82,8 @@ docs = [
         'node': {
             'type': 'sequence',
             'src': [
+                slice4,
+                slice5,
                 slice4,
             ],
         },

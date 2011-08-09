@@ -244,9 +244,10 @@ class VideoEncoder(EncoderBin):
         # Create elements:
         self._scale = self._make('ffvideoscale', {'method': 10})
         self._color = self._make('ffmpegcolorspace')
+        self._rate = self._make('videorate')
 
         # Link elements:
-        gst.element_link_many(self._q1, self._scale, self._color, self._q2)
+        gst.element_link_many(self._q1, self._scale, self._color, self._rate, self._q2)
 
 
 class Renderer(object):
@@ -311,7 +312,6 @@ class Renderer(object):
         if key in self.job:
             el.link(self.mux)
         el.set_state(gst.STATE_PLAYING)
-        self.pipeline.set_state(gst.STATE_PLAYING)
         return el
 
     def on_pad_added(self, element, pad):
