@@ -144,6 +144,21 @@ class DummyBuilder(renderer.Builder):
 
 
 class TestFunctions(TestCase):
+    def test_caps_string(self):
+        f = renderer.caps_string
+        self.assertEqual(
+            f('audio/x-raw-float', {}),
+            'audio/x-raw-float'
+        )
+        self.assertEqual(
+            f('audio/x-raw-float', {'rate': 44100}),
+            'audio/x-raw-float, rate=44100'
+        )
+        self.assertEqual(
+            f('audio/x-raw-float', {'rate': 44100, 'channels': 1}),
+            'audio/x-raw-float, channels=1, rate=44100'
+        )
+
     def test_build_slice(self):
         b = DummyBuilder(docs)
 
@@ -218,6 +233,90 @@ class TestFunctions(TestCase):
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
         self.assertEqual(el.get_property('duration'), 9 * gst.SECOND)
+
+
+class test_TranscodBin(TestCase):
+    klass = renderer.EncoderBin
+
+    def test_init(self):
+        d = {
+            'enc': 'vorbisenc',
+            'props': {
+                'quality': 0.5,
+            },
+        }
+        inst = self.klass(d)
+        self.assertTrue(inst._d is d)
+
+        self.assertTrue(inst._q1.get_parent() is inst)
+        self.assertTrue(isinstance(inst._q1, gst.Element))
+        self.assertEqual(inst._q1.get_factory().get_name(), 'queue')
+
+        self.assertTrue(inst._enc.get_parent() is inst)
+        self.assertTrue(isinstance(inst._enc, gst.Element))
+        self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
+        self.assertEqual(inst._enc.get_property('quality'), 0.5)
+
+        self.assertTrue(inst._q2.get_parent() is inst)
+        self.assertTrue(isinstance(inst._q2, gst.Element))
+        self.assertEqual(inst._q2.get_factory().get_name(), 'queue')
+
+        d = {'enc': 'vorbisenc'}
+        inst = self.klass(d)
+        self.assertTrue(inst._d is d)
+
+        self.assertTrue(inst._q1.get_parent() is inst)
+        self.assertTrue(isinstance(inst._q1, gst.Element))
+        self.assertEqual(inst._q1.get_factory().get_name(), 'queue')
+
+        self.assertTrue(inst._enc.get_parent() is inst)
+        self.assertTrue(isinstance(inst._enc, gst.Element))
+        self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
+        self.assertNotEqual(inst._enc.get_property('quality'), 0.5)
+
+        self.assertTrue(inst._q2.get_parent() is inst)
+        self.assertTrue(isinstance(inst._q2, gst.Element))
+        self.assertEqual(inst._q2.get_factory().get_name(), 'queue')
+
+    def test_repr(self):
+        d = {
+            'enc': 'vorbisenc',
+            'props': {
+                'quality': 0.5,
+            },
+        }
+
+        inst = self.klass(d)
+        self.assertEqual(
+            repr(inst),
+            'EncoderBin(%r)' % (d,)
+        )
+
+        class FooBar(self.klass):
+            pass
+        inst = FooBar(d)
+        self.assertEqual(
+            repr(inst),
+            'FooBar(%r)' % (d,)
+        )
+
+    def test_make(self):
+        d = {'enc': 'vorbisenc'}
+        inst = self.klass(d)
+
+        enc = inst._make('theoraenc')
+        self.assertTrue(enc.get_parent() is inst)
+        self.assertTrue(isinstance(enc, gst.Element))
+        self.assertEqual(enc.get_factory().get_name(), 'theoraenc')
+        self.assertEqual(enc.get_property('quality'), 48)
+        self.assertEqual(enc.get_property('keyframe-force'), 64)
+
+        enc = inst._make('theoraenc', {'quality': 50, 'keyframe-force': 32})
+        self.assertTrue(enc.get_parent() is inst)
+        self.assertTrue(isinstance(enc, gst.Element))
+        self.assertEqual(enc.get_factory().get_name(), 'theoraenc')
+        self.assertEqual(enc.get_property('quality'), 50)
+        self.assertEqual(enc.get_property('keyframe-force'), 32)
 
 
 class TestAbusively(LiveTestCase):

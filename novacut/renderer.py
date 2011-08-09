@@ -23,12 +23,32 @@
 Build GnonLin composition from Novacut edit description.
 """
 
+# FIXME: Some of this is duplicated in dmedia's transcoder (and will be once we
+# move to direct gst thumbnailer and extractor).  For now we're doing a bit of
+# copy and paste to quickly get the render backend usable... then will refine
+# and consolidate with what's in dmedia.
+
 import gst
 
 stream_map = {
     'video': 'video/x-raw-rgb',
     'audio': 'audio/x-raw-int; audio/x-raw-float',
 }
+
+
+def caps_string(mime, caps):
+    """
+    Build a GStreamer caps string.
+
+    For example:
+
+    >>> caps_string('video/x-raw-yuv', {'width': 800, 'height': 450})
+    'video/x-raw-yuv, height=450, width=800'
+    """
+    accum = [mime]
+    for key in sorted(caps):
+        accum.append('{}={}'.format(key, caps[key]))
+    return ', '.join(accum)
 
 
 def to_gst_time(spec, doc):
@@ -103,3 +123,36 @@ class Builder(object):
 
     def get_doc(self, _id):
         pass
+
+
+class EncoderBin(gst.Bin):
+    """
+    Base class for `AudioEncoder` and `VideoEncoder`.
+    """
+    def __init__(self, d):
+        super(EncoderBin, self).__init__()
+        self._d = d
+        self._q1 = self._make('queue')
+        self._enc = self._make(d['enc'], d.get('props'))
+        self._q2 = self._make('queue')
+        self._enc.link(self._q2)
+        self.add_pad(
+            gst.GhostPad('sink', self._q1.get_pad('sink'))
+        )
+        self.add_pad(
+            gst.GhostPad('src', self._q2.get_pad('src'))
+        )
+
+    def __repr__(self):
+        return '{}({!r})'.format(self.__class__.__name__, self._d)
+
+    def _make(self, name, props=None):
+        """
+        Create gst element, set properties, and add to this bin.
+        """
+        element = gst.element_factory_make(name)
+        if props:
+            for (key, value) in props.iteritems():
+                element.set_property(key, value)
+        self.add(element)
+        return element
