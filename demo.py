@@ -103,8 +103,8 @@ render = {
             'filter': {
                 'mime': 'video/x-raw-yuv',
                 'caps': {
-                    'width': '960',
-                    'height': '540',
+                    'width': 960,
+                    'height': 540,
                 },
             },
         },
