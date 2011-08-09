@@ -42,8 +42,8 @@ docs = [
 ]
 
 start_frames = {
-    sample1: 200,
-    sample2: 75,
+    sample1: 180,
+    sample2: 68,
 }
 
 
@@ -87,12 +87,17 @@ job = {
     'src': sequence_id,
     'muxer': {'name': 'oggmux'},
     'video': {
-        'encoder': {'name': 'theoraenc'},
+        'encoder': {
+            'name': 'theoraenc',
+            'props': {
+                'quality': 44,
+            },
+        },
         'filter': {
             'mime': 'video/x-raw-yuv',
             'caps': {
-                'width': '640',
-                'height': '360',
+                'width': '960',
+                'height': '540',
             },
         },
     },
