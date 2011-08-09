@@ -27,6 +27,7 @@ import os
 from os import path
 import shutil
 import tempfile
+from subprocess import check_call
 from unittest import TestCase
 
 
@@ -37,6 +38,10 @@ sample_id = 'NPY3IW5SQJUNSP2KV47GVB24G7SWX6XF'
 sample_name = sample_id + '.mov'
 sample_file = path.join(testdir, sample_name)
 sample_url = 'http://uds-o.novacut.com/' + sample_name
+
+
+def resolve(_id):
+    return path.join(testdir, _id + '.mov')
 
 
 class TempDir(object):

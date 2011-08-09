@@ -30,8 +30,7 @@ import gst
 from novacut.schema import random_id
 from novacut import renderer
 
-from .base import LiveTestCase, TempDir
-
+from .base import LiveTestCase, TempDir, resolve, sample_id
 
 
 clip1 = random_id()
@@ -39,9 +38,42 @@ clip2 = random_id()
 slice1 = random_id()
 slice2 = random_id()
 slice3 = random_id()
+slice4 = random_id()
 sequence1 = random_id()
 sequence2 = random_id()
+sequence3 = random_id()
+
 docs = [
+    {
+        '_id': sample_id,
+        'type': 'dmedia/file',
+        'framerate': {'num': 25, 'denom': 1},
+        'samplerate': 48000,
+    },
+
+    {
+        '_id': slice4,
+        'type': 'novacut/node',
+        'node': {
+            'src': sample_id,
+            'type': 'slice',
+            'stream': 'video',
+            'start': {'frame': 120},
+            'stop': {'frame': 400},
+        },
+    },
+
+    {
+        '_id': sequence3,
+        'type': 'novacut/node',
+        'node': {
+            'type': 'sequence',
+            'src': [
+                slice4,
+            ],
+        },
+    },
+
     {
         '_id': clip1,
         'type': 'dmedia/file',
@@ -105,18 +137,6 @@ docs = [
     },
 
     {
-        '_id': sequence1,
-        'type': 'novacut/node',
-        'node': {
-            'type': 'sequence',
-            'src': [
-                slice1,
-                slice2,
-            ],
-        },
-    },
-
-    {
         '_id': sequence2,
         'type': 'novacut/node',
         'node': {
@@ -140,7 +160,7 @@ class DummyBuilder(renderer.Builder):
         return self._docmap[_id]
 
     def resolve_file(self, _id):
-        return '/path/to/' + _id
+        return resolve(_id)
 
 
 class TestFunctions(TestCase):
@@ -247,7 +267,7 @@ class TestFunctions(TestCase):
         self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
         self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
         self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw-rgb')
-        self.assertEqual(el.get_property('location'), '/path/to/' + clip1)
+        self.assertEqual(el.get_property('location'), resolve(clip1))
 
         # Now with audio stream:
         doc['node']['stream'] = 'audio'
@@ -261,7 +281,7 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'audio/x-raw-int; audio/x-raw-float'
         )
-        self.assertEqual(el.get_property('location'), '/path/to/' + clip1)
+        self.assertEqual(el.get_property('location'), resolve(clip1))
 
         # When specified by sample instead:
         doc = {
@@ -283,7 +303,7 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'video/x-raw-rgb'
         )
-        self.assertEqual(el.get_property('location'), '/path/to/' + clip1)
+        self.assertEqual(el.get_property('location'), resolve(clip1))
 
     def test_build_sequence(self):
         b = DummyBuilder(docs)
@@ -491,16 +511,21 @@ class TestVideoEncoder(TestCase):
 class TestRenderer(TestCase):
     def test_init(self):
         tmp = TempDir()
-
-        slice1 = random_id()
-        slice2 = random_id()
-        sequence1 = random_id()
+        builder = DummyBuilder(docs)
 
         job = {
+            'src': sequence1,
             'muxer': {'name': 'oggmux'},
         }
         dst = tmp.join('out1.ogv')
-        inst = renderer.Renderer(job, None, dst)
+        inst = renderer.Renderer(job, builder, dst)
+
+        self.assertTrue(inst.job is job)
+        self.assertTrue(inst.builder is builder)
+
+        self.assertIsInstance(inst.src, gst.Element)
+        self.assertTrue(inst.src.get_parent() is inst.pipeline)
+        self.assertEqual(inst.src.get_factory().get_name(), 'gnlcomposition')
 
         self.assertIsInstance(inst.mux, gst.Element)
         self.assertTrue(inst.mux.get_parent() is inst.pipeline)
@@ -512,7 +537,25 @@ class TestRenderer(TestCase):
         self.assertEqual(inst.sink.get_property('location'), dst)
 
 
-
 class TestAbusively(LiveTestCase):
     def test_canned(self):
-        pass
+        tmp = TempDir()
+        builder = DummyBuilder(docs)
+
+        job = {
+            'src': sequence3,
+            'muxer': {'name': 'oggmux'},
+            'video': {
+                'encoder': {'name': 'theoraenc'},
+                'filter': {
+                    'mime': 'video/x-raw-yuv',
+                    'caps': {
+                        'width': '640',
+                        'height': '360',
+                    },
+                },
+            },
+        }
+        dst = tmp.join('out1.ogv')
+        inst = renderer.Renderer(job, builder, dst)
+        inst.run()

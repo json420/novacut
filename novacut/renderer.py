@@ -27,8 +27,13 @@ Build GnonLin composition from Novacut edit description.
 # a bit of copy and paste to quickly get the render backend usable... then we'll
 # refine and consolidate with what's in dmedia.
 
+import logging
+
 import gst
 import gobject
+
+
+log = logging.getLogger()
 
 stream_map = {
     'video': 'video/x-raw-rgb',
@@ -53,8 +58,6 @@ def make_element(desc):
     40
 
     """
-    if isinstance(desc, basestring):
-        return gst.element_factory_make(desc)
     el = gst.element_factory_make(desc['name'])
     if desc.get('props'):
         for (key, value) in desc['props'].iteritems():
@@ -266,18 +269,18 @@ class Renderer(object):
         self.bus.connect('message::error', self.on_error)
 
         # Create elements
-        #self.src = build(job['node'])
+        self.src = builder.build(job['src'])
         self.mux = make_element(job['muxer'])
         self.sink = gst.element_factory_make('filesink')
 
         # Add elements to pipeline
-        self.pipeline.add(self.mux, self.sink)
+        self.pipeline.add(self.src, self.mux, self.sink)
 
         # Set properties
         self.sink.set_property('location', dst)
 
         # Connect handler for 'new-decoded-pad' signal
-        # self.src.connect('pad-added', self.on_pad_added)
+        self.src.connect('pad-added', self.on_pad_added)
 
         # Link *some* elements
         # This is completed in self.on_pad_added()
@@ -287,7 +290,7 @@ class Renderer(object):
         self.video = None
 
     def run(self):
-        self.pipeline.set_state(gst.STATE_PAUSED)
+        self.pipeline.set_state(gst.STATE_PLAYING)
         self.mainloop.run()
 
     def kill(self):
@@ -298,7 +301,7 @@ class Renderer(object):
     def link_pad(self, pad, name, key):
         log.info('link_pad: %r, %r, %r', pad, name, key)
         if key in self.job:
-            klass = {'audio': AudioTranscoder, 'video': VideoTranscoder}[key]
+            klass = {'audio': AudioEncoder, 'video': VideoEncoder}[key]
             el = klass(self.job[key])
         else:
             el = gst.element_factory_make('fakesink')
