@@ -153,19 +153,16 @@ class EncoderBin(gst.Bin):
     """
     Base class for `AudioEncoder` and `VideoEncoder`.
     """
+
     def __init__(self, d):
         super(EncoderBin, self).__init__()
         self._d = d
-        self._q1 = self._make('queue')
+
+        # Create elements
+        self._q1 = self._make('queue2')
+        self._q2 = self._make('queue2')
+        self._q3 = self._make('queue2')
         self._enc = self._make(d['enc'])
-        self._q2 = self._make('queue')
-        self._enc.link(self._q2)
-        self.add_pad(
-            gst.GhostPad('sink', self._q1.get_pad('sink'))
-        )
-        self.add_pad(
-            gst.GhostPad('src', self._q2.get_pad('src'))
-        )
 
         # Create the filter caps
         if d.get('caps') and d.get('mime'):
@@ -174,6 +171,22 @@ class EncoderBin(gst.Bin):
             )
         else:
             self._caps = None
+
+        # Link elements
+        if self._caps is None:
+            self._q2.link(self._enc)
+        else:
+            self._q2.link(self._enc, self._caps)
+        self._enc.link(self._q3)
+
+        # Ghost Pads
+        self.add_pad(
+            gst.GhostPad('sink', self._q1.get_pad('sink'))
+        )
+        self.add_pad(
+            gst.GhostPad('src', self._q3.get_pad('src'))
+        )
+
 
     def __repr__(self):
         return '{}({!r})'.format(self.__class__.__name__, self._d)
@@ -193,16 +206,12 @@ class AudioEncoder(EncoderBin):
     def __init__(self, d):
         super(AudioEncoder, self).__init__(d)
 
-        # Create processing elements:
+        # Create elements:
         self._conv = self._make('audioconvert')
         self._rsp = self._make('audioresample', {'quality': 10})
         self._rate = self._make('audiorate')
 
         # Link elements:
         self._q1.link(self._conv)
-        self._conv.link(self._rsp)
-        if self._caps is None:
-            self._rsp.link(self._rate)
-        else:
-            self._rsp.link(self._rate, self._caps)
-        self._rate.link(self._enc)
+        gst.element_link_many(self._conv, self._rsp, self._rate)
+        self._rate.link(self._q2)

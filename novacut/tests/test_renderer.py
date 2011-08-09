@@ -272,18 +272,15 @@ class TestEncodeBin(TestCase):
         inst = self.klass(d)
         self.assertTrue(inst._d is d)
 
-        self.assertTrue(inst._q1.get_parent() is inst)
-        self.assertTrue(isinstance(inst._q1, gst.Element))
-        self.assertEqual(inst._q1.get_factory().get_name(), 'queue')
+        for el in (inst._q1, inst._q2, inst._q3):
+            self.assertIsInstance(el, gst.Element)
+            self.assertTrue(el.get_parent() is inst)
+            self.assertEqual(el.get_factory().get_name(), 'queue2')
 
+        self.assertIsInstance(inst._enc, gst.Element)
         self.assertTrue(inst._enc.get_parent() is inst)
-        self.assertTrue(isinstance(inst._enc, gst.Element))
         self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
         self.assertEqual(inst._enc.get_property('quality'), 0.5)
-
-        self.assertTrue(inst._q2.get_parent() is inst)
-        self.assertTrue(isinstance(inst._q2, gst.Element))
-        self.assertEqual(inst._q2.get_factory().get_name(), 'queue')
 
         self.assertIsNone(inst._caps)
 
@@ -294,7 +291,7 @@ class TestEncodeBin(TestCase):
 
         self.assertTrue(inst._q1.get_parent() is inst)
         self.assertTrue(isinstance(inst._q1, gst.Element))
-        self.assertEqual(inst._q1.get_factory().get_name(), 'queue')
+        self.assertEqual(inst._q1.get_factory().get_name(), 'queue2')
 
         self.assertTrue(inst._enc.get_parent() is inst)
         self.assertTrue(isinstance(inst._enc, gst.Element))
@@ -303,7 +300,7 @@ class TestEncodeBin(TestCase):
 
         self.assertTrue(inst._q2.get_parent() is inst)
         self.assertTrue(isinstance(inst._q2, gst.Element))
-        self.assertEqual(inst._q2.get_factory().get_name(), 'queue')
+        self.assertEqual(inst._q2.get_factory().get_name(), 'queue2')
 
         self.assertIsNone(inst._caps)
 
