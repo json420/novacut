@@ -202,7 +202,6 @@ class EncoderBin(gst.Bin):
             gst.GhostPad('src', self._q3.get_pad('src'))
         )
 
-
     def __repr__(self):
         return '{}({!r})'.format(self.__class__.__name__, self._d)
 
@@ -227,6 +226,18 @@ class AudioEncoder(EncoderBin):
         self._rate = self._make('audiorate')
 
         # Link elements:
-        self._q1.link(self._conv)
-        gst.element_link_many(self._conv, self._rsp, self._rate)
-        self._rate.link(self._q2)
+        gst.element_link_many(
+            self._q1, self._conv, self._rsp, self._rate, self._q2
+        )
+
+
+class VideoEncoder(EncoderBin):
+    def __init__(self, d):
+        super(VideoEncoder, self).__init__(d)
+
+        # Create elements:
+        self._scale = self._make('ffvideoscale', {'method': 10})
+        self._color = self._make('ffmpegcolorspace')
+
+        # Link elements:
+        gst.element_link_many(self._q1, self._scale, self._color, self._q2)

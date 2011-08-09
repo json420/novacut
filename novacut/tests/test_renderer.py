@@ -447,6 +447,47 @@ class TestAudioEncoder(TestCase):
         self.assertEqual(inst._enc.get_property('quality'), 0.25)
 
 
+class TestVideoEncoder(TestCase):
+    def test_init(self):
+        d = {
+            'encoder': {
+                'name': 'theoraenc',
+                'props': {'quality': 40},
+            },
+        }
+        inst = renderer.VideoEncoder(d)
+        self.assertIsInstance(inst._enc, gst.Element)
+        self.assertTrue(inst._enc.get_parent() is inst)
+        self.assertEqual(inst._enc.get_factory().get_name(), 'theoraenc')
+        self.assertEqual(inst._enc.get_property('quality'), 40)
+        self.assertIsNone(inst._caps)
+
+        d = {
+            'encoder': {
+                'name': 'theoraenc',
+                'props': {'quality': 40},
+            },
+            'filter': {
+                'mime': 'video/x-raw-yuv',
+                'caps': {
+                    #'format': 'Y42B',  # FIXME: Hmm, why does this break it?
+                    'width': 960,
+                    'height': 540,
+                },
+            },
+        }
+        inst = renderer.VideoEncoder(d)
+        self.assertIsInstance(inst._enc, gst.Element)
+        self.assertTrue(inst._enc.get_parent() is inst)
+        self.assertEqual(inst._enc.get_factory().get_name(), 'theoraenc')
+        self.assertEqual(inst._enc.get_property('quality'), 40)
+        self.assertIsInstance(inst._caps, gst.Caps)
+        self.assertEqual(
+            inst._caps.to_string(),
+            'video/x-raw-yuv, height=(int)540, width=(int)960'
+        )
+
+
 class TestAbusively(LiveTestCase):
     def test_canned(self):
         pass
