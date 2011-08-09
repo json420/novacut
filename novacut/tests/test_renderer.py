@@ -262,9 +262,11 @@ class TestEncodeBin(TestCase):
     def test_init(self):
         # with props
         d = {
-            'enc': 'vorbisenc',
-            'props': {
-                'quality': 0.5,
+            'enc': {
+                'name': 'vorbisenc',
+                'props': {
+                    'quality': 0.5,
+                },
             },
         }
         inst = self.klass(d)
@@ -286,7 +288,7 @@ class TestEncodeBin(TestCase):
         self.assertIsNone(inst._caps)
 
         # default properties
-        d = {'enc': 'vorbisenc'}
+        d = {'enc': {'name': 'vorbisenc'}}
         inst = self.klass(d)
         self.assertTrue(inst._d is d)
 
@@ -307,7 +309,12 @@ class TestEncodeBin(TestCase):
 
         # with mime and caps
         d = {
-            'enc': 'vorbisenc',
+            'enc': {
+                'name': 'vorbisenc',
+                'props': {
+                    'quality': 0.5,
+                },
+            },
             'mime': 'audio/x-raw-float',
             'caps': {'rate': 44100, 'channels': 1},
         }
@@ -321,7 +328,12 @@ class TestEncodeBin(TestCase):
 
         # Test with caps but no mime:
         d = {
-            'enc': 'vorbisenc',
+            'enc': {
+                'name': 'vorbisenc',
+                'props': {
+                    'quality': 0.5,
+                },
+            },
             'caps': {'rate': 44100, 'channels': 1},
         }
         inst = self.klass(d)
@@ -329,7 +341,12 @@ class TestEncodeBin(TestCase):
 
         # Test with mime but no caps:
         d = {
-            'enc': 'vorbisenc',
+            'enc': {
+                'name': 'vorbisenc',
+                'props': {
+                    'quality': 0.5,
+                },
+            },
             'mime': 'audio/x-raw-float',
         }
         inst = self.klass(d)
@@ -381,9 +398,11 @@ class TestAudioEncoder(TestCase):
 
     def test_init(self):
         d = {
-            'enc': 'vorbisenc',
-            'props': {
-                'quality': 0.5,
+            'enc': {
+                'name': 'vorbisenc',
+                'props': {
+                    'quality': 0.5,
+                },
             },
         }
         inst = self.klass(d)
@@ -392,9 +411,11 @@ class TestAudioEncoder(TestCase):
         self.assertEqual(inst._enc.get_property('quality'), 0.5)
 
         d = {
-            'enc': 'vorbisenc',
+            'enc': {
+                'name': 'vorbisenc',
+                'props': {'quality': 0.25},
+            },
             'caps': {'rate': 44100},
-            'props': {'quality': 0.25},
         }
         inst = self.klass(d)
         self.assertTrue(isinstance(inst._enc, gst.Element))

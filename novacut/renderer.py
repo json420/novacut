@@ -36,7 +36,7 @@ stream_map = {
 }
 
 
-def make_element(d):
+def make_element(desc):
     """
     Create a GStreamer element and set its properties.
 
@@ -53,9 +53,9 @@ def make_element(d):
     40
 
     """
-    el = gst.element_factory_make(d['name'])
-    if d.get('props'):
-        for (key, value) in d['props'].iteritems():
+    el = gst.element_factory_make(desc['name'])
+    if desc.get('props'):
+        for (key, value) in desc['props'].iteritems():
             el.set_property(key, value)
     return el
 
@@ -157,7 +157,7 @@ class EncoderBin(gst.Bin):
         super(EncoderBin, self).__init__()
         self._d = d
         self._q1 = self._make('queue')
-        self._enc = self._make(d['enc'], d.get('props'))
+        self._enc = self._make(d['enc'])
         self._q2 = self._make('queue')
         self._enc.link(self._q2)
         self.add_pad(
@@ -175,20 +175,18 @@ class EncoderBin(gst.Bin):
         else:
             self._caps = None
 
-
     def __repr__(self):
         return '{}({!r})'.format(self.__class__.__name__, self._d)
 
-    def _make(self, name, props=None):
+    def _make(self, desc, props=None):
         """
         Create gst element, set properties, and add to this bin.
         """
-        element = gst.element_factory_make(name)
-        if props:
-            for (key, value) in props.iteritems():
-                element.set_property(key, value)
-        self.add(element)
-        return element
+        if isinstance(desc, basestring):
+            desc = {'name': desc, 'props': props}
+        el = make_element(desc)
+        self.add(el)
+        return el
 
 
 class AudioEncoder(EncoderBin):
