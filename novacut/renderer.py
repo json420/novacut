@@ -23,10 +23,9 @@
 Build GnonLin composition from Novacut edit description.
 """
 
-# FIXME: Some of this is duplicated in dmedia's transcoder (and will be once we
-# move to direct gst thumbnailer and extractor).  For now we're doing a bit of
-# copy and paste to quickly get the render backend usable... then will refine
-# and consolidate with what's in dmedia.
+# FIXME: Some of this is duplicated in dmedia's transcoder.  For now we're doing
+# a bit of copy and paste to quickly get the render backend usable... then we'll
+# refine and consolidate with what's in dmedia.
 
 import gst
 
@@ -60,19 +59,40 @@ def make_element(desc):
     return el
 
 
-def caps_string(mime, caps):
+def caps_string(desc):
     """
     Build a GStreamer caps string.
 
     For example:
 
-    >>> caps_string('video/x-raw-yuv', {'width': 800, 'height': 450})
+    >>> desc = {'mime': 'video/x-raw-yuv'}
+    >>> caps_string(desc)
+    'video/x-raw-yuv'
+
+    Or with specific caps:
+
+    >>> desc = {
+    ...     'mime': 'video/x-raw-yuv',
+    ...     'caps': {'width': 800, 'height': 450},
+    ... }
+    ...
+    >>> caps_string(desc)
     'video/x-raw-yuv, height=450, width=800'
+
     """
-    accum = [mime]
-    for key in sorted(caps):
-        accum.append('{}={}'.format(key, caps[key]))
+    accum = [desc['mime']]
+    if desc.get('caps'):
+        caps = desc['caps']
+        for key in sorted(caps):
+            accum.append('{}={}'.format(key, caps[key]))
     return ', '.join(accum)
+
+
+def make_caps(desc):
+    if not desc:
+        return None
+    return gst.caps_from_string(caps_string(desc))
+
 
 
 def to_gst_time(spec, doc):
@@ -165,12 +185,7 @@ class EncoderBin(gst.Bin):
         self._enc = self._make(d['enc'])
 
         # Create the filter caps
-        if d.get('caps') and d.get('mime'):
-            self._caps = gst.caps_from_string(
-                caps_string(d['mime'], d['caps'])
-            )
-        else:
-            self._caps = None
+        self._caps = make_caps(d.get('filter'))
 
         # Link elements
         if self._caps is None:

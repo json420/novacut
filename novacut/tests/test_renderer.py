@@ -167,17 +167,65 @@ class TestFunctions(TestCase):
 
     def test_caps_string(self):
         f = renderer.caps_string
+
+        d = {'mime': 'audio/x-raw-float'}
         self.assertEqual(
-            f('audio/x-raw-float', {}),
+            f(d),
             'audio/x-raw-float'
         )
+
+        d = {
+            'mime': 'audio/x-raw-float',
+            'caps': {'rate': 44100},
+        }
         self.assertEqual(
-            f('audio/x-raw-float', {'rate': 44100}),
+            f(d),
             'audio/x-raw-float, rate=44100'
         )
+
+        d = {
+            'mime': 'audio/x-raw-float',
+            'caps': {'rate': 44100, 'channels': 1},
+        }
         self.assertEqual(
-            f('audio/x-raw-float', {'rate': 44100, 'channels': 1}),
+            f(d),
             'audio/x-raw-float, channels=1, rate=44100'
+        )
+
+    def test_make_caps(self):
+        f = renderer.make_caps
+
+        self.assertIsNone(f({}))
+        self.assertIsNone(f(None))
+
+        d = {'mime': 'audio/x-raw-float'}
+        c = f(d)
+        self.assertIsInstance(c, gst.Caps)
+        self.assertEqual(
+            c.to_string(),
+            'audio/x-raw-float'
+        )
+
+        d = {
+            'mime': 'audio/x-raw-float',
+            'caps': {'rate': 44100},
+        }
+        c = f(d)
+        self.assertIsInstance(c, gst.Caps)
+        self.assertEqual(
+            c.to_string(),
+            'audio/x-raw-float, rate=(int)44100'
+        )
+
+        d = {
+            'mime': 'audio/x-raw-float',
+            'caps': {'rate': 44100, 'channels': 1},
+        }
+        c = f(d)
+        self.assertIsInstance(c, gst.Caps)
+        self.assertEqual(
+            c.to_string(),
+            'audio/x-raw-float, channels=(int)1, rate=(int)44100'
         )
 
     def test_build_slice(self):
@@ -312,8 +360,10 @@ class TestEncodeBin(TestCase):
                     'quality': 0.5,
                 },
             },
-            'mime': 'audio/x-raw-float',
-            'caps': {'rate': 44100, 'channels': 1},
+            'filter': {
+                'mime': 'audio/x-raw-float',
+                'caps': {'rate': 44100, 'channels': 1},
+            },
         }
         inst = self.klass(d)
         self.assertTrue(inst._d is d)
@@ -322,32 +372,6 @@ class TestEncodeBin(TestCase):
             inst._caps.to_string(),
             'audio/x-raw-float, channels=(int)1, rate=(int)44100'
         )
-
-        # Test with caps but no mime:
-        d = {
-            'enc': {
-                'name': 'vorbisenc',
-                'props': {
-                    'quality': 0.5,
-                },
-            },
-            'caps': {'rate': 44100, 'channels': 1},
-        }
-        inst = self.klass(d)
-        self.assertIsNone(inst._caps)
-
-        # Test with mime but no caps:
-        d = {
-            'enc': {
-                'name': 'vorbisenc',
-                'props': {
-                    'quality': 0.5,
-                },
-            },
-            'mime': 'audio/x-raw-float',
-        }
-        inst = self.klass(d)
-        self.assertIsNone(inst._caps)
 
     def test_repr(self):
         d = {
@@ -412,7 +436,10 @@ class TestAudioEncoder(TestCase):
                 'name': 'vorbisenc',
                 'props': {'quality': 0.25},
             },
-            'caps': {'rate': 44100},
+            'filter': {
+                'mime': 'audio/x-raw-float',
+                'caps': {'rate': 44100},
+            },
         }
         inst = self.klass(d)
         self.assertTrue(isinstance(inst._enc, gst.Element))
