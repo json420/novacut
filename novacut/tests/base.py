@@ -32,16 +32,17 @@ from unittest import TestCase
 
 
 # FIXME: This will be improved by using dmedia to hold sample videos
+
 home = path.abspath(os.environ['HOME'])
 testdir = path.join(home, '.novacut-test-files')
-sample_id = 'NPY3IW5SQJUNSP2KV47GVB24G7SWX6XF'
-sample_name = sample_id + '.mov'
-sample_file = path.join(testdir, sample_name)
-sample_url = 'http://uds-o.novacut.com/' + sample_name
-
 
 def resolve(_id):
     return path.join(testdir, _id + '.mov')
+
+sample_url = 'http://uds-o.novacut.com/'
+
+sample1 = 'NPY3IW5SQJUNSP2KV47GVB24G7SWX6XF'
+sample2 = 'ENN6AVN2M42ZQULASQNKTTDISIL3YKHE'
 
 
 class TempDir(object):
@@ -98,8 +99,10 @@ class LiveTestCase(TestCase):
     If the needed files are not available, the tests are skipped.
     """
 
-    sample_file = sample_file
+    samples = (sample1, sample2)
 
     def setUp(self):
-        if not path.isfile(self.sample_file):
-            self.skipTest('missing {!r}'.format(self.sample_file))
+        for _id in self.samples:
+            f = resolve(_id)
+            if not path.isfile(f):
+                self.skipTest('missing {!r}'.format(f))

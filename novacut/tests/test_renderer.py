@@ -30,7 +30,7 @@ import gst
 from novacut.schema import random_id
 from novacut import renderer
 
-from .base import LiveTestCase, TempDir, resolve, sample_id
+from .base import LiveTestCase, TempDir, resolve, sample1, sample2
 
 
 clip1 = random_id()
@@ -46,7 +46,14 @@ sequence3 = random_id()
 
 docs = [
     {
-        '_id': sample_id,
+        '_id': sample1,
+        'type': 'dmedia/file',
+        'framerate': {'num': 25, 'denom': 1},
+        'samplerate': 48000,
+    },
+
+    {
+        '_id': sample2,
         'type': 'dmedia/file',
         'framerate': {'num': 25, 'denom': 1},
         'samplerate': 48000,
@@ -56,11 +63,11 @@ docs = [
         '_id': slice4,
         'type': 'novacut/node',
         'node': {
-            'src': sample_id,
+            'src': sample2,
             'type': 'slice',
             'stream': 'video',
-            'start': {'frame': 6 * 25},
-            'stop': {'frame': 10 * 25},
+            'start': {'frame': 3 * 25},
+            'stop': {'frame': 5 * 25},
         },
     },
 
@@ -68,7 +75,7 @@ docs = [
         '_id': slice5,
         'type': 'novacut/node',
         'node': {
-            'src': sample_id,
+            'src': sample1,
             'type': 'slice',
             'stream': 'video',
             'start': {'frame': 18 * 25},

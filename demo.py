@@ -21,13 +21,70 @@
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
+from novacut.schema import random_id
 from novacut.renderer import Renderer
-from novacut.tests.test_renderer import DummyBuilder, docs, sequence3
+from novacut.tests.test_renderer import DummyBuilder, sample1, sample2
 
-b = DummyBuilder(docs)
+docs = [
+    {
+        '_id': sample1,
+        'type': 'dmedia/file',
+        'framerate': {'num': 25, 'denom': 1},
+        'samplerate': 48000,
+    },
+
+    {
+        '_id': sample2,
+        'type': 'dmedia/file',
+        'framerate': {'num': 25, 'denom': 1},
+        'samplerate': 48000,
+    },
+]
+
+start_frames = {
+    sample1: 200,
+    sample2: 75,
+}
+
+
+slices = []
+offset = 0
+for dur in (50, 38, 25, 15):
+    for src in (sample2, sample1):
+        origin = start_frames[src]
+        _id = random_id()
+        doc = {
+            '_id': _id,
+            'type': 'novacut/node',
+            'node': {
+                'src': src,
+                'type': 'slice',
+                'stream': 'video',
+                'start': {'frame': origin + offset},
+                'stop': {'frame': origin + offset + dur},
+            },
+        }
+        slices.append(_id)
+        docs.append(doc)
+        offset += dur
+
+
+sequence_id = random_id()
+docs.append(
+    {
+        '_id': sequence_id,
+        'type': 'novacut/node',
+        'node': {
+            'type': 'sequence',
+            'src': slices,
+        },
+    }
+)
+
+
 
 job = {
-    'src': sequence3,
+    'src': sequence_id,
     'muxer': {'name': 'oggmux'},
     'video': {
         'encoder': {'name': 'theoraenc'},
@@ -41,5 +98,7 @@ job = {
     },
 }
 
-r = Renderer(job, b, 'demo.ogv')
+
+b = DummyBuilder(docs)
+r = Renderer(job, b, 'tmp-demo.ogv')
 r.run()

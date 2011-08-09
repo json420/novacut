@@ -2,8 +2,9 @@ We need to agresively test Novacut with a large number of real files from HDSLR
 cameras.  However, we don't want to put these files themselves under version
 control as we don't want the tree to be hundreds of GB.  The solution is to use
 dmedia to store the test files.  This will be done soon, but for now, here is
-how to get the needed test file:
+how to get the needed test files:
 
     mkdir ~/.novacut-test-files
     cd ~/.novacut-test-files
     wget http://uds-o.novacut.com/NPY3IW5SQJUNSP2KV47GVB24G7SWX6XF.mov
+    wget http://uds-o.novacut.com/ENN6AVN2M42ZQULASQNKTTDISIL3YKHE.mov
