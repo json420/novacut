@@ -488,6 +488,31 @@ class TestVideoEncoder(TestCase):
         )
 
 
+class TestRenderer(TestCase):
+    def test_init(self):
+        tmp = TempDir()
+
+        slice1 = random_id()
+        slice2 = random_id()
+        sequence1 = random_id()
+
+        job = {
+            'muxer': {'name': 'oggmux'},
+        }
+        dst = tmp.join('out1.ogv')
+        inst = renderer.Renderer(job, None, dst)
+
+        self.assertIsInstance(inst.mux, gst.Element)
+        self.assertTrue(inst.mux.get_parent() is inst.pipeline)
+        self.assertEqual(inst.mux.get_factory().get_name(), 'oggmux')
+
+        self.assertIsInstance(inst.sink, gst.Element)
+        self.assertTrue(inst.sink.get_parent() is inst.pipeline)
+        self.assertEqual(inst.sink.get_factory().get_name(), 'filesink')
+        self.assertEqual(inst.sink.get_property('location'), dst)
+
+
+
 class TestAbusively(LiveTestCase):
     def test_canned(self):
         pass

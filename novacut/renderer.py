@@ -28,6 +28,7 @@ Build GnonLin composition from Novacut edit description.
 # refine and consolidate with what's in dmedia.
 
 import gst
+import gobject
 
 stream_map = {
     'video': 'video/x-raw-rgb',
@@ -52,6 +53,8 @@ def make_element(desc):
     40
 
     """
+    if isinstance(desc, basestring):
+        return gst.element_factory_make(desc)
     el = gst.element_factory_make(desc['name'])
     if desc.get('props'):
         for (key, value) in desc['props'].iteritems():
@@ -241,3 +244,88 @@ class VideoEncoder(EncoderBin):
 
         # Link elements:
         gst.element_link_many(self._q1, self._scale, self._color, self._q2)
+
+
+class Renderer(object):
+    def __init__(self, job, builder, dst):
+        """
+        Initialize.
+
+        :param job: a ``dict`` describing the transcode to perform.
+        :param fs: a `FileStore` instance in which to store transcoded file
+        """
+        self.job = job
+        self.builder = builder
+        self.mainloop = gobject.MainLoop()
+        self.pipeline = gst.Pipeline()
+
+        # Create bus and connect several handlers
+        self.bus = self.pipeline.get_bus()
+        self.bus.add_signal_watch()
+        self.bus.connect('message::eos', self.on_eos)
+        self.bus.connect('message::error', self.on_error)
+
+        # Create elements
+        #self.src = build(job['node'])
+        self.mux = make_element(job['muxer'])
+        self.sink = gst.element_factory_make('filesink')
+
+        # Add elements to pipeline
+        self.pipeline.add(self.mux, self.sink)
+
+        # Set properties
+        self.sink.set_property('location', dst)
+
+        # Connect handler for 'new-decoded-pad' signal
+        # self.src.connect('pad-added', self.on_pad_added)
+
+        # Link *some* elements
+        # This is completed in self.on_pad_added()
+        self.mux.link(self.sink)
+
+        self.audio = None
+        self.video = None
+
+    def run(self):
+        self.pipeline.set_state(gst.STATE_PAUSED)
+        self.mainloop.run()
+
+    def kill(self):
+        self.pipeline.set_state(gst.STATE_NULL)
+        self.pipeline.get_state()
+        self.mainloop.quit()
+
+    def link_pad(self, pad, name, key):
+        log.info('link_pad: %r, %r, %r', pad, name, key)
+        if key in self.job:
+            klass = {'audio': AudioTranscoder, 'video': VideoTranscoder}[key]
+            el = klass(self.job[key])
+        else:
+            el = gst.element_factory_make('fakesink')
+        self.pipeline.add(el)
+        log.info('Linking pad %r with %r', name, el)
+        pad.link(el.get_compatible_pad(pad, pad.get_caps()))
+        if key in self.job:
+            el.link(self.mux)
+        el.set_state(gst.STATE_PLAYING)
+        self.pipeline.set_state(gst.STATE_PLAYING)
+        return el
+
+    def on_pad_added(self, element, pad):
+        name = pad.get_caps()[0].get_name()
+        log.debug('pad-added: %r', name)
+        if name.startswith('audio/'):
+            assert self.audio is None
+            self.audio = self.link_pad(pad, name, 'audio')
+        elif name.startswith('video/'):
+            assert self.video is None
+            self.video = self.link_pad(pad, name, 'video')
+
+    def on_eos(self, bus, msg):
+        log.info('eos')
+        self.kill()
+
+    def on_error(self, bus, msg):
+        error = msg.parse_error()[1]
+        log.error(error)
+        self.kill()
