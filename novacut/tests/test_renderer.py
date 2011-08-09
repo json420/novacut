@@ -144,6 +144,27 @@ class DummyBuilder(renderer.Builder):
 
 
 class TestFunctions(TestCase):
+    def test_make_element(self):
+        d = {'name': 'theoraenc'}
+        el = renderer.make_element(d)
+        self.assertIsInstance(el, gst.Element)
+        self.assertEqual(el.get_factory().get_name(), 'theoraenc')
+        self.assertEqual(el.get_property('keyframe-force'), 64)
+        self.assertEqual(el.get_property('quality'), 48)
+
+        d = {
+            'name': 'theoraenc',
+            'props': {
+                'quality': 40,
+                'keyframe-force': 16,
+            },
+        }
+        el = renderer.make_element(d)
+        self.assertIsInstance(el, gst.Element)
+        self.assertEqual(el.get_factory().get_name(), 'theoraenc')
+        self.assertEqual(el.get_property('keyframe-force'), 16)
+        self.assertEqual(el.get_property('quality'), 40)
+
     def test_caps_string(self):
         f = renderer.caps_string
         self.assertEqual(

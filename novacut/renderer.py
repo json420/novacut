@@ -36,6 +36,30 @@ stream_map = {
 }
 
 
+def make_element(d):
+    """
+    Create a GStreamer element and set its properties.
+
+    For example:
+
+    >>> enc = make_element({'name': 'theoraenc'})
+    >>> enc.get_property('quality')
+    48
+
+    Or with properties:
+
+    >>> enc = make_element({'name': 'theoraenc', 'props': {'quality': 40}})
+    >>> enc.get_property('quality')
+    40
+
+    """
+    el = gst.element_factory_make(d['name'])
+    if d.get('props'):
+        for (key, value) in d['props'].iteritems():
+            el.set_property(key, value)
+    return el
+
+
 def caps_string(mime, caps):
     """
     Build a GStreamer caps string.
