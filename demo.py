@@ -38,40 +38,39 @@ docs = [
         'samplerate': 48000,
     },
 
-    {
-        '_id': sample2,
-        'type': 'dmedia/file',
-        'framerate': {'num': 25, 'denom': 1},
-        'samplerate': 48000,
-    },
 ]
 
-start_frames = {
-    sample1: 180,
-    sample2: 68,
-}
+
+def make_slice(start):
+    return {
+        '_id': random_id(),
+        'type': 'novacut/node',
+        'node': {
+            'src': sample1,
+            'type': 'slice',
+            'stream': 'video',
+            'start': {'frame': start},
+            'stop': {'frame': start + 1},
+        },
+    }
 
 
+frame = 200
 slices = []
-offset = 0
-for dur in (50, 38, 25, 15):
-    for src in (sample2, sample1):
-        origin = start_frames[src]
-        _id = random_id()
-        doc = {
-            '_id': _id,
-            'type': 'novacut/node',
-            'node': {
-                'src': src,
-                'type': 'slice',
-                'stream': 'video',
-                'start': {'frame': origin + offset},
-                'stop': {'frame': origin + offset + dur},
-            },
-        }
-        slices.append(_id)
+for loop in xrange(4):
+    for i in xrange(45):
+        frame += 1
+        doc = make_slice(frame)
         docs.append(doc)
-        offset += dur
+        slices.append(doc['_id'])
+    for i in xrange(20):
+        frame -= 1
+        doc = make_slice(frame)
+        docs.append(doc)
+        slices.append(doc['_id'])
+
+
+
 
 
 sequence_id = random_id()
@@ -97,14 +96,14 @@ render = {
             'encoder': {
                 'name': 'theoraenc',
                 'props': {
-                    'quality': 44,
+                    'quality': 52,
                 },
             },
             'filter': {
                 'mime': 'video/x-raw-yuv',
                 'caps': {
-                    'width': 960,
-                    'height': 540,
+                    'width': 1280,
+                    'height': 720,
                 },
             },
         },
@@ -120,3 +119,4 @@ r.run()
 docs.reverse()
 fp = open(path.join(tree, 'tmp-demo.json'), 'wb')
 json.dump(docs, fp, sort_keys=True, indent=4)
+print len(docs)
