@@ -113,10 +113,10 @@ def to_gst_time(spec, doc):
     ...     'samplerate': 48000,
     ... }
     ...
-    >>> to_gst_time({'frame': 48}, doc)
-    2000000000
-    >>> to_gst_time({'sample': 96000}, doc)
-    2000000000
+    >>> to_gst_time({'frame': 48}, doc)  #doctest: +ELLIPSIS
+    2000000000...
+    >>> to_gst_time({'sample': 96000}, doc)  #doctest: +ELLIPSIS
+    2000000000...
 
     """
     if 'frame' in spec:
