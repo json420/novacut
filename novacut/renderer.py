@@ -185,9 +185,9 @@ class EncoderBin(gst.Bin):
         self._d = d
 
         # Create elements
-        self._q1 = self._make('queue2')
-        self._q2 = self._make('queue2')
-        self._q3 = self._make('queue2')
+        self._q1 = self._make('queue')
+        self._q2 = self._make('queue')
+        self._q3 = self._make('queue')
         self._enc = self._make(d['encoder'])
 
         # Create the filter caps
