@@ -1,0 +1,3 @@
+include COPYING HACKING.txt demo.py
+include novacut/tests/*.py
+include concept_image/*.jpg
