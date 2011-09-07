@@ -267,7 +267,7 @@ class Renderer(object):
         """
         self.job = job
         self.builder = builder
-        self.mainloop = gobject.MainLoop()
+        self.mainloop = GObject.MainLoop()
         self.pipeline = Gst.Pipeline()
 
         # Create bus and connect several handlers
