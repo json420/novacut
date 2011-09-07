@@ -282,7 +282,9 @@ class Renderer(object):
         self.sink = Gst.ElementFactory.make('filesink', None)
 
         # Add elements to pipeline
-        self.pipeline.add(self.src, self.mux, self.sink)
+        self.pipeline.add(self.src)
+        self.pipeline.add(self.mux)
+        self.pipeline.add(self.sink)
 
         # Set properties
         self.sink.set_property('location', dst)
