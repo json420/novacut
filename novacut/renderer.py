@@ -235,9 +235,10 @@ class AudioEncoder(EncoderBin):
         self._rate = self._make('audiorate')
 
         # Link elements:
-        Gst.element_link_many(
-            self._q1, self._conv, self._rsp, self._rate, self._q2
-        )
+        self._q1.link(self._conv)
+        self._conv.link(self._rsp)
+        self._rsp.link(self._rate)
+        self._rate.link(self._q2)
 
 
 class VideoEncoder(EncoderBin):
@@ -250,7 +251,10 @@ class VideoEncoder(EncoderBin):
         self._rate = self._make('videorate')
 
         # Link elements:
-        Gst.element_link_many(self._q1, self._scale, self._color, self._rate, self._q2)
+        self._q1.link(self._scale)
+        self._scale.link(self._color)
+        self._color.link(self._rate)
+        self._rate.link(self._q2)
 
 
 class Renderer(object):
