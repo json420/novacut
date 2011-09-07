@@ -200,7 +200,7 @@ class EncoderBin(Gst.Bin):
         if self._caps is None:
             self._q2.link(self._enc)
         else:
-            self._q2.link(self._enc, self._caps)
+            self._q2.link_filtered(self._enc, self._caps)
         self._enc.link(self._q3)
 
         # Ghost Pads
