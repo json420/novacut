@@ -32,7 +32,11 @@ import logging
 from gi.repository import GObject, Gst
 
 
+Gst.init(None)
+SECOND = 1000000000  # FIXME: Workaround for broken SECOND
 log = logging.getLogger()
+
+
 
 stream_map = {
     'video': 'video/x-raw-rgb',
@@ -57,7 +61,7 @@ def make_element(desc):
     40
 
     """
-    el = Gst.ElementFactory.make(desc['name'])
+    el = Gst.ElementFactory.make(desc['name'], None)
     if desc.get('props'):
         for (key, value) in desc['props'].iteritems():
             el.set_property(key, value)
@@ -121,16 +125,16 @@ def to_gst_time(spec, doc):
     if 'frame' in spec:
         num = doc['framerate']['num']
         denom = doc['framerate']['denom']
-        return spec['frame'] * Gst.SECOND * denom / num
+        return spec['frame'] * SECOND * denom / num
     if 'sample' in spec:
         rate = doc['samplerate']
-        return spec['sample'] * Gst.SECOND / rate
+        return spec['sample'] * SECOND / rate
     raise ValueError('invalid time spec: {!r}'.format(spec))
 
 
 def build_slice(doc, builder):
     src = builder.get_doc(doc['node']['src'])
-    el = Gst.ElementFactory.make('gnlfilesource')
+    el = Gst.ElementFactory.make('gnlfilesource', None)
     start = to_gst_time(doc['node']['start'], src)
     stop = to_gst_time(doc['node']['stop'], src)
     duration = stop - start
@@ -144,7 +148,7 @@ def build_slice(doc, builder):
 
 
 def build_sequence(doc, builder):
-    el = Gst.ElementFactory.make('gnlcomposition')
+    el = Gst.ElementFactory.make('gnlcomposition', None)
     start = 0
     for src in doc['node']['src']:
         child = builder.build(src)
@@ -271,7 +275,7 @@ class Renderer(object):
         # Create elements
         self.src = builder.build(job['src'])
         self.mux = make_element(job['muxer'])
-        self.sink = Gst.ElementFactory.make('filesink')
+        self.sink = Gst.ElementFactory.make('filesink', None)
 
         # Add elements to pipeline
         self.pipeline.add(self.src, self.mux, self.sink)
@@ -304,7 +308,7 @@ class Renderer(object):
             klass = {'audio': AudioEncoder, 'video': VideoEncoder}[key]
             el = klass(self.job[key])
         else:
-            el = Gst.ElementFactory.make('fakesink')
+            el = Gst.ElementFactory.make('fakesink', None)
         self.pipeline.add(el)
         log.info('Linking pad %r with %r', name, el)
         pad.link(el.get_compatible_pad(pad, pad.get_caps()))

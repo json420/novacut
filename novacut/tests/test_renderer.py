@@ -29,6 +29,7 @@ from gi.repository import Gst
 
 from novacut.schema import random_id
 from novacut import renderer
+from novacut.renderer import SECOND
 
 from .base import LiveTestCase, TempDir, resolve, sample1, sample2
 
@@ -285,9 +286,9 @@ class TestFunctions(TestCase):
         el = renderer.build_slice(doc, b)
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlfilesource')
-        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
-        self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('media-start'), 8 * SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * SECOND)
         self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw-rgb')
         self.assertEqual(el.get_property('location'), resolve(clip1))
 
@@ -296,9 +297,9 @@ class TestFunctions(TestCase):
         el = renderer.build_slice(doc, b)
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlfilesource')
-        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
-        self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('media-start'), 8 * SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * SECOND)
         self.assertEqual(
             el.get_property('caps').to_string(),
             'audio/x-raw-int; audio/x-raw-float'
@@ -318,9 +319,9 @@ class TestFunctions(TestCase):
         el = renderer.build_slice(doc, b)
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlfilesource')
-        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
-        self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('media-start'), 8 * SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * SECOND)
         self.assertEqual(
             el.get_property('caps').to_string(),
             'video/x-raw-rgb'
@@ -333,17 +334,17 @@ class TestFunctions(TestCase):
         el = renderer.build_sequence(b.get_doc(sequence1), b)
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
-        self.assertEqual(el.get_property('duration'), 7 * Gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 7 * SECOND)
 
         el = b.build(sequence1)
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
-        self.assertEqual(el.get_property('duration'), 7 * Gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 7 * SECOND)
 
         el = b.build(sequence2)
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
-        self.assertEqual(el.get_property('duration'), 9 * Gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 9 * SECOND)
 
 
 class TestEncodeBin(TestCase):
