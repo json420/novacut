@@ -300,11 +300,11 @@ class Renderer(object):
         self.video = None
 
     def run(self):
-        self.pipeline.set_state(Gst.STATE_PLAYING)
+        self.pipeline.set_state(Gst.State.PLAYING)
         self.mainloop.run()
 
     def kill(self):
-        self.pipeline.set_state(Gst.STATE_NULL)
+        self.pipeline.set_state(Gst.State.NULL)
         self.pipeline.get_state()
         self.mainloop.quit()
 
@@ -320,7 +320,7 @@ class Renderer(object):
         pad.link(el.get_compatible_pad(pad, pad.get_caps()))
         if key in self.job:
             el.link(self.mux)
-        el.set_state(Gst.STATE_PLAYING)
+        el.set_state(Gst.State.PLAYING)
         return el
 
     def on_pad_added(self, element, pad):
