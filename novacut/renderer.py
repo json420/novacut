@@ -324,7 +324,7 @@ class Renderer(object):
         return el
 
     def on_pad_added(self, element, pad):
-        name = pad.get_caps()[0].get_name()
+        name = pad.get_caps().to_string()
         log.debug('pad-added: %r', name)
         if name.startswith('audio/'):
             assert self.audio is None
