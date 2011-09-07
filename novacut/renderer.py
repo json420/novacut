@@ -205,10 +205,10 @@ class EncoderBin(Gst.Bin):
 
         # Ghost Pads
         self.add_pad(
-            Gst.GhostPad('sink', self._q1.get_pad('sink'))
+            Gst.GhostPad.new('sink', self._q1.get_pad('sink'))
         )
         self.add_pad(
-            Gst.GhostPad('src', self._q3.get_pad('src'))
+            Gst.GhostPad.new('src', self._q3.get_pad('src'))
         )
 
     def __repr__(self):
