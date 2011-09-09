@@ -130,21 +130,10 @@ from os import urandom
 from base64 import b32encode
 import re
 
+from microfiber import random_id
+
 
 DIGEST_BYTES = 30
-
-
-def random_id():
-    """
-    Returns a 120-bit base32-encoded random ID.
-
-    The ID will be 24-characters long, URL and filesystem safe.  For example:
-
-    >>> random_id()  #doctest: +SKIP
-    'OVRHK3TUOUQCWIDMNFXGC4TP'
-
-    """
-    return b32encode(urandom(15))
 
 
 # Some private helper functions that don't directly define any schema.
@@ -266,7 +255,7 @@ def _isinstance(value, label, allowed):
     >>> _isinstance('18', "doc['bytes']", int)
     Traceback (most recent call last):
       ...
-    TypeError: doc['bytes']: need a <type 'int'>; got a <type 'str'>: '18'
+    TypeError: doc['bytes']: need a <class 'int'>; got a <class 'str'>: '18'
 
     """
     if not isinstance(value, allowed):
@@ -327,7 +316,7 @@ def _check_if_exists(doc, path, allowed, *checks):
     >>> _check_if_exists(doc, ['name'], str)
     Traceback (most recent call last):
       ...
-    TypeError: doc['name']: need a <type 'str'>; got a <type 'int'>: 17
+    TypeError: doc['name']: need a <class 'str'>; got a <class 'int'>: 17
 
 
     See also `_check()` and `_exists()`.

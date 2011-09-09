@@ -63,7 +63,7 @@ def make_element(desc):
     """
     el = Gst.ElementFactory.make(desc['name'], None)
     if desc.get('props'):
-        for (key, value) in desc['props'].iteritems():
+        for (key, value) in desc['props'].items():
             el.set_property(key, value)
     return el
 
@@ -125,10 +125,10 @@ def to_gst_time(spec, doc):
     if 'frame' in spec:
         num = doc['framerate']['num']
         denom = doc['framerate']['denom']
-        return spec['frame'] * SECOND * denom / num
+        return spec['frame'] * SECOND * denom // num
     if 'sample' in spec:
         rate = doc['samplerate']
-        return spec['sample'] * SECOND / rate
+        return spec['sample'] * SECOND // rate
     raise ValueError('invalid time spec: {!r}'.format(spec))
 
 
@@ -218,7 +218,7 @@ class EncoderBin(Gst.Bin):
         """
         Create gst element, set properties, and add to this bin.
         """
-        if isinstance(desc, basestring):
+        if isinstance(desc, str):
             desc = {'name': desc, 'props': props}
         el = make_element(desc)
         self.add(el)
