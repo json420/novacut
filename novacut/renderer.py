@@ -29,11 +29,14 @@ Build GnonLin composition from Novacut edit description.
 
 import logging
 
-import gst
-import gobject
+from gi.repository import GObject, Gst
 
 
+Gst.init(None)
+SECOND = 1000000000  # FIXME: Workaround for broken Gst.SECOND
 log = logging.getLogger()
+
+
 
 stream_map = {
     'video': 'video/x-raw-rgb',
@@ -58,7 +61,7 @@ def make_element(desc):
     40
 
     """
-    el = gst.element_factory_make(desc['name'])
+    el = Gst.ElementFactory.make(desc['name'], None)
     if desc.get('props'):
         for (key, value) in desc['props'].iteritems():
             el.set_property(key, value)
@@ -97,7 +100,7 @@ def caps_string(desc):
 def make_caps(desc):
     if not desc:
         return None
-    return gst.caps_from_string(caps_string(desc))
+    return Gst.caps_from_string(caps_string(desc))
 
 
 
@@ -122,16 +125,16 @@ def to_gst_time(spec, doc):
     if 'frame' in spec:
         num = doc['framerate']['num']
         denom = doc['framerate']['denom']
-        return spec['frame'] * gst.SECOND * denom / num
+        return spec['frame'] * SECOND * denom / num
     if 'sample' in spec:
         rate = doc['samplerate']
-        return spec['sample'] * gst.SECOND / rate
+        return spec['sample'] * SECOND / rate
     raise ValueError('invalid time spec: {!r}'.format(spec))
 
 
 def build_slice(doc, builder):
     src = builder.get_doc(doc['node']['src'])
-    el = gst.element_factory_make('gnlfilesource')
+    el = Gst.ElementFactory.make('gnlfilesource', None)
     start = to_gst_time(doc['node']['start'], src)
     stop = to_gst_time(doc['node']['stop'], src)
     duration = stop - start
@@ -139,13 +142,13 @@ def build_slice(doc, builder):
     el.set_property('media-duration', duration)
     el.set_property('duration', duration)
     stream = doc['node']['stream']
-    el.set_property('caps', gst.caps_from_string(stream_map[stream]))
+    el.set_property('caps', Gst.caps_from_string(stream_map[stream]))
     el.set_property('location', builder.resolve_file(src['_id']))
     return el
 
 
 def build_sequence(doc, builder):
-    el = gst.element_factory_make('gnlcomposition')
+    el = Gst.ElementFactory.make('gnlcomposition', None)
     start = 0
     for src in doc['node']['src']:
         child = builder.build(src)
@@ -175,7 +178,7 @@ class Builder(object):
         pass
 
 
-class EncoderBin(gst.Bin):
+class EncoderBin(Gst.Bin):
     """
     Base class for `AudioEncoder` and `VideoEncoder`.
     """
@@ -197,15 +200,15 @@ class EncoderBin(gst.Bin):
         if self._caps is None:
             self._q2.link(self._enc)
         else:
-            self._q2.link(self._enc, self._caps)
+            self._q2.link_filtered(self._enc, self._caps)
         self._enc.link(self._q3)
 
         # Ghost Pads
         self.add_pad(
-            gst.GhostPad('sink', self._q1.get_pad('sink'))
+            Gst.GhostPad.new('sink', self._q1.get_pad('sink'))
         )
         self.add_pad(
-            gst.GhostPad('src', self._q3.get_pad('src'))
+            Gst.GhostPad.new('src', self._q3.get_pad('src'))
         )
 
     def __repr__(self):
@@ -232,9 +235,10 @@ class AudioEncoder(EncoderBin):
         self._rate = self._make('audiorate')
 
         # Link elements:
-        gst.element_link_many(
-            self._q1, self._conv, self._rsp, self._rate, self._q2
-        )
+        self._q1.link(self._conv)
+        self._conv.link(self._rsp)
+        self._rsp.link(self._rate)
+        self._rate.link(self._q2)
 
 
 class VideoEncoder(EncoderBin):
@@ -247,7 +251,10 @@ class VideoEncoder(EncoderBin):
         self._rate = self._make('videorate')
 
         # Link elements:
-        gst.element_link_many(self._q1, self._scale, self._color, self._rate, self._q2)
+        self._q1.link(self._scale)
+        self._scale.link(self._color)
+        self._color.link(self._rate)
+        self._rate.link(self._q2)
 
 
 class Renderer(object):
@@ -260,8 +267,8 @@ class Renderer(object):
         """
         self.job = job
         self.builder = builder
-        self.mainloop = gobject.MainLoop()
-        self.pipeline = gst.Pipeline()
+        self.mainloop = GObject.MainLoop()
+        self.pipeline = Gst.Pipeline()
 
         # Create bus and connect several handlers
         self.bus = self.pipeline.get_bus()
@@ -272,10 +279,12 @@ class Renderer(object):
         # Create elements
         self.src = builder.build(job['src'])
         self.mux = make_element(job['muxer'])
-        self.sink = gst.element_factory_make('filesink')
+        self.sink = Gst.ElementFactory.make('filesink', None)
 
         # Add elements to pipeline
-        self.pipeline.add(self.src, self.mux, self.sink)
+        self.pipeline.add(self.src)
+        self.pipeline.add(self.mux)
+        self.pipeline.add(self.sink)
 
         # Set properties
         self.sink.set_property('location', dst)
@@ -291,11 +300,11 @@ class Renderer(object):
         self.video = None
 
     def run(self):
-        self.pipeline.set_state(gst.STATE_PLAYING)
+        self.pipeline.set_state(Gst.State.PLAYING)
         self.mainloop.run()
 
     def kill(self):
-        self.pipeline.set_state(gst.STATE_NULL)
+        self.pipeline.set_state(Gst.State.NULL)
         self.pipeline.get_state()
         self.mainloop.quit()
 
@@ -305,17 +314,17 @@ class Renderer(object):
             klass = {'audio': AudioEncoder, 'video': VideoEncoder}[key]
             el = klass(self.job[key])
         else:
-            el = gst.element_factory_make('fakesink')
+            el = Gst.ElementFactory.make('fakesink', None)
         self.pipeline.add(el)
         log.info('Linking pad %r with %r', name, el)
         pad.link(el.get_compatible_pad(pad, pad.get_caps()))
         if key in self.job:
             el.link(self.mux)
-        el.set_state(gst.STATE_PLAYING)
+        el.set_state(Gst.State.PLAYING)
         return el
 
     def on_pad_added(self, element, pad):
-        name = pad.get_caps()[0].get_name()
+        name = pad.get_caps().to_string()
         log.debug('pad-added: %r', name)
         if name.startswith('audio/'):
             assert self.audio is None
