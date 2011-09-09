@@ -17,7 +17,7 @@ Package: python3-novacut
 Replaces: python-novacut
 Conflicts: python-novacut
 Architecture: all
-Depends: ${misc:Depends}, ${python3:Depends},
+Depends: ${misc:Depends}, python3 (>= 3.2),
     python3-gobject,
     gir1.2-gstreamer-0.10,
     gstreamer0.10-plugins-good,
