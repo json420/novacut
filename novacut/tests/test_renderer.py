@@ -25,12 +25,11 @@ Unit tests for the `novacut.renderer` module.
 
 from unittest import TestCase
 
+from microfiber import random_id
 from gi.repository import Gst
 
-from novacut.schema import random_id
 from novacut import renderer
 from novacut.renderer import SECOND
-
 from .base import LiveTestCase, TempDir, resolve, sample1, sample2
 
 

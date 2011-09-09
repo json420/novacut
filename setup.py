@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # novacut: the collaborative video editor
 # Copyright (C) 2011 Novacut Inc
