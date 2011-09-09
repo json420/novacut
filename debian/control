@@ -2,7 +2,7 @@ Source: novacut
 Section: python
 Priority: optional
 Maintainer: Jason Gerard DeRose <jderose@novacut.com>
-Build-Depends: debhelper (>= 8.9), python (>= 3.2),
+Build-Depends: debhelper (>= 8.9), python3 (>= 3.2),
     python3-gobject,
     gir1.2-gstreamer-0.10,
     gstreamer0.10-plugins-good,
@@ -17,7 +17,7 @@ Package: python3-novacut
 Replaces: python-novacut
 Conflicts: python-novacut
 Architecture: all
-Depends: ${misc:Depends}, python (>= 3.2),
+Depends: ${misc:Depends}, python3 (>= 3.2),
     python3-gobject,
     gir1.2-gstreamer-0.10,
     gstreamer0.10-plugins-good,
