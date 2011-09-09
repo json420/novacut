@@ -32,6 +32,7 @@ import logging
 from gi.repository import GObject, Gst
 
 
+GObject.threads_init()
 Gst.init(None)
 SECOND = 1000000000  # FIXME: Workaround for broken Gst.SECOND
 log = logging.getLogger()
