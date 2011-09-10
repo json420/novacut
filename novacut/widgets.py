@@ -23,33 +23,43 @@
 Custom Gtk3 widgets.
 """
 
+from urllib.parse import urlparse, parse_qsl
+
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit', '3.0')
 from gi.repository import GObject, Gtk, WebKit
+from microfiber import _oauth_header, _basic_auth_header
 
 
 GObject.threads_init()
 
 
 class CouchView(WebKit.WebView):
-    def __init__(self, env):
+    def __init__(self, env=None):
         super().__init__()
         self.connect('resource-request-starting', self._on_request)
-        
+        self._set_env(env)
+
     def _set_env(self, env):
         self._env = env
-        if env:
-            self._u = urlparse(env['url'])
-            self._oauth = env.get('oauth')
-            self._basic = env.get('basic')
+        if env is None:
+            self._u = None
+            self._oauth = None
+            self._basic = None
+            return
+        self._u = urlparse(env['url'])
+        self._oauth = env.get('oauth')
+        self._basic = env.get('basic')
 
     def _on_request(self, view, frame, resource, request, response):
+        if self._env is None:
+            return
         uri = request.get_uri()
         u = urlparse(uri)
-        if u.scheme != self._u.scheme:
-            return
         if u.netloc != self._u.netloc:
+            return
+        if u.scheme != self._u.scheme:
             return
         if self._oauth:
             query = dict(parse_qsl(u.query))
