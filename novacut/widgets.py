@@ -84,7 +84,11 @@ class UI(object):
             Gtk.main_quit()
             return
         self.dbus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        self.dc3 = Gio.DBusProxy.new_sync(self.dbus, 0, None, BUS, '/', IFACE, None)
+        Gio.DBusProxy.new(self.dbus, 0, None, BUS, '/', IFACE, None, self.on_proxy, None)
+        #self.dc3 = Gio.DBusProxy.new_sync(self.dbus, 0, None, BUS, '/', IFACE, None)
+
+    def on_proxy(self, proxy, async_result, user_arg):
+        self.dc3 = proxy
         env = json.loads(self.dc3.GetEnv())
         self.db = Database('novacut', env)
         self.db.ensure()
