@@ -24,15 +24,73 @@ Custom Gtk3 widgets.
 """
 
 from urllib.parse import urlparse, parse_qsl
+import json
 
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit', '3.0')
-from gi.repository import GObject, Gtk, WebKit
-from microfiber import _oauth_header, _basic_auth_header
+from gi.repository import GObject, Gio, Gtk, WebKit
+from microfiber import Database, _oauth_header, _basic_auth_header
 
 
 GObject.threads_init()
+
+BUS = 'org.freedesktop.DC3'
+IFACE = BUS
+
+html = """<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+body {
+    font-family: Ubuntu;
+    font-size: 24px;
+    background-color: #301438;
+    color: #e81f3b;
+}
+</style>
+</head>
+<body>
+Woot
+</body>
+</html>
+"""
+
+
+class UI(object):
+    def __init__(self, benchmark=False):
+        self.benchmark = benchmark
+        self.window = Gtk.Window()
+        self.window.connect('destroy', Gtk.main_quit)
+        self.window.set_default_size(960, 540)
+
+        self.scroll = Gtk.ScrolledWindow()
+        self.scroll.set_policy(Gtk.PolicyType.ALWAYS, Gtk.PolicyType.ALWAYS)
+        self.window.add(self.scroll)
+
+        self.view = CouchView()
+        self.scroll.add(self.view)
+        self.view.load_string(html, 'text/html', 'UTF-8', 'file:///')
+
+        self.window.show_all()
+        GObject.idle_add(self.on_idle)
+
+    def run(self):
+        Gtk.main()
+
+    def on_idle(self):
+        if self.benchmark:
+            Gtk.main_quit()
+            return
+        self.dbus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        self.dc3 = Gio.DBusProxy.new_sync(self.dbus, 0, None, BUS, '/', IFACE, None)
+        env = json.loads(self.dc3.GetEnv())
+        self.db = Database('novacut', env)
+        self.db.ensure()
+        self.view._set_env(env)
+        uri = self.db._full_url('/_apps/dc3/index.html')
+        self.view.load_uri(uri)
 
 
 class CouchView(WebKit.WebView):
