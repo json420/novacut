@@ -35,7 +35,9 @@ from doctest import DocTestSuite
 import novacut
 
 
-packagedir = path.dirname(path.abspath(novacut.__file__))
+tree = path.dirname(path.abspath(__file__))
+packagedir = path.join(tree, 'novacut')
+ui = path.join(tree, 'ui')
 
 
 def pynames_iter(pkdir, pkname=None):
@@ -126,5 +128,11 @@ setup(
     author_email='jderose@novacut.com',
     license='AGPLv3+',
     packages=['novacut'],
+    scripts=['novacut-gtk'],
+    data_files=[
+        ('share/couchdb/apps/novacut', [
+            'ui/index.html',
+        ]),
+    ],
     cmdclass={'test': Test},
 )
