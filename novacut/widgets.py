@@ -26,14 +26,11 @@ Custom Gtk3 widgets.
 from urllib.parse import urlparse, parse_qsl
 import json
 
-import gi
-gi.require_version('Gtk', '3.0')
-gi.require_version('WebKit', '3.0')
-from gi.repository import GObject, Gio, Gtk, WebKit
+from gi.repository import GObject, Gtk, WebKit
 from microfiber import Database, _oauth_header, _basic_auth_header
 
+from . import dbus
 
-GObject.threads_init()
 
 BUS = 'org.freedesktop.DC3'
 IFACE = BUS
@@ -83,11 +80,9 @@ class UI(object):
         if self.benchmark:
             Gtk.main_quit()
             return
-        self.dbus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        Gio.DBusProxy.new(self.dbus, 0, None, BUS, '/', IFACE, None, self.on_proxy, None)
-        #self.dc3 = Gio.DBusProxy.new_sync(self.dbus, 0, None, BUS, '/', IFACE, None)
+        dbus.session.get_async(self.on_proxy, 'org.freedesktop.DC3', '/')
 
-    def on_proxy(self, proxy, async_result, user_arg):
+    def on_proxy(self, proxy, async_result, *args):
         self.dc3 = proxy
         env = json.loads(self.dc3.GetEnv())
         self.db = Database('novacut', env)

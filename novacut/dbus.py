@@ -20,14 +20,31 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 """
-`novacut` - the collaborative video editor.
+Simple dbus helper to make PyGI a bit nicer.
 """
 
-import gi
-gi.require_version('Gtk', '3.0')
-gi.require_version('WebKit', '3.0')
-from gi.repository import GObject
+from gi.repository import Gio
 
-GObject.threads_init()
 
-__version__ = '11.09.0'
+class DBus:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def get(self, bus, path, iface=None):
+        if iface is None:
+            iface = bus
+        return Gio.DBusProxy.new_sync(
+            self.conn, 0, None, bus, path, iface, None
+        )
+
+    def get_async(self, callback, bus, path, iface=None):
+        if iface is None:
+            iface = bus
+        Gio.DBusProxy.new(
+            self.conn, 0, None, bus, path, iface, None, callback, None
+        )
+
+
+session = DBus(Gio.bus_get_sync(Gio.BusType.SESSION, None))
+system = DBus(Gio.bus_get_sync(Gio.BusType.SYSTEM, None))
+
