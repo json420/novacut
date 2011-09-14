@@ -61,6 +61,7 @@ class UI(object):
         self.window = Gtk.Window()
         self.window.connect('destroy', Gtk.main_quit)
         self.window.set_default_size(960, 540)
+        self.window.maximize()
 
         self.scroll = Gtk.ScrolledWindow()
         self.scroll.set_policy(Gtk.PolicyType.ALWAYS, Gtk.PolicyType.ALWAYS)
