@@ -23,60 +23,10 @@
 Custom Gtk3 widgets.
 """
 
-import time
 from urllib.parse import urlparse, parse_qsl
-import json
 
 from gi.repository import GObject, Gtk, WebKit
 from microfiber import Database, _oauth_header, _basic_auth_header
-
-#from . import dbus
-
-
-BUS = 'org.freedesktop.DC3'
-IFACE = BUS
-
-
-class UI(object):
-    def __init__(self, benchmark=False):
-        self.benchmark = benchmark
-        self.window = Gtk.Window()
-        self.window.connect('destroy', Gtk.main_quit)
-        self.window.set_default_size(960, 540)
-        self.window.maximize()
-
-        self.window.show_all()
-        GObject.idle_add(self.on_idle)
-
-    def run(self):
-        Gtk.main()
-
-    def on_idle(self):
-        if self.benchmark:
-            Gtk.main_quit()
-            return
-        from novacut import dbus
-        dbus.session.get_async(self.on_proxy, 'org.freedesktop.DC3', '/')
-
-    def on_proxy(self, proxy, async_result, *args):
-        self.dc3 = proxy
-        env = json.loads(self.dc3.GetEnv())
-        self.db = Database('novacut', env)
-        self.db.ensure()
-
-        self.scroll = Gtk.ScrolledWindow()
-        self.scroll.set_policy(
-            Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
-        )
-        self.window.add(self.scroll)
-        self.view = CouchView()
-        self.scroll.add(self.view)
-
-        self.view._set_env(env)
-        uri = self.db._full_url('/_apps/dc3/index.html')
-        self.view.load_uri(uri)
-
-        self.scroll.show_all()
 
 
 class CouchView(WebKit.WebView):

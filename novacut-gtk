@@ -22,11 +22,65 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 import optparse
+import json
 
-from novacut.widgets import UI
+from gi.repository import GObject, Gtk
+
+import novacut
 
 
-parser = optparse.OptionParser()
+BUS = 'org.freedesktop.DC3'
+
+
+class UI(object):
+    def __init__(self, benchmark=False):
+        self.benchmark = benchmark
+        self.window = Gtk.Window()
+        self.window.connect('destroy', Gtk.main_quit)
+        self.window.set_default_size(960, 540)
+        #self.window.maximize()
+
+        self.window.show_all()
+        GObject.idle_add(self.on_idle)
+
+    def run(self):
+        Gtk.main()
+
+    def on_idle(self):
+        if self.benchmark:
+            Gtk.main_quit()
+            return
+
+        import novacut.dbus
+        novacut.dbus.session.get_async(self.on_proxy, BUS, '/')
+
+    def on_proxy(self, proxy, async_result, *args):
+        import microfiber
+        import novacut.widgets
+
+        self.dc3 = proxy
+        env = json.loads(self.dc3.GetEnv())
+        self.db = microfiber.Database('novacut', env)
+        self.db.ensure()
+
+        self.scroll = Gtk.ScrolledWindow()
+        self.scroll.set_policy(
+            Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
+        )
+        self.window.add(self.scroll)
+        self.view = novacut.widgets.CouchView()
+        self.scroll.add(self.view)
+
+        self.view._set_env(env)
+        uri = self.db._full_url('/_apps/dc3/index.html')
+        self.view.load_uri(uri)
+
+        self.scroll.show_all()
+
+
+parser = optparse.OptionParser(
+    version=novacut.__version__,
+)
 parser.add_option('--benchmark',
     help='benchmark app startup time',
     action='store_true',
