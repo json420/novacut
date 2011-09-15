@@ -67,6 +67,8 @@ class UI(object):
         self.scroll.set_policy(Gtk.PolicyType.ALWAYS, Gtk.PolicyType.ALWAYS)
         self.window.add(self.scroll)
 
+        #self.view.load_string(html, 'text/html', 'UTF-8', 'file:///')
+
         self.window.show_all()
         GObject.idle_add(self.on_idle)
 
@@ -77,21 +79,20 @@ class UI(object):
         if self.benchmark:
             Gtk.main_quit()
             return
-        self.view = CouchView()
-        self.scroll.add(self.view)
-        self.view.load_string(html, 'text/html', 'UTF-8', 'file:///')
-        self.view.show()
         from novacut import dbus
         dbus.session.get_async(self.on_proxy, 'org.freedesktop.DC3', '/')
 
     def on_proxy(self, proxy, async_result, *args):
         self.dc3 = proxy
+        self.view = CouchView()
+        self.scroll.add(self.view)
         env = json.loads(self.dc3.GetEnv())
         self.db = Database('novacut', env)
         self.db.ensure()
         self.view._set_env(env)
         uri = self.db._full_url('/_apps/dc3/index.html')
         self.view.load_uri(uri)
+        self.view.show()
 
 
 class CouchView(WebKit.WebView):
