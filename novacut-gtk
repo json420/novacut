@@ -24,7 +24,7 @@
 import optparse
 import json
 
-from gi.repository import GObject, Gtk
+from gi.repository import GObject, Gtk, Gdk
 
 import novacut
 
@@ -37,6 +37,7 @@ class UI(object):
         self.benchmark = benchmark
         self.window = Gtk.Window()
         self.window.connect('destroy', Gtk.main_quit)
+        self.window.override_background_color(0, Gdk.RGBA(1.0, 1.0, 1.0, 1.0))
         self.window.set_default_size(960, 540)
         #self.window.maximize()
 
