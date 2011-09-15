@@ -70,3 +70,13 @@ class CouchView(WebKit.WebView):
             request.props.message.props.request_headers.append(key, value)
 
 
+class Inspector:
+    def __init__(self, env):
+        self.widget = Gtk.ScrolledWindow()
+        self.widget.set_policy(
+            Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
+        )
+        self.view = CouchView(env)
+        self.widget.add(self.view)
+
+

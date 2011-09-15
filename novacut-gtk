@@ -38,12 +38,17 @@ class UI(object):
     def __init__(self, benchmark=False, intree=False):
         self.benchmark = benchmark
         self.intree = intree
+        self.inspector = None
         self.window = Gtk.Window()
         self.window.connect('destroy', Gtk.main_quit)
-        args = tuple(int(hh, 16) / 255 for hh in RGBA_HEX)
-        self.window.override_background_color(0, Gdk.RGBA(*args))
+        rgba = tuple(int(hh, 16) / 255 for hh in RGBA_HEX)
+        self.window.override_background_color(0, Gdk.RGBA(*rgba))
         self.window.set_default_size(960, 540)
-        #self.window.maximize()
+        self.hbox = Gtk.HBox()
+        self.hbox.set_homogeneous(True)
+        self.window.add(self.hbox)
+
+        self.window.maximize()
 
         self.window.show_all()
         GObject.idle_add(self.on_idle)
@@ -64,27 +69,38 @@ class UI(object):
         import novacut.widgets
 
         self.dc3 = proxy
-        env = json.loads(self.dc3.GetEnv())
+        self.env = json.loads(self.dc3.GetEnv())
         if self.intree:
             ui = path.join(path.dirname(path.abspath(__file__)), 'ui')
             self.dc3.SetInTree('(s)', ui)
-        self.db = microfiber.Database('novacut', env)
+        self.db = microfiber.Database('novacut', self.env)
         self.db.ensure()
 
         self.scroll = Gtk.ScrolledWindow()
+        self.hbox.pack_start(self.scroll, True, True, 0)
         self.scroll.set_policy(
             Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
         )
-        self.window.add(self.scroll)
         self.view = novacut.widgets.CouchView()
         self.scroll.add(self.view)
 
-        self.view._set_env(env)
+        self.view._set_env(self.env)
         base = ('/_intree/' if self.intree else '/_apps/novacut/')
         uri = self.db._full_url(base + 'index.html')
         self.view.load_uri(uri)
-
         self.scroll.show_all()
+
+        self.view.get_settings().set_property('enable-developer-extras', True)
+        inspector = self.view.get_inspector()
+        inspector.connect('inspect-web-view', self.on_inspect)
+
+    def on_inspect(self, *args):
+        if self.inspector is None:
+            import novacut.widgets
+            self.inspector = novacut.widgets.Inspector(self.env)
+            self.hbox.pack_start(self.inspector.widget, True, True, 0)
+        self.inspector.widget.show_all()
+        return self.inspector.view
 
 
 parser = optparse.OptionParser(
