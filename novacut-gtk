@@ -29,7 +29,8 @@ import novacut
 
 from gi.repository import GObject, Gtk, Gdk
 
-
+# Novacut purple, change to set initial window background color
+RGBA_HEX = ('30', '14', '38', 'ff')  # Final is alpha, leave 'ff'
 BUS = 'org.freedesktop.DC3'
 
 
@@ -39,7 +40,8 @@ class UI(object):
         self.intree = intree
         self.window = Gtk.Window()
         self.window.connect('destroy', Gtk.main_quit)
-        self.window.override_background_color(0, Gdk.RGBA(1.0, 1.0, 1.0, 1.0))
+        args = tuple(int(hh, 16) / 255 for hh in RGBA_HEX)
+        self.window.override_background_color(0, Gdk.RGBA(*args))
         self.window.set_default_size(960, 540)
         #self.window.maximize()
 
