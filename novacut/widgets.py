@@ -77,12 +77,12 @@ class Inspector(Gtk.VBox):
         hbox = Gtk.HBox()
         self.pack_start(hbox, False, False, 0)
 
-        self.reload = Gtk.Button('Reload')
-        hbox.pack_start(self.reload, False, False, 0)
-
         close = Gtk.Button(stock=Gtk.STOCK_CLOSE)
-        hbox.pack_end(close, False, False, 0)
+        hbox.pack_start(close, False, False, 0)
         close.connect('clicked', self.on_close)
+
+        self.reload = Gtk.Button('Reload')
+        hbox.pack_start(self.reload, False, False, 4)
 
         scroll = Gtk.ScrolledWindow()
         self.pack_start(scroll, True, True, 0)

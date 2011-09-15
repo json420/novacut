@@ -44,6 +44,7 @@ class UI(object):
         rgba = tuple(int(hh, 16) / 255 for hh in RGBA_HEX)
         self.window.override_background_color(0, Gdk.RGBA(*rgba))
         self.window.set_default_size(960, 540)
+        self.window.set_title('Novacut')
         self.hbox = Gtk.HBox()
         self.hbox.set_homogeneous(True)
         self.window.add(self.hbox)
