@@ -1,0 +1,127 @@
+#!/usr/bin/python3
+
+# novacut: the collaborative video editor
+# Copyright (C) 2011 Novacut Inc
+#
+# This file is part of `novacut`.
+#
+# `novacut` is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# `novacut` is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with `novacut`.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#   Jason Gerard DeRose <jderose@novacut.com>
+
+import optparse
+import json
+from os import path
+
+import novacut
+
+from gi.repository import GObject, Gtk, Gdk
+
+# Novacut purple, change to set initial window background color
+RGBA_HEX = ('30', '14', '38', 'ff')  # Final is alpha, leave 'ff'
+BUS = 'org.freedesktop.DC3'
+
+
+class UI(object):
+    def __init__(self, benchmark=False, intree=False):
+        self.benchmark = benchmark
+        self.intree = intree
+        self.inspector = None
+        self.window = Gtk.Window()
+        self.window.connect('destroy', self.quit)
+        rgba = tuple(int(hh, 16) / 255 for hh in RGBA_HEX)
+        self.window.override_background_color(0, Gdk.RGBA(*rgba))
+        self.window.set_default_size(960, 540)
+        self.hbox = Gtk.HBox()
+        self.hbox.set_homogeneous(True)
+        self.window.add(self.hbox)
+
+        self.window.maximize()
+
+        self.window.show_all()
+        GObject.idle_add(self.on_idle)
+
+    def run(self):
+        Gtk.main()
+
+    def quit(self, *arg):
+        # FIXME: This is a work-around for the segfault we're getting when
+        # The window is destroyed before the inspector is
+        if self.inspector:
+            self.inspector.destroy()
+        Gtk.main_quit()
+
+    def on_idle(self):
+        if self.benchmark:
+            Gtk.main_quit()
+            return
+
+        import novacut.dbus
+        novacut.dbus.session.get_async(self.on_proxy, BUS, '/')
+
+    def on_proxy(self, proxy, async_result, *args):
+        import microfiber
+        import novacut.widgets
+
+        self.dc3 = proxy
+        self.env = json.loads(self.dc3.GetEnv())
+        if self.intree:
+            ui = path.join(path.dirname(path.abspath(__file__)), 'ui')
+            self.dc3.SetInTree('(s)', ui)
+        self.db = microfiber.Database('novacut', self.env)
+        self.db.ensure()
+
+        self.scroll = Gtk.ScrolledWindow()
+        self.hbox.pack_start(self.scroll, True, True, 0)
+        self.scroll.set_policy(
+            Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
+        )
+        self.view = novacut.widgets.CouchView()
+        self.scroll.add(self.view)
+
+        self.view._set_env(self.env)
+        base = ('/_intree/' if self.intree else '/_apps/novacut/')
+        uri = self.db._full_url(base + 'index.html')
+        self.view.load_uri(uri)
+        self.scroll.show_all()
+
+        self.view.get_settings().set_property('enable-developer-extras', True)
+        inspector = self.view.get_inspector()
+        inspector.connect('inspect-web-view', self.on_inspect)
+
+    def on_inspect(self, *args):
+        import novacut.widgets
+        self.inspector = novacut.widgets.Inspector(self.env)
+        self.hbox.pack_start(self.inspector, True, True, 0)
+        self.inspector.show_all()
+        self.inspector.reload.connect('clicked', self.on_reload)
+        return self.inspector.view
+
+    def on_reload(self, button):
+        self.view.reload_bypass_cache()
+
+
+parser = optparse.OptionParser(
+    version=novacut.__version__,
+)
+parser.add_option('--benchmark',
+    help='benchmark app startup time',
+    action='store_true',
+    default=False,
+)
+(options, args) = parser.parse_args()
+intree = path.isfile(path.join(path.dirname(__file__), 'setup.py'))
+ui = UI(options.benchmark, intree)
+ui.run()
