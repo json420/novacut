@@ -48,7 +48,7 @@ class UI(object):
         self.hbox.set_homogeneous(True)
         self.window.add(self.hbox)
 
-        #self.window.maximize()
+        self.window.maximize()
 
         self.window.show_all()
         GObject.idle_add(self.on_idle)
