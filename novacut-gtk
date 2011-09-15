@@ -40,7 +40,7 @@ class UI(object):
         self.intree = intree
         self.inspector = None
         self.window = Gtk.Window()
-        self.window.connect('destroy', Gtk.main_quit)
+        self.window.connect('destroy', self.quit)
         rgba = tuple(int(hh, 16) / 255 for hh in RGBA_HEX)
         self.window.override_background_color(0, Gdk.RGBA(*rgba))
         self.window.set_default_size(960, 540)
@@ -48,13 +48,20 @@ class UI(object):
         self.hbox.set_homogeneous(True)
         self.window.add(self.hbox)
 
-        self.window.maximize()
+        #self.window.maximize()
 
         self.window.show_all()
         GObject.idle_add(self.on_idle)
 
     def run(self):
         Gtk.main()
+
+    def quit(self, *arg):
+        # FIXME: This is a work-around for the segfault we're getting when
+        # The window is destroyed before the inspector is
+        if self.inspector:
+            self.inspector.destroy()
+        Gtk.main_quit()
 
     def on_idle(self):
         if self.benchmark:
@@ -95,11 +102,10 @@ class UI(object):
         inspector.connect('inspect-web-view', self.on_inspect)
 
     def on_inspect(self, *args):
-        if self.inspector is None:
-            import novacut.widgets
-            self.inspector = novacut.widgets.Inspector(self.env)
-            self.hbox.pack_start(self.inspector.widget, True, True, 0)
-        self.inspector.widget.show_all()
+        import novacut.widgets
+        self.inspector = novacut.widgets.Inspector(self.env)
+        self.hbox.pack_start(self.inspector, True, True, 0)
+        self.inspector.show_all()
         return self.inspector.view
 
 

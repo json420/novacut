@@ -25,7 +25,7 @@ Custom Gtk3 widgets.
 
 from urllib.parse import urlparse, parse_qsl
 
-from gi.repository import GObject, Gtk, WebKit
+from gi.repository import GObject, Gtk, Gdk, WebKit
 from microfiber import _oauth_header, _basic_auth_header
 
 
@@ -70,13 +70,26 @@ class CouchView(WebKit.WebView):
             request.props.message.props.request_headers.append(key, value)
 
 
-class Inspector:
+class Inspector(Gtk.VBox):
     def __init__(self, env):
-        self.widget = Gtk.ScrolledWindow()
-        self.widget.set_policy(
-            Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
-        )
+        super().__init__()
+
+        hbox = Gtk.HBox()
+        self.pack_start(hbox, False, False, 1)
+
+        close = Gtk.Button(stock=Gtk.STOCK_CLOSE)
+        hbox.pack_end(close, False, False, 1)
+        close.connect('clicked', self.on_close)
+
+        scroll = Gtk.ScrolledWindow()
+        self.pack_start(scroll, True, True, 0)
+        scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+
         self.view = CouchView(env)
-        self.widget.add(self.view)
+        scroll.add(self.view)
+
+    def on_close(self, button):
+        self.destroy()
+        
 
 
