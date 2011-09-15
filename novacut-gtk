@@ -106,7 +106,11 @@ class UI(object):
         self.inspector = novacut.widgets.Inspector(self.env)
         self.hbox.pack_start(self.inspector, True, True, 0)
         self.inspector.show_all()
+        self.inspector.reload.connect('clicked', self.on_reload)
         return self.inspector.view
+
+    def on_reload(self, button):
+        self.view.reload_bypass_cache()
 
 
 parser = optparse.OptionParser(
