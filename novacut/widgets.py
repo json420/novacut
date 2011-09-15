@@ -26,7 +26,7 @@ Custom Gtk3 widgets.
 from urllib.parse import urlparse, parse_qsl
 
 from gi.repository import GObject, Gtk, WebKit
-from microfiber import Database, _oauth_header, _basic_auth_header
+from microfiber import _oauth_header, _basic_auth_header
 
 
 class CouchView(WebKit.WebView):
