@@ -29,7 +29,7 @@ import json
 from gi.repository import GObject, Gtk, WebKit
 from microfiber import Database, _oauth_header, _basic_auth_header
 
-from . import dbus
+#from . import dbus
 
 
 BUS = 'org.freedesktop.DC3'
@@ -61,15 +61,11 @@ class UI(object):
         self.window = Gtk.Window()
         self.window.connect('destroy', Gtk.main_quit)
         self.window.set_default_size(960, 540)
-        self.window.maximize()
+        #self.window.maximize()
 
         self.scroll = Gtk.ScrolledWindow()
         self.scroll.set_policy(Gtk.PolicyType.ALWAYS, Gtk.PolicyType.ALWAYS)
         self.window.add(self.scroll)
-
-        self.view = CouchView()
-        self.scroll.add(self.view)
-        self.view.load_string(html, 'text/html', 'UTF-8', 'file:///')
 
         self.window.show_all()
         GObject.idle_add(self.on_idle)
@@ -81,6 +77,11 @@ class UI(object):
         if self.benchmark:
             Gtk.main_quit()
             return
+        self.view = CouchView()
+        self.scroll.add(self.view)
+        self.view.load_string(html, 'text/html', 'UTF-8', 'file:///')
+        self.view.show()
+        from novacut import dbus
         dbus.session.get_async(self.on_proxy, 'org.freedesktop.DC3', '/')
 
     def on_proxy(self, proxy, async_result, *args):
