@@ -23,18 +23,20 @@
 
 import optparse
 import json
-
-from gi.repository import GObject, Gtk, Gdk
+from os import path
 
 import novacut
+
+from gi.repository import GObject, Gtk, Gdk
 
 
 BUS = 'org.freedesktop.DC3'
 
 
 class UI(object):
-    def __init__(self, benchmark=False):
+    def __init__(self, benchmark=False, intree=False):
         self.benchmark = benchmark
+        self.intree = intree
         self.window = Gtk.Window()
         self.window.connect('destroy', Gtk.main_quit)
         self.window.override_background_color(0, Gdk.RGBA(1.0, 1.0, 1.0, 1.0))
@@ -61,6 +63,9 @@ class UI(object):
 
         self.dc3 = proxy
         env = json.loads(self.dc3.GetEnv())
+        if self.intree:
+            ui = path.join(path.dirname(path.abspath(__file__)), 'ui')
+            self.dc3.SetInTree('(s)', ui)
         self.db = microfiber.Database('novacut', env)
         self.db.ensure()
 
@@ -73,7 +78,8 @@ class UI(object):
         self.scroll.add(self.view)
 
         self.view._set_env(env)
-        uri = self.db._full_url('/_apps/dc3/index.html')
+        base = ('/_intree/' if self.intree else '/_apps/novacut/')
+        uri = self.db._full_url(base + 'index.html')
         self.view.load_uri(uri)
 
         self.scroll.show_all()
@@ -88,5 +94,6 @@ parser.add_option('--benchmark',
     default=False,
 )
 (options, args) = parser.parse_args()
-ui = UI(options.benchmark)
+intree = path.isfile(path.join(path.dirname(__file__), 'setup.py'))
+ui = UI(options.benchmark, intree)
 ui.run()
