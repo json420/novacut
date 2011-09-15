@@ -90,9 +90,10 @@ class Test(Command):
 
     def run(self):
         pynames = list(self._pynames_iter())
+        pynames.remove('novacut.dbus')
         for name in pynames:
             print(name)
-        raise SystemExit()
+        #raise SystemExit()
 
         # Add unit-tests:
         if self.no_unittest:
