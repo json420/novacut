@@ -26,12 +26,28 @@ import json
 from os import path
 
 import novacut
+from novacut.widgets import CouchView, Inspector
+import microfiber
+import time
 
-from gi.repository import GObject, Gtk, Gdk
+from gi.repository import GObject, Gtk
 
-# Novacut purple, change to set initial window background color
-RGBA_HEX = ('30', '14', '38', 'ff')  # Final is alpha, leave 'ff'
+
 BUS = 'org.freedesktop.DC3'
+
+splash = """<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+    background-color: #301438;
+}
+</style>
+</head>
+<body>
+</body>
+</html>
+"""
 
 
 class UI(object):
@@ -41,15 +57,21 @@ class UI(object):
         self.inspector = None
         self.window = Gtk.Window()
         self.window.connect('destroy', self.quit)
-        rgba = tuple(int(hh, 16) / 255 for hh in RGBA_HEX)
-        self.window.override_background_color(0, Gdk.RGBA(*rgba))
+        self.window.maximize()
         self.window.set_default_size(960, 540)
         self.window.set_title('Novacut')
         self.hbox = Gtk.HBox()
         self.hbox.set_homogeneous(True)
         self.window.add(self.hbox)
 
-        self.window.maximize()
+        self.scroll = Gtk.ScrolledWindow()
+        self.hbox.pack_start(self.scroll, True, True, 0)
+        self.scroll.set_policy(
+            Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
+        )
+        self.view = CouchView()
+        self.scroll.add(self.view)
+        self.view.load_string(splash, 'text/html', 'UTF-8', 'file:///')
 
         self.window.show_all()
         GObject.idle_add(self.on_idle)
@@ -68,14 +90,10 @@ class UI(object):
         if self.benchmark:
             Gtk.main_quit()
             return
-
         import novacut.dbus
         novacut.dbus.session.get_async(self.on_proxy, BUS, '/')
 
     def on_proxy(self, proxy, async_result, *args):
-        import microfiber
-        import novacut.widgets
-
         self.dc3 = proxy
         self.env = json.loads(self.dc3.GetEnv())
         if self.intree:
@@ -84,27 +102,17 @@ class UI(object):
         self.db = microfiber.Database('novacut', self.env)
         self.db.ensure()
 
-        self.scroll = Gtk.ScrolledWindow()
-        self.hbox.pack_start(self.scroll, True, True, 0)
-        self.scroll.set_policy(
-            Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
-        )
-        self.view = novacut.widgets.CouchView()
-        self.scroll.add(self.view)
-
         self.view._set_env(self.env)
         base = ('/_intree/' if self.intree else '/_apps/novacut/')
         uri = self.db._full_url(base + 'index.html')
         self.view.load_uri(uri)
-        self.scroll.show_all()
 
         self.view.get_settings().set_property('enable-developer-extras', True)
         inspector = self.view.get_inspector()
         inspector.connect('inspect-web-view', self.on_inspect)
 
     def on_inspect(self, *args):
-        import novacut.widgets
-        self.inspector = novacut.widgets.Inspector(self.env)
+        self.inspector = Inspector(self.env)
         self.hbox.pack_start(self.inspector, True, True, 0)
         self.inspector.show_all()
         self.inspector.reload.connect('clicked', self.on_reload)
