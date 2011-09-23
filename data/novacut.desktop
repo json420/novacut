@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Novacut Pro Video Editor
+GenericName=Pro Video Editor
+Comment=A collaborative editor aimed at professional TV and movie production.
+Exec=/usr/bin/novacut-gtk
+Icon=novacut
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;AudioVideo;AudioVideoEditing;
+StartupNotify=true
+X-Ubuntu-Gettext-Domain=novacut

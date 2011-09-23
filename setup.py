@@ -133,9 +133,15 @@ setup(
     packages=['novacut'],
     scripts=['novacut-gtk'],
     data_files=[
-        ('share/couchdb/apps/novacut', [
-            'ui/index.html',
-        ]),
+        ('share/couchdb/apps/novacut',
+            ['ui/index.html']
+        ),
+        ('share/applications',
+            ['data/novacut.desktop']
+        ),
+        ('share/icons/hicolor/48x48/apps',
+            ['data/novacut.svg']
+        ),
     ],
     cmdclass={'test': Test},
 )
