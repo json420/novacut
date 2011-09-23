@@ -40,7 +40,7 @@ splash = """<!DOCTYPE html>
 <head>
 <style>
 body {
-    background-color: #301438;
+    background-color: #333;
 }
 </style>
 </head>
