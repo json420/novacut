@@ -32,5 +32,5 @@ Depends: ${misc:Depends}, python3 (>= 3.2),
     gstreamer0.10-gnonlin,
     gstreamer0.10-ffmpeg,
 Recommends: gstreamer0.10-plugins-ugly, gstreamer0.10-plugins-bad
-Description: the collaborative video editor
+Description: Collaborative editor for professional TV and movie production.
  FIXME.
