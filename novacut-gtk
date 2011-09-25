@@ -57,15 +57,14 @@ class UI(object):
         self.inspector = None
         self.window = Gtk.Window()
         self.window.connect('destroy', self.quit)
-        self.window.maximize()
+        #self.window.maximize()
         self.window.set_default_size(960, 540)
         self.window.set_title('Novacut')
-        self.hbox = Gtk.HBox()
-        self.hbox.set_homogeneous(True)
-        self.window.add(self.hbox)
+        self.vpaned = Gtk.VPaned()
+        self.window.add(self.vpaned)
 
         self.scroll = Gtk.ScrolledWindow()
-        self.hbox.pack_start(self.scroll, True, True, 0)
+        self.vpaned.pack1(self.scroll, True, True)
         self.scroll.set_policy(
             Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
         )
@@ -113,7 +112,9 @@ class UI(object):
 
     def on_inspect(self, *args):
         self.inspector = Inspector(self.env)
-        self.hbox.pack_start(self.inspector, True, True, 0)
+        pos = self.window.get_allocated_height() * 2 // 3
+        self.vpaned.set_position(pos)
+        self.vpaned.pack2(self.inspector, True, True)
         self.inspector.show_all()
         self.inspector.reload.connect('clicked', self.on_reload)
         return self.inspector.view
