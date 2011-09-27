@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # novacut: the collaborative video editor
 # Copyright (C) 2011 Novacut Inc
@@ -57,13 +57,13 @@ def make_slice(start):
 
 frame = 200
 slices = []
-for loop in xrange(4):
-    for i in xrange(45):
+for loop in range(4):
+    for i in range(45):
         frame += 1
         doc = make_slice(frame)
         docs.append(doc)
         slices.append(doc['_id'])
-    for i in xrange(20):
+    for i in range(20):
         frame -= 1
         doc = make_slice(frame)
         docs.append(doc)
@@ -119,4 +119,4 @@ r.run()
 docs.reverse()
 fp = open(path.join(tree, 'tmp-demo.json'), 'wb')
 json.dump(docs, fp, sort_keys=True, indent=4)
-print len(docs)
+print(len(docs))
