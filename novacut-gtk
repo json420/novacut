@@ -22,105 +22,18 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 import optparse
-import json
-from os import path
+
+from userwebkit import BaseUI
 
 import novacut
-from novacut.widgets import CouchView, Inspector
-import microfiber
-import time
-
-from gi.repository import GObject, Gtk
 
 
-BUS = 'org.freedesktop.DC3'
-
-splash = """<!DOCTYPE html>
-<html>
-<head>
-<style>
-body {
-    background-color: #333;
-}
-</style>
-</head>
-<body>
-</body>
-</html>
-"""
-
-
-class UI(object):
-    def __init__(self, benchmark=False, intree=False):
-        self.benchmark = benchmark
-        self.intree = intree
-        self.inspector = None
-        self.window = Gtk.Window()
-        self.window.connect('destroy', self.quit)
-        #self.window.maximize()
-        self.window.set_default_size(960, 540)
-        self.window.set_title('Novacut')
-        self.vpaned = Gtk.VPaned()
-        self.window.add(self.vpaned)
-
-        self.scroll = Gtk.ScrolledWindow()
-        self.vpaned.pack1(self.scroll, True, True)
-        self.scroll.set_policy(
-            Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
-        )
-        self.view = CouchView()
-        self.scroll.add(self.view)
-        self.view.load_string(splash, 'text/html', 'UTF-8', 'file:///')
-
-        self.window.show_all()
-        GObject.idle_add(self.on_idle)
-
-    def run(self):
-        Gtk.main()
-
-    def quit(self, *arg):
-        # FIXME: This is a work-around for the segfault we're getting when
-        # The window is destroyed before the inspector is
-        if self.inspector:
-            self.inspector.destroy()
-        Gtk.main_quit()
-
-    def on_idle(self):
-        if self.benchmark:
-            Gtk.main_quit()
-            return
-        import novacut.dbus
-        novacut.dbus.session.get_async(self.on_proxy, BUS, '/')
-
-    def on_proxy(self, proxy, async_result, *args):
-        self.dc3 = proxy
-        self.env = json.loads(self.dc3.GetEnv())
-        if self.intree:
-            ui = path.join(path.dirname(path.abspath(__file__)), 'ui')
-            self.dc3.SetInTree('(s)', ui)
-        self.db = microfiber.Database('novacut', self.env)
-        self.db.ensure()
-
-        self.view._set_env(self.env)
-        base = ('/_intree/' if self.intree else '/_apps/novacut/')
-        uri = self.db._full_url(base + 'index.html')
-        self.view.load_uri(uri)
-
-        self.view.get_settings().set_property('enable-developer-extras', True)
-        inspector = self.view.get_inspector()
-        inspector.connect('inspect-web-view', self.on_inspect)
-
-    def on_inspect(self, *args):
-        self.inspector = Inspector(self.env)
-        pos = self.window.get_allocated_height() * 2 // 3
-        self.vpaned.set_position(pos)
-        self.vpaned.pack2(self.inspector, True, True)
-        self.inspector.show_all()
-        self.inspector.reload.connect('clicked', self.on_reload)
-        return self.inspector.view
-
-    def on_reload(self, button):
-        self.view.reload_bypass_cache()
+class UI(BaseUI):
+    app = 'novacut'
+    page = 'index.html'
+    splash = 'splash.html'
+    title = 'Novacut'
+    databases = ['novacut']
 
 
 parser = optparse.OptionParser(
@@ -132,6 +45,6 @@ parser.add_option('--benchmark',
     default=False,
 )
 (options, args) = parser.parse_args()
-intree = path.isfile(path.join(path.dirname(__file__), 'setup.py'))
-ui = UI(options.benchmark, intree)
+
+ui = UI(options.benchmark)
 ui.run()

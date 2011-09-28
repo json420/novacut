@@ -134,7 +134,7 @@ setup(
     scripts=['novacut-gtk'],
     data_files=[
         ('share/couchdb/apps/novacut',
-            ['ui/index.html']
+            [path.join('ui', name) for name in os.listdir('ui')]
         ),
         ('share/applications',
             ['data/novacut.desktop']
