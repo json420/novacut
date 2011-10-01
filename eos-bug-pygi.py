@@ -27,7 +27,7 @@ bus.add_signal_watch()
 bus.connect('message::eos', on_eos)
 
 src = Gst.ElementFactory.make('videotestsrc', None)
-src.set_property('num-buffers', 120)
+src.set_property('num-buffers', 10)
 sink = Gst.ElementFactory.make('fakesink', None)
 pipeline.add(src)
 pipeline.add(sink)
