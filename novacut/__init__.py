@@ -23,4 +23,4 @@
 `novacut` - the collaborative video editor.
 """
 
-__version__ = '11.09.0'
+__version__ = '11.10.0'
