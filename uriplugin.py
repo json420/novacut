@@ -1,4 +1,3 @@
-from microfiber import random_id
 from filestore import FileStore, DIGEST_BYTES
 
 from gi.repository import GObject, Gst
@@ -76,7 +75,8 @@ Gst.Plugin.register_static_full(
 )
 
 src = Gst.ElementFactory.make('dmediasrc', None)
-_id = random_id(DIGEST_BYTES)
+_id = 'KK4E4DKZDHQGDDIETMEFI3RFQEQYZWAJPMBOZBXM4GM4VLIO'
 src.set_property('id', _id)
 print(src.get_property('id'))
 print(src._filesrc.get_property('location'))
+
