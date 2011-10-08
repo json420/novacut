@@ -1,8 +1,10 @@
-import gobject
-import gst
+from gi.repository import GObject, Gst
+
+GObject.threads_init()
+Gst.init(None)
 
 
-class DmediaSrc(gst.Bin):
+class DmediaSrc(Gst.Bin):
     __gstdetails__ = (
         'Dmedia File Source',
         'Source/File',
@@ -11,20 +13,43 @@ class DmediaSrc(gst.Bin):
     )
 
     __gsttemplates__ = (
-        gst.PadTemplate('src', gst.PAD_SRC, gst.PAD_ALWAYS, gst.Caps('ANY')),
+        Gst.PadTemplate.new(
+            'src',
+            Gst.PadDirection.SRC,
+            Gst.PadPresence.ALWAYS,
+            Gst.caps_from_string('ANY')
+        ),
     )
 
     def __init__(self):
         super(DmediaSrc, self).__init__()
-        self._filesrc = gst.element_factory_make('filesrc')
+        self._filesrc = Gst.ElementFactory.make('filesrc', None)
         self.add(self._filesrc)
         self.add_pad(
-            gst.GhostPad('src', self._filesrc.get_pad('src'))
+            Gst.GhostPad.new('src', self._filesrc.get_pad('src'))
         )
 
+ 
+def plugin_init(plugin, userarg):
+    DmediaSrcType = GObject.type_register(DmediaSrc)
+    return Gst.Element.register(plugin, 'dmediasrc', 0, DmediaSrcType)
 
-gobject.type_register(DmediaSrc)
-gst.element_register(DmediaSrc, 'dmediasrc')
 
-src = gst.element_factory_make('dmediasrc')
+version = Gst.version()
+Gst.Plugin.register_static_full(
+    version[0],  # GST_VERSION_MAJOR
+    version[1],  # GST_VERSION_MINOR
+    'dmedia',
+    'dmedia src plugin',
+    plugin_init,
+    '11.10',
+    'LGPL',
+    'dmedia',
+    'dmedia',
+    'https://launchpad.net/novacut',
+    None,
+)
+
+src = Gst.ElementFactory.make('dmediasrc', None)
+print(src)
 
