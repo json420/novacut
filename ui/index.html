@@ -4,27 +4,36 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <style>
 body {
-    font-family: Ubuntu;
-    font-size: 24px;
+    font-family: "Ubuntu Mono";
+    font-size: 18px;
     background-color: #333;
     color: #e81f3b;
     text-align: center;
 }
 </style>
-<script src="/_apps/dc3/couch.js"></script>
+<script src="couch.js"></script>
 <script src="/_apps/dc3/base.js"></script>
 <script>
 // The `novacut` CouchDB database:
 var db = new couch.Database('novacut');
 
-function hello() {
-    var s = new couch.Server();
-    $('hello').textContent = 'Novacut is talking to CouchDB ' + s.get()['version'];
+function on_changes(r) {
+    var div = $('hello');
+    div.textContent = '';
+    r['results'].forEach(function(row) {
+        var p = $el('p', {textContent: JSON.stringify(row.doc)});
+        div.appendChild(p);
+    });
+}
+
+function monitor() {
+    var since = db.get().update_seq;
+    $('hello').textContent = 'starting at update_seq ' + since;
+    var m = db.monitor_changes(on_changes, since)
 }
 </script>
 </head>
-<body onload="hello()">
-<p id="hello"></p>
-<p>Right click and <strong>Inspect Element</strong></p>
+<body onload="monitor()">
+<div id="hello"></div>
 </body>
 </html>
