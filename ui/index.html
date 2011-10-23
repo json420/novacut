@@ -3,6 +3,10 @@
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 		<style>
+			*{
+				margin:0px;
+				padding:0px;
+			}
 			body {
 				font-family: "Ubuntu Mono";
 				font-size: 18px;
@@ -55,23 +59,28 @@
 				el.style.setProperty("left", thing.x + "px");
 				el.style.setProperty("background-color", thing.colour);
 				
-				document.onmousedown = function(){
-					click = true;
+				document.onmousedown = function(event){
+					thing.x = event.clientX - 100;
+					thing.y = event.clientY - 100;
+					db.save(thing);
 				}
-				document.onmousemove = function(event){
-					if (click == true){
-						thing.x = event.clientX - 100;
-						thing.y = event.clientY - 100;
-						db.save(thing);
+				document.oncontextmenu = function(e){
+					if (e.target.id == "img"){
+						event.preventDefault();
 					}
 				}
-				document.onmouseup = function(){
-					click = false;
+				document.getElementById("img").onmousedown = function(e){
+					e.preventDefault();
 				}
 			}
 		</script>
 	</head>
 	<body>
-		<div id="change"></div>
+		<img id="img" src="http://i.imgur.com/24uzu.jpg"/>
+		<div id="change">
+			<video loop autoplay src="/novacut/media/bus.webm">
+			
+			</video>
+		</div>
 	</body>
 </html>
