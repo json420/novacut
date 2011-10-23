@@ -2,85 +2,56 @@
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-		<style>
-			*{
-				margin:0px;
-				padding:0px;
-			}
-			body {
-				font-family: "Ubuntu Mono";
-				font-size: 18px;
-				background-color: #333;
-				color: #e81f3b;
-				text-align: center;
-			}
-		</style>
+		<link rel="stylesheet" href="style.css"/>
 		<script src="couch.js"></script>
 		<script src="/_apps/dc3/base.js"></script>
 		<script>
 			// The `novacut` CouchDB database:
-			var db = new couch.Database('novacut');
-
-			var thing = db.get("magic_test");
-			var click = false;
-			function on_changes(response) {
-				var div = $('change');
-				response.results.forEach(function(row) {
-					if (row.doc._id == "magic_test"){
-						var el = $("change");
-						el.style.setProperty("top", thing.y + "px");
-						el.style.setProperty("left", thing.x + "px");
-						el.style.setProperty("background-color", thing.colour);
-						thing = row.doc;
+			
+			function init(){
+				db = new couch.Database('novacut');
+				project = db.get("fakeproject");
+				for (var i = 0; i < project.clips.length; i++){
+					var name = project.clips[i]
+					var img = $el("img", {src: "/novacut/" + name + "/1.jpg"});
+					var li = $el("li", {"data-src": name})
+					li.appendChild(img);
+					$("clips").appendChild(li);
+					
+					li.onmouseover = function(){
+						$("preview").src = "/novacut/media/" + this.dataset.src + ".webm";
+						$("preview").pause();
 					}
+					
+					li.onmousedown = function(){
+						$("preview").play();
+					}
+				}
+			}
+			
+			function on_changes(response) {
+				response.results.forEach(function(row) {
+					console.log(row.doc._id);
 				});
 	 
-				/*div.textContent = '';
-				r.results.forEach(function(row) {
-					var p = $el('p', {textContent: JSON.stringify(row.doc)});
-					div.appendChild(p);
-				});*/
+				
 			}
 
 			function monitor() {
 				var since = db.get().update_seq;
-				//$('change').textContent = 'starting at update_seq ' + since;
 				m = db.monitor_changes(on_changes, since)
 			}
 
 			window.onload = function(){
+				init();
 				monitor();
-				var el = $("change");
-				el.style.setProperty("display", "inline-block");
-				el.style.setProperty("position", "absolute");
-				el.style.setProperty("width", "200px");
-				el.style.setProperty("height", "200px");
-				el.style.setProperty("top", thing.y + "px");
-				el.style.setProperty("left", thing.x + "px");
-				el.style.setProperty("background-color", thing.colour);
-				
-				document.onmousedown = function(event){
-					thing.x = event.clientX - 100;
-					thing.y = event.clientY - 100;
-					db.save(thing);
-				}
-				document.oncontextmenu = function(e){
-					if (e.target.id == "img"){
-						event.preventDefault();
-					}
-				}
-				document.getElementById("img").onmousedown = function(e){
-					e.preventDefault();
-				}
 			}
 		</script>
 	</head>
 	<body>
-		<img id="img" src="http://i.imgur.com/24uzu.jpg"/>
-		<div id="change">
-			<video loop autoplay src="/novacut/media/bus.webm">
-			
-			</video>
-		</div>
+		<ul id="clips">
+		</ul>
+		<video id="preview" width="480" height="270" autoplay>
+		</video>
 	</body>
 </html>
