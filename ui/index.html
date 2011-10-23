@@ -18,7 +18,7 @@
 			var db = new couch.Database('novacut');
 
 			var thing = db.get("magic_test");
-
+			var click = false;
 			function on_changes(response) {
 				var div = $('change');
 				response.results.forEach(function(row) {
@@ -55,10 +55,18 @@
 				el.style.setProperty("left", thing.x + "px");
 				el.style.setProperty("background-color", thing.colour);
 				
-				document.onmousedown = function(event){
-					thing.x = event.clientX;
-					thing.y = event.clientY;
-					db.save(thing);
+				document.onmousedown = function(){
+					click = true;
+				}
+				document.onmousemove = function(event){
+					if (click == true){
+						thing.x = event.clientX - 100;
+						thing.y = event.clientY - 100;
+						db.save(thing);
+					}
+				}
+				document.onmouseup = function(){
+					click = false;
 				}
 			}
 		</script>
