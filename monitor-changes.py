@@ -2,6 +2,7 @@
 
 import sys
 import json
+import time
 
 from microfiber import Database, dc3_env
 
@@ -27,6 +28,9 @@ while True:
         print('update_seq {}:'.format(last_seq))
         print('-' * 80)
         for row in r['results']:
-            print(json.dumps(row['doc'], sort_keys=True, indent=4))
+            doc = row['doc']
+            if 'time' in doc:
+                print('latency: {}'.format(time.time() - doc['time']))
+            print(json.dumps(doc, sort_keys=True, indent=4))
         print('')
 

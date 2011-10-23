@@ -2,8 +2,9 @@
 
 import sys
 import time
+import socket
 
-from microfiber import Database, NotFound, dc3_env
+from microfiber import Database, NotFound, random_id, dc3_env
 
 
 if len(sys.argv) != 2:
@@ -13,15 +14,16 @@ name = sys.argv[1]
 db = Database(name, dc3_env())
 
 db.ensure()
-try:
-    doc = db.get('foo')
-except NotFound:
-    doc = {'_id': 'foo'}
-    db.save(doc)
 i = 0
 while True:
     time.sleep(5)
-    doc['i'] = i
+    doc = {
+        '_id': random_id(),
+        'time': time.time(),
+        'type': 'test',
+        'hostname': socket.gethostname(),
+        'i': i,
+    }
     db.save(doc)
     print(doc)
     i += 1
