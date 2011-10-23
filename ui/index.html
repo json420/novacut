@@ -4,11 +4,11 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <style>
 body {
-    font-family: "Ubuntu Mono";
-    font-size: 18px;
-    background-color: #333;
-    color: #e81f3b;
-    text-align: center;
+	font-family: "Ubuntu Mono";
+	font-size: 18px;
+	background-color: #333;
+	color: #e81f3b;
+	text-align: center;
 }
 </style>
 <script src="couch.js"></script>
@@ -17,23 +17,46 @@ body {
 // The `novacut` CouchDB database:
 var db = new couch.Database('novacut');
 
-function on_changes(r) {
-    var div = $('hello');
-    div.textContent = '';
-    r['results'].forEach(function(row) {
-        var p = $el('p', {textContent: JSON.stringify(row.doc)});
-        div.appendChild(p);
-    });
+var thing = db.get("magic_test");
+
+function on_changes(response) {
+	var div = $('change');
+	response.results.forEach(function(row) {
+		if (row.doc._id == "magic_test"){
+			var el = $("change");
+			el.style.setProperty("top", thing.y + "px");
+			el.style.setProperty("left", thing.x + "px");
+			el.style.setProperty("background-color", thing.colour);
+		}
+	});
+	 
+	/*div.textContent = '';
+	r.results.forEach(function(row) {
+		var p = $el('p', {textContent: JSON.stringify(row.doc)});
+		div.appendChild(p);
+	});*/
 }
 
 function monitor() {
-    var since = db.get().update_seq;
-    $('hello').textContent = 'starting at update_seq ' + since;
-    var m = db.monitor_changes(on_changes, since)
+	var since = db.get().update_seq;
+	//$('change').textContent = 'starting at update_seq ' + since;
+	m = db.monitor_changes(on_changes, since)
+}
+
+window.onload = function(){
+	monitor();
+	var el = $("change");
+	el.style.setProperty("display", "inline-block");
+	el.style.setProperty("position", "absolute");
+	el.style.setProperty("width", "200px");
+	el.style.setProperty("height", "200px");
+	el.style.setProperty("top", thing.y + "px");
+	el.style.setProperty("left", thing.x + "px");
+	el.style.setProperty("background-color", thing.colour);
 }
 </script>
 </head>
-<body onload="monitor()">
-<div id="hello"></div>
+<body>
+<div id="change"></div>
 </body>
 </html>
