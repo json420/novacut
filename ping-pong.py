@@ -85,7 +85,8 @@ doc = {
     'continuous': True,
 }
 restart(doc)
-time.sleep(2)
+print('\nGiving Couches 10 seconds to sync before starting...')
+time.sleep(10)
 print('')
 
 start_thread(monitor_thread, 'test', env)
@@ -120,5 +121,7 @@ for end in ['_from_iris', '_to_iris']:
         s.delete('_replicator', _id, rev=rev)
     except NotFound:
         pass
+        
+db.post(None, '_compact')
         
 
