@@ -23,15 +23,12 @@ function on_changes(r) {
     r['results'].forEach(function(row) {
         var doc = row.doc;
         if (doc.type == 'dmedia/file' && doc.origin == 'user' && doc._attachments.thumbnail) {
-            var img = $el('img', {src: db.att_url(doc, 'thumbnail')});
-            var p = $el('p');
-            p.appendChild(img);
-            if (div.childNodes.length == 0) {
-                div.appendChild(p);
-            }
-            else {
-                div.insertBefore(p, div.childNodes[0]);
-            }
+            var img = $el('img', {
+                src: db.att_url(doc, 'thumbnail'),
+                title: doc.name,
+            });
+            div.appendChild(img);
+            img.scrollIntoView();
         }
     });
 }
