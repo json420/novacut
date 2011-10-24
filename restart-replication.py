@@ -18,7 +18,7 @@ def restart(doc):
     print('saved replication {!r}'.format(doc['_id']))
 
 
-for name in ['novacut', 'dmedia']:
+for name in ['novacut', 'dmedia', 'test']:
     try:
         s.put(None, name)
     except PreconditionFailed:
