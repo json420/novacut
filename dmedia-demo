@@ -34,6 +34,7 @@ class UI(BaseUI):
     splash = 'splash.html'
     title = 'DMedia'
     databases = ['dmedia']
+    proxy_bus = 'org.freedesktop.DMedia'
 
 
 parser = optparse.OptionParser(

@@ -59,7 +59,7 @@ function monitor() {
 
 
 function show() {
-    var r = db.view('user', 'ctime', {include_docs: true});
+    var r = db.view('user', 'ctime', {include_docs: true, limit: 200});
     var parent = $('hello');
     r['rows'].forEach(function(row) {
         append(parent, row.doc);
@@ -68,7 +68,7 @@ function show() {
 
 </script>
 </head>
-<body onload="monitor()">
+<body onload="show()">
 <div id="hello"></div>
 </body>
 </html>
