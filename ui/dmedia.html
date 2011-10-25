@@ -31,7 +31,8 @@ var db = new couch.Database('dmedia');
 function append(parent, doc) {
     var div = $el('div', {'class': 'thumb'});
     if (doc._attachments.thumbnail) {
-        div.style.backgroundImage = 'url("' + db.att_url(doc, 'thumbnail') + '")';   
+        var url = db.att_url(doc, 'thumbnail');
+        div.style.backgroundImage = 'url("' + url + '")';   
     }
     parent.appendChild(div);
 }
@@ -63,7 +64,7 @@ function show() {
 
 </script>
 </head>
-<body onload="show()">
-<div id="monitor"></div>
+<body onload="monitor()">
+<div id="hello"></div>
 </body>
 </html>
