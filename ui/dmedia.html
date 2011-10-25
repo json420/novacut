@@ -1,99 +1,154 @@
 <!DOCTYPE html>
 <html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<style>
-body {
-    font-family: Ubuntu;
-    font-size: 16px;
-    background-color: #333;
-    color: #e81f3b;
-}
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<style>
+			body {
+			    font-family: Ubuntu;
+			    font-size: 16px;
+			    background-color: #333;
+			    color: white;
+			    padding-top:30px;
+			}
+			
+			#head{
+				position:fixed;
+				top:0px;
+				left:0px;
+				right:0px;
+				height:20px;
+				padding:5px;
+				background:-webkit-linear-gradient(top, #666, #444);
+				box-shadow:0px 2px 5px 1px rgba(0,0,0,0.4);
+			}
+			
+			#head a{
+				text-decoration:none;
+				color:white;
+				
+			}
+			
+			#head a:hover{
+				color:#e81f3b;
+			}
+			
+			.thumb {
+			    margin: 4px;
+			    border:3px solid #555;
+			    border-radius:5px;
+			    box-shadow:0px 2px 5px 1px rgba(0,0,0,0.4);
+			    overflow: hidden;
+			    display: inline-block;
+			    background-position: center center;
+			    background-size: cover;
+			    background: #fff;
+			}
+			
+			.thumb:hover{
+				border-color:#777;
+			}
+			
+			.label  {
+			    position: absolute;
+			    overflow: hidden;
+			    margin: 0;
+			    padding: 0px;
+			    background:#333;
+			    text-align:center;
+				line-height:100px;
+			}
 
-.thumb {
-    margin: 4px;
-    padding: 0;
-    overflow: hidden;
-    display: inline-block;
-    background-position: center center;
-    background-size: cover;
-    background: #fff;
-}
+			.small div{
+				height: 108px;
+				width: 108px;
+			}
 
-.label  {
-    position: absolute;
-    overflow: hidden;
-    margin: 0;
-    padding: 4px;
-}
+			.medium div{
+				height: 162px;
+				width: 162px;
+			}
 
-.small div {
-    height: 108px;
-    width: 108px;
-}
-
-.medium div {
-    height: 162px;
-    width: 162px;
-}
-
-.large div {
-    height: 216px;
-    width: 216px;
-}
-
-
-</style>
-<script src="couch.js"></script>
-<script src="/_apps/dc3/base.js"></script>
-<script>
-// The `novacut` CouchDB database:
-var db = new couch.Database('dmedia');
-
-
-function append(parent, doc) {
-    var div = $el('div', {'class': 'thumb'});
-    if (doc._attachments.thumbnail) {
-        var url = db.att_url(doc, 'thumbnail');
-        div.style.backgroundImage = 'url("' + url + '")';   
-    }
-    else {
-        div.appendChild($el('div', {textContent: doc.name, 'class': 'label'}));
-    }
-    parent.appendChild(div);
-}
-
-
-function on_changes(r) {
-    var parent = $('hello');
-    r['results'].forEach(function(row) {
-        var doc = row.doc;
-        if (doc.type == 'dmedia/file' && doc.origin == 'user' && doc._attachments.thumbnail) {
-            append(parent, doc);
-        }
-    });
-    if (parent.lastChild) {
-        parent.lastChild.scrollIntoView();
-    }
-}
-
-function monitor() {
-    var since = db.get().update_seq;
-    var m = db.monitor_changes(on_changes, since);
-}
+			.large div{
+				height: 216px;
+				width: 216px;
+			}
 
 
-function show() {
-    var r = db.view('user', 'ctime', {include_docs: true, limit: 500});
-    var parent = $('hello');
-    r['rows'].forEach(function(row) {
-        append(parent, row.doc);
-    });
-}
+		</style>
+		<script src="couch.js"></script>
+		<script src="/_apps/dc3/base.js"></script>
+		<script>
+			// The `novacut` CouchDB database:
+			var db = new couch.Database("dmedia");
 
-</script>
-</head>
-<body onload="show()">
-<div id="hello" class="medium"></div>
-</body>
+
+			function append(parent, doc) {
+				var div = $el("div", {
+					"class": "thumb",
+					"draggable": "true"
+				});
+				if (doc._attachments.thumbnail) {
+					var url = db.att_url(doc, "thumbnail");
+					div.style.backgroundImage = "url(\"" + url + "\")";   
+				}
+				else {
+					div.appendChild($el("div", {textContent: doc.name, "class": "label"}));
+				}
+				parent.appendChild(div);
+			}
+
+
+			function on_changes(r) {
+				var parent = $("hello");
+				r["results"].forEach(function(row) {
+					var doc = row.doc;
+					if (doc.type == "dmedia/file" && doc.origin == "user" && doc._attachments.thumbnail) {
+						append(parent, doc);
+					}
+				});
+				if (parent.lastChild) {
+					parent.lastChild.scrollIntoView();
+				}
+			}
+
+			function monitor() {
+				var since = db.get().update_seq;
+				var m = db.monitor_changes(on_changes, since);
+			}
+
+
+			function show() {
+				var r = db.view("user", "ctime", {include_docs: true, limit: 500, skip: 0});
+				var parent = $("hello");
+				r["rows"].forEach(function(row) {
+					append(parent, row.doc);
+				});
+			}
+
+			function size(i){
+				switch (i){
+					case 0:
+						$("hello").classList.add("small");
+						$("hello").classList.remove("medium");
+						$("hello").classList.remove("large");
+						break;
+					case 1:
+						$("hello").classList.add("medium");
+						$("hello").classList.remove("small");
+						$("hello").classList.remove("large");
+						break;
+					case 2:
+						$("hello").classList.add("large");
+						$("hello").classList.remove("medium");
+						$("hello").classList.remove("small");
+						break;
+				}
+			}
+
+		</script>
+	</head>
+	<body onload="show()">
+		<div id="head"><a href="#" onclick="size(0);">Small</a> | <a href="#" onclick="size(1);">Medium</a> | <a href="#" onclick="size(2);">Large</a></div>
+		<div id="hello" class="small"></div>
+	</body>
 </html>
