@@ -27,20 +27,24 @@ div.thumb {
 // The `novacut` CouchDB database:
 var db = new couch.Database('dmedia');
 
-function append(rows) {
-    var parent = $('hello');
-    rows.forEach(function(row) {
-        var doc = row.doc;
-        var div = $el('div', {'class': 'thumb'});
-        if (doc._attachments.thumbnail) {
-            div.style.backgroundImage = 'url("' + db.att_url(doc, 'thumbnail') + '")';   
-        }
-        parent.appendChild(div);
-    });
+
+function append(parent, doc) {
+    var div = $el('div', {'class': 'thumb'});
+    if (doc._attachments.thumbnail) {
+        div.style.backgroundImage = 'url("' + db.att_url(doc, 'thumbnail') + '")';   
+    }
+    parent.appendChild(div);
 }
 
+
 function on_changes(r) {
-    append(r['results']);
+    var parent = $('hello');
+    r['results'].forEach(function(row) {
+        var doc = row.doc;
+        if (doc.type == 'dmedia/file' && doc.origin == 'user' && doc._attachments.thumbnail) {
+            append(parent, doc);
+        }
+    });
 }
 
 function monitor() {
@@ -48,14 +52,18 @@ function monitor() {
     var m = db.monitor_changes(on_changes, since);
 }
 
+
 function show() {
     var r = db.view('user', 'ctime', {include_docs: true});
-    append(r['rows']);
+    var parent = $('hello');
+    r['rows'].forEach(function(row) {
+        append(parent, row.doc);
+    });
 }
 
 </script>
 </head>
 <body onload="show()">
-<div id="hello"></div>
+<div id="monitor"></div>
 </body>
 </html>
