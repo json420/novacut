@@ -8,8 +8,18 @@ body {
     font-size: 18px;
     background-color: #333;
     color: #e81f3b;
-    text-align: center;
 }
+
+div.thumb {
+    margin: 4px;
+    padding: 0;
+    background: #fff;
+    height: 216px;
+    width: 216px;
+    display: inline-block;
+    background-position: center center;
+}
+
 </style>
 <script src="couch.js"></script>
 <script src="/_apps/dc3/base.js"></script>
@@ -17,29 +27,35 @@ body {
 // The `novacut` CouchDB database:
 var db = new couch.Database('dmedia');
 
-function on_changes(r) {
-    var div = $('hello');
-    //div.textContent = '';
-    r['results'].forEach(function(row) {
+function append(rows) {
+    var parent = $('hello');
+    rows.forEach(function(row) {
         var doc = row.doc;
-        if (doc.type == 'dmedia/file' && doc.origin == 'user' && doc._attachments.thumbnail) {
-            var img = $el('img', {
-                src: db.att_url(doc, 'thumbnail'),
-                title: doc.name,
-            });
-            div.appendChild(img);
-            img.scrollIntoView();
+        var div = $el('div', {'class': 'thumb'});
+        if (doc._attachments.thumbnail) {
+            div.style.backgroundImage = 'url("' + db.att_url(doc, 'thumbnail') + '")';   
         }
+        parent.appendChild(div);
     });
+}
+
+function on_changes(r) {
+    append(r['results']);
 }
 
 function monitor() {
     var since = db.get().update_seq;
-    var m = db.monitor_changes(on_changes, since)
+    var m = db.monitor_changes(on_changes, since);
 }
+
+function show() {
+    var r = db.view('user', 'ctime', {include_docs: true});
+    append(r['rows']);
+}
+
 </script>
 </head>
-<body onload="monitor()">
+<body onload="show()">
 <div id="hello"></div>
 </body>
 </html>
