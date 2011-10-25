@@ -46,6 +46,9 @@ function on_changes(r) {
             append(parent, doc);
         }
     });
+    if (parent.lastChild) {
+        parent.lastChild.scrollIntoView();
+    }
 }
 
 function monitor() {
