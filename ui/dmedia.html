@@ -4,22 +4,44 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <style>
 body {
-    font-family: "Ubuntu Mono";
-    font-size: 18px;
+    font-family: Ubuntu;
+    font-size: 16px;
     background-color: #333;
     color: #e81f3b;
 }
 
-div.thumb {
+.thumb {
     margin: 4px;
     padding: 0;
-    background: #fff;
     overflow: hidden;
-    height: 216px;
-    width: 216px;
     display: inline-block;
     background-position: center center;
+    background-size: cover;
+    background: #fff;
 }
+
+.label  {
+    position: absolute;
+    overflow: hidden;
+    margin: 0;
+    padding: 4px;
+}
+
+.small div {
+    height: 108px;
+    width: 108px;
+}
+
+.medium div {
+    height: 162px;
+    width: 162px;
+}
+
+.large div {
+    height: 216px;
+    width: 216px;
+}
+
 
 </style>
 <script src="couch.js"></script>
@@ -34,6 +56,9 @@ function append(parent, doc) {
     if (doc._attachments.thumbnail) {
         var url = db.att_url(doc, 'thumbnail');
         div.style.backgroundImage = 'url("' + url + '")';   
+    }
+    else {
+        div.appendChild($el('div', {textContent: doc.name, 'class': 'label'}));
     }
     parent.appendChild(div);
 }
@@ -59,7 +84,7 @@ function monitor() {
 
 
 function show() {
-    var r = db.view('user', 'ctime', {include_docs: true, limit: 200});
+    var r = db.view('user', 'ctime', {include_docs: true, limit: 500});
     var parent = $('hello');
     r['rows'].forEach(function(row) {
         append(parent, row.doc);
@@ -69,6 +94,6 @@ function show() {
 </script>
 </head>
 <body onload="show()">
-<div id="hello"></div>
+<div id="hello" class="medium"></div>
 </body>
 </html>
