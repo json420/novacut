@@ -100,7 +100,7 @@ function init_box(_id) {
 
 
 function on_changes(r) {
-    r['results'].forEach(function(row) {
+    r.results.forEach(function(row) {
         var doc = row.doc;
         if (boxes[doc._id]) {
             boxes[doc._id].sync(doc);
@@ -110,7 +110,10 @@ function on_changes(r) {
 
 
 function boxit() {
-    init_box('box');
+    var r = db.get('_all_docs');
+    r.rows.forEach(function(row) {
+        init_box(row.id);
+    });
     var since = db.get().update_seq;
     var m = db.monitor_changes(on_changes, since);
 }
