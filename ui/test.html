@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+<script src="couch.js"></script>
+<script src="/_apps/dc3/base.js"></script>
+<script src="widgets.js"></script>
+<script>
+
+var db = new couch.Database('project');
+var docs = {};
+var widgets = {};
+
+
+function on_changes(r) {
+    r.results.forEach(function(row) {
+        var doc = row.doc;
+        if (widgets[doc._id]) {
+            widgets[doc._id].sync(doc);
+        }
+    });
+}
+
+
+function run() {
+    var r = db.get('_all_docs', {include_docs: true});
+    var main = $('main');
+    r.rows.forEach(function(row) {
+        var doc = row.doc;
+        docs[doc._id] = doc;
+        console.log(doc._id);
+    });
+
+    var _id;
+    for (_id in docs) {
+        var doc = docs[_id];
+        if (doc.type == 'novacut/node' && doc.node.type == 'slice') {
+            var w = new Slice(db, doc);
+            widgets[_id] = w;
+            w.append_to(main);
+        }
+    }
+
+    var since = db.get().update_seq;
+    var m = db.monitor_changes(on_changes, since);
+}
+
+</script>
+</head>
+<body onload="run()">
+<div id="main"></div>
+</body>
+</html>

@@ -40,8 +40,12 @@ for (_id, frames) in clips:
     docs.append(doc)
 
 docs.append(schema.create_sequence(slice_ids))
-    
-    
+
+
+db = Database('project', dc3_env())
+db.bulksave(docs)
+
 print(json.dumps(docs, sort_keys=True, indent=4))
+
         
 
