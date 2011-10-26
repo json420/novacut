@@ -257,6 +257,10 @@ couch.CouchBase.prototype = {
         return this.request('POST', obj, parts, options);
     },
 
+    async_post: function(callback, obj, parts, options) {
+        return this.async_request(callback, 'POST', obj, parts, options);
+    },
+
     get: function(parts, options) {
         /*
         Do a GET request.
@@ -327,6 +331,7 @@ couch.Database = function(name, url, Request) {
     couch.CouchBase.call(this, url, Request);
     this.basepath = this.url + name + '/';
     this.name = name;
+    this._dirty_docs = {};
 }
 couch.Database.prototype = {
     save: function(doc) {
@@ -400,6 +405,23 @@ couch.Database.prototype = {
 
     monitor_changes: function(callback, since) {
         return new couch.ChangesMonitor(callback, this, since);
+    },
+
+    dirty: function(doc) {
+        this._dirty_docs[doc._id] = doc;
+    },
+
+    commit: function() {
+        var docs = [];
+        var _id;
+        for (_id in this._dirty_docs) {
+            docs.push(this._dirty_docs[_id]);
+        }
+        if (docs.length == 0) {
+            return;
+        }
+        this._dirty_docs = {};
+        this.bulksave(docs);
     },
 }
 couch.Database.prototype.__proto__ = couch.CouchBase.prototype;

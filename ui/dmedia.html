@@ -116,7 +116,6 @@
 				var m = db.monitor_changes(on_changes, since);
 			}
 
-
 			function show() {
 				var r = db.view("user", "ctime", {include_docs: true, limit: 500, skip: 0});
 				var parent = $("hello");
