@@ -28,13 +28,7 @@ from userwebkit import BaseUI
 import novacut
 
 
-class UI(BaseUI):
-    app = 'novacut'
-    page = 'index.html'
-    splash = 'splash.html'
-    title = 'Novacut'
-    databases = ['novacut']
-
+index = 'index.html'
 
 parser = optparse.OptionParser(
     version=novacut.__version__,
@@ -44,7 +38,20 @@ parser.add_option('--benchmark',
     action='store_true',
     default=False,
 )
+parser.add_option('--page',
+    help='starting page to load; default={!r}'.format(index),
+    default=index,
+)
 (options, args) = parser.parse_args()
 
+
+class UI(BaseUI):
+    app = 'novacut'
+    page = options.page
+    splash = 'splash.html'
+    title = 'Novacut'
+    databases = ['novacut']
+    
+    
 ui = UI(options.benchmark)
 ui.run()
