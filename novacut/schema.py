@@ -125,6 +125,7 @@ is enormously useful for two reasons:
 
 """
 
+import time
 import json
 from os import urandom
 from base64 import b32encode
@@ -441,3 +442,32 @@ def normalized_dumps(obj):
 
     """
     return json.dumps(obj, sort_keys=True, separators=(',',':'))
+
+
+def create_node(node):
+    return {
+        '_id': random_id(),
+        'type': 'novacut/node',
+        'time': time.time(),
+        'node': node,
+    }
+
+
+def create_slice(src, start, stop, stream='video'):
+    node = {
+        'type': 'slice',
+        'src': src,
+        'start': start,
+        'stop': stop,
+        'stream': stream,
+    }
+    return create_node(node)
+
+
+def create_sequence(src):
+    node = {
+        'type': 'sequence',
+        'src': src,
+    }
+    return create_node(node)
+

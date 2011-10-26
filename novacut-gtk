@@ -50,7 +50,7 @@ class UI(BaseUI):
     page = options.page
     splash = 'splash.html'
     title = 'Novacut'
-    databases = ['novacut']
+    databases = ['novacut', 'project']
     
     
 ui = UI(options.benchmark)
