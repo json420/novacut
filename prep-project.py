@@ -43,6 +43,7 @@ docs.append(schema.create_sequence(slice_ids))
 
 
 db = Database('project', dc3_env())
+db.ensure()
 db.bulksave(docs)
 
 print(json.dumps(docs, sort_keys=True, indent=4))
