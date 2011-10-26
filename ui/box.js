@@ -29,6 +29,7 @@ Box.prototype = {
         }
         this.x = doc.x;
         this.y = doc.y;
+        this.element.textContent = this._x + ', ' + this._y;
     },
 
     set x(value) {
@@ -43,6 +44,7 @@ Box.prototype = {
 
     finish: function(e) {
         this.clicked = false;
+        this.element.textContent = this._x + ', ' + this._y;
         if (this.doc.x == this._x && this.doc.y == this._y) {
             return;
         }
