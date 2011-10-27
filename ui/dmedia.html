@@ -99,10 +99,25 @@
 
 
 			function append(parent, doc) {
-				var div = $el("div", {
-					"class": "thumb",
-					"draggable": "true"
-				});
+				if (doc.meta){
+					var div = $el("div", {
+						"class": "thumb",
+						"draggable": "true",
+						"data-resolution": doc.meta.width + "x" + doc.meta.height,
+						"data-aperture": doc.meta.aperture,
+						"data-camera": doc.meta.camera,
+						"data-focal_length": doc.meta.focal_length,
+						"data-iso": doc.meta.iso,
+						"data-lens": doc.meta.lens,
+						"data-shutter": doc.meta.shutter
+					});
+				}
+				else{
+					var div = $el("div", {
+						"class": "thumb",
+						"draggable": "true"
+					});
+				}
 				if (doc._attachments.thumbnail) {
 					var url = db.att_url(doc, "thumbnail");
 					div.style.backgroundImage = "url(\"" + url + "\")";   
@@ -111,6 +126,17 @@
 					div.appendChild($el("div", {textContent: doc.name, "class": "label"}));
 				}
 				parent.appendChild(div);
+				div.onclick = function(event){
+					var info = $("info");
+					var data = "<strong>Resolution:</strong> " + this.dataset.resolution + "<br>";
+					data += "<strong>Aperture:</strong> " + this.dataset.aperture + "<br>";
+					data += "<strong>Camera:</strong> " + this.dataset.camera + "<br>";
+					data += "<strong>Focal Length:</strong> " + this.dataset.focal_length + "<br>";
+					data += "<strong>ISO:</strong> " + this.dataset.iso + "<br>";
+					data += "<strong>Lens:</strong> " + this.dataset.lens + "<br>";
+					data += "<strong>Shutter:</strong> " + this.dataset.shutter + "<br>";
+					info.innerHTML = data;
+				}
 			}
 
 
