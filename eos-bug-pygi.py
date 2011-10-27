@@ -11,7 +11,7 @@ pipeline = Gst.Pipeline()
 
 def on_eos(bus, msg):
     print('eos: {!r}'.format(msg))
-    pipeline.set_state(gst.STATE_NULL)
+    pipeline.set_state(gst.State.NULL)
     mainloop.quit()
 
 def on_message(bus, msg):
