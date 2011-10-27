@@ -3,49 +3,65 @@
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 		<style>
+			*{
+				margin:0px;
+				padding:0px;
+			}
+		
 			body {
-			    font-family: Ubuntu;
+			    font-family: "Ubuntu Light";
 			    font-size: 16px;
 			    background-color: #333;
 			    color: white;
 			    padding-top:30px;
+			    padding-left:300px;
 			}
 			
 			#head{
 				position:fixed;
+				z-index:1000;
 				top:0px;
 				left:0px;
 				right:0px;
 				height:20px;
 				padding:5px;
+				padding-right:30px;
 				background:-webkit-linear-gradient(top, #666, #444);
-				box-shadow:0px 2px 5px 1px rgba(0,0,0,0.4);
+				text-align:right;
+				cursor:default;
 			}
 			
 			#head a{
 				text-decoration:none;
 				color:white;
-				
+				cursor:default;				
 			}
 			
 			#head a:hover{
 				color:#e81f3b;
 			}
 			
+			#info{
+				position:fixed;
+				top:30px;
+				left:0px;
+				bottom:0px;
+				width:290px;
+				background:-webkit-linear-gradient(top, #555, #444);
+				padding:5px;
+				cursor:default;
+			}
+			
 			.thumb {
 			    margin: 4px;
-			    border:3px solid #555;
-			    border-radius:5px;
+			    border:3px solid #ccc;
 			    box-shadow:0px 2px 5px 1px rgba(0,0,0,0.4);
 			    overflow: hidden;
 			    display: inline-block;
 			    background-position: center center;
 			    background-size: cover;
 			    background: #fff;
-			}
-			
-			.thumb:hover{
-				border-color:#777;
+			    cursor:pointer;
 			}
 			
 			.label  {
@@ -117,7 +133,7 @@
 			}
 
 			function show() {
-				var r = db.view("user", "ctime", {include_docs: true, limit: 500, skip: 0});
+				var r = db.view("user", "ctime", {include_docs: true, limit: 100, skip: 100});
 				var parent = $("hello");
 				r["rows"].forEach(function(row) {
 					append(parent, row.doc);
@@ -142,12 +158,37 @@
 						$("hello").classList.remove("small");
 						break;
 				}
+				fitIcons();
 			}
-
+			
+			function fitIcons(){
+				width = window.innerWidth - 300;
+				icons = document.getElementsByClassName("thumb");
+				iconwidth = icons[0].getBoundingClientRect().width;
+				count = Math.floor(width/(iconwidth+8));
+				space = width % (count * (iconwidth+8))
+				newmargin = (space/(count*2)) + 4;
+				
+				for (i = 0; i < icons.length; i++){
+					icons[i].style.setProperty("margin-left", newmargin + "px");
+					icons[i].style.setProperty("margin-right", newmargin + "px");
+				}
+			}
+			
+			window.onresize = function(){
+				fitIcons();
+			}
+			
+			window.onload = function(){
+				show();
+				fitIcons();
+			}
+			
 		</script>
 	</head>
-	<body onload="show()">
+	<body>
 		<div id="head"><a href="#" onclick="size(0);">Small</a> | <a href="#" onclick="size(1);">Medium</a> | <a href="#" onclick="size(2);">Large</a></div>
+		<div id="info">'sup peeps? This is where all the information will go!</div>
 		<div id="hello" class="small"></div>
 	</body>
 </html>
