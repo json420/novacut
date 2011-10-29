@@ -29,37 +29,45 @@ var Slice = function(db, doc) {
 }
 Slice.prototype = {
     on_mousewheel_start: function(event) {
+        event.preventDefault();
         var delta = wheel_delta(event);
         var start = this.doc.node.start.frame;
         var stop = this.doc.node.stop.frame;
         var proposed = Math.max(0, Math.min(start + delta, stop - 1));
         if (start != proposed) {
             this.doc.node.start.frame = proposed;
-            this.db.dirty(this.doc);
-            this.db.commit();
+            this.save();
         }   
     },
 
     on_mousewheel_end: function(event) {
+        event.preventDefault();
         var delta = wheel_delta(event);
         var start = this.doc.node.start.frame;
         var stop = this.doc.node.stop.frame;
         var proposed = Math.max(start + 1, Math.min(stop + delta, this.count));
         if (stop != proposed) {
             this.doc.node.stop.frame = proposed;
-            this.db.dirty(this.doc);
-            this.db.commit();
+            this.save();
         }   
     },
 
     append_to: function(parent) {
         parent.appendChild(this.element);
     },
+    
+    save: function() {
+        this._sync(this.doc.node);
+    },
 
     sync: function(doc) {
         this.doc = doc;
         var node = doc.node;
         this.count = docs[node.src].duration.frames;
+        this._sync(node);
+    },
+
+    _sync: function(node) {
         this.start.setAttribute('src', thumbnail(node.src, node.start.frame));
         this.end.setAttribute('src', thumbnail(node.src, node.stop.frame - 1));
     },
