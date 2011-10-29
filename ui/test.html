@@ -7,6 +7,7 @@
 <script>
 
 var db = new couch.Database('project');
+var session = new couch.Session(db);
 var docs = {};
 var widgets = {};
 
@@ -22,26 +23,18 @@ function on_changes(r) {
 
 
 function run() {
-    var r = db.get('_all_docs', {include_docs: true});
-    var main = $('main');
-    r.rows.forEach(function(row) {
-        var doc = row.doc;
-        docs[doc._id] = doc;
-        console.log(doc._id);
-    });
+    session.start();
 
     var _id;
-    for (_id in docs) {
-        var doc = docs[_id];
+    for (_id in session.docs) {
+        var doc = session.docs[_id];
         if (doc.type == 'novacut/node' && doc.node.type == 'slice') {
-            var w = new Slice(db, doc);
+            var w = new Slice(session, doc);
             widgets[_id] = w;
             w.append_to(main);
         }
     }
 
-    var since = db.get().update_seq;
-    var m = db.monitor_changes(on_changes, since);
 }
 
 </script>

@@ -11,8 +11,8 @@ function wheel_delta(event) {
     return scale * (delta / Math.abs(delta));
 }
 
-var Slice = function(db, doc) {
-    this.db = db;
+var Slice = function(session, doc) {
+    this.session = session;
     this.element = $el('div', {'class': 'slice'});
     this.start = $el('img');
     this.end = $el('img');
@@ -55,15 +55,17 @@ Slice.prototype = {
     append_to: function(parent) {
         parent.appendChild(this.element);
     },
-    
+
     save: function() {
         this._sync(this.doc.node);
+        this.session.mark(this.doc);
+        this.session.commit();
     },
 
     sync: function(doc) {
         this.doc = doc;
         var node = doc.node;
-        this.count = docs[node.src].duration.frames;
+        this.count = this.session.docs[node.src].duration.frames;
         this._sync(node);
     },
 
