@@ -12,7 +12,6 @@ var widgets = {};
 
 
 function on_change(doc) {
-    console.log(doc._rev);
     if (widgets[doc._id]) {
         widgets[doc._id].sync(doc);
     }
