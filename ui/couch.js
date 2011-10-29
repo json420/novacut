@@ -432,7 +432,9 @@ couch.Session = function(db, callback) {
     this.callback = callback;
     this.docs = {};
     this.dirty = {};
-    this.machine_id = 'foo';
+    this.s = new couch.Server(this.db.url);
+    this.session_id = this.s.get('_uuids', {count: 1}).uuids[0];
+    console.log(this.session_id);
 }
 couch.Session.prototype = {
     start: function() {
@@ -452,7 +454,7 @@ couch.Session.prototype = {
     on_changes: function(r) {
         r.results.forEach(function(row) {
             var doc = row.doc;
-            if (doc.machine_id != this.machine_id) {
+            if (doc.session_id != this.session_id) {
                 this.docs[doc._id] = doc;
                 this.callback(doc);
             }
@@ -474,7 +476,7 @@ couch.Session.prototype = {
 
     mark: function(doc) {
         this.dirty[doc._id] = doc;
-        doc.machine_id = this.machine_id;
+        doc.session_id = this.session_id;
     },
 
     commit: function() {
