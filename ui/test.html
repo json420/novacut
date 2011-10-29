@@ -7,22 +7,20 @@
 <script>
 
 var db = new couch.Database('project');
-var session = new couch.Session(db);
 var docs = {};
 var widgets = {};
 
 
-function on_changes(r) {
-    r.results.forEach(function(row) {
-        var doc = row.doc;
-        if (widgets[doc._id]) {
-            widgets[doc._id].sync(doc);
-        }
-    });
+function on_change(doc) {
+    console.log(doc._rev);
+    if (widgets[doc._id]) {
+        widgets[doc._id].sync(doc);
+    }
 }
 
 
 function run() {
+    var session = new couch.Session(db, on_change);
     session.start();
 
     var _id;

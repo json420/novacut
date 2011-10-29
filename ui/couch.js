@@ -427,10 +427,12 @@ couch.Database.prototype = {
 couch.Database.prototype.__proto__ = couch.CouchBase.prototype;
 
 
-couch.Session = function(db) {
+couch.Session = function(db, callback) {
     this.db = db;
+    this.callback = callback;
     this.docs = {};
     this.dirty = {};
+    this.machine_id = 'foo';
 }
 couch.Session.prototype = {
     start: function() {
@@ -438,6 +440,22 @@ couch.Session.prototype = {
         r.rows.forEach(function(row) {
             var doc = row.doc;
             this.docs[doc._id] = doc;
+        }, this);
+        var self = this;
+        var callback = function(r) {
+            self.on_changes(r);
+        }
+        var since = this.db.get().update_seq;
+        this.monitor = this.db.monitor_changes(callback, since);
+    },
+
+    on_changes: function(r) {
+        r.results.forEach(function(row) {
+            var doc = row.doc;
+            if (doc.machine_id != this.machine_id) {
+                this.docs[doc._id] = doc;
+                this.callback(doc);
+            }
         }, this);
     },
 
@@ -456,6 +474,7 @@ couch.Session.prototype = {
 
     mark: function(doc) {
         this.dirty[doc._id] = doc;
+        doc.machine_id = this.machine_id;
     },
 
     commit: function() {
