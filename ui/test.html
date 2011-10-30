@@ -1,43 +1,44 @@
 <!doctype html>
 <html>
-<head>
-<script src="couch.js"></script>
-<script src="/_apps/dc3/base.js"></script>
-<script src="widgets.js"></script>
-<script>
+	<head>
+		<script src="couch.js"></script>
+		<script src="/_apps/dc3/base.js"></script>
+		<script src="widgets.js"></script>
+		<script>
 
-var db = new couch.Database('project');
-var docs = {};
-var widgets = {};
-
-
-function on_change(doc) {
-    console.log(doc._rev);
-    if (widgets[doc._id]) {
-        widgets[doc._id].sync(doc);
-    }
-}
+			var db = new couch.Database('project');
+			var docs = {};
+			var widgets = {};
 
 
-function run() {
-    var session = new couch.Session(db, on_change);
-    session.start();
+			function on_change(doc) {
+			    console.log(doc._rev);
+			    if (widgets[doc._id]) {
+				widgets[doc._id].sync(doc);
+			    }
+			}
 
-    var _id;
-    for (_id in session.docs) {
-        var doc = session.docs[_id];
-        if (doc.type == 'novacut/node' && doc.node.type == 'slice') {
-            var w = new Slice(session, doc);
-            widgets[_id] = w;
-            w.append_to(main);
-        }
-    }
 
-}
+			function run() {
+			    var session = new couch.Session(db, on_change);
+			    session.start();
 
-</script>
-</head>
-<body onload="run()">
-<div id="main"></div>
-</body>
+			    var _id;
+			    for (_id in session.docs) {
+				var doc = session.docs[_id];
+				if (doc.type == 'novacut/node' && doc.node.type == 'slice') {
+				    var w = new Slice(session, doc);
+				    widgets[_id] = w;
+				    w.append_to(main);
+				}
+			    }
+
+			}
+
+		</script>
+		<link rel="stylesheet" href="test.css"/>
+	</head>
+	<body onload="run()">
+		<div id="main"></div>
+	</body>
 </html>
