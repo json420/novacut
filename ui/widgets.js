@@ -7,6 +7,9 @@ function thumbnail(_id, i) {
 
 function wheel_delta(event) {
     var delta = event.wheelDeltaY;
+    if (delta == 0) {
+        return 0;
+    }
     var scale = (event.shiftKey) ? -10 : -1;
     return scale * (delta / Math.abs(delta));
 }
