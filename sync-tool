@@ -10,6 +10,9 @@ env = {
 }
 authurl = 'https://U4JFH6U3FYI554UU:PGPJDS7QF37XMFWP@novacut.iriscouch.com/'
 
+env = 'http://192.168.69.2:5984/'
+authurl = env
+
 
 class Runner:
     def __init__(self):
