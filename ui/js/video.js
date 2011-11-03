@@ -4,7 +4,7 @@ Author: JamesMR - james@haiku.im
 Depends on jQuery
 */
 
-function video(id){
+function Video(id){
 	this.id = id;
 	this.framerate = 25;
 	this.playing = false;

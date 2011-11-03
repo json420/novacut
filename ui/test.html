@@ -4,6 +4,7 @@
 		<script src="couch.js"></script>
 		<script src="/_apps/dc3/base.js"></script>
 		<script src="widgets.js"></script>
+		<script src="js/video.js"></script>
 		<script>
 
 			var db = new couch.Database('project');
@@ -12,14 +13,14 @@
 
 
 			function on_change(doc) {
-			    console.log(doc._rev);
+			    //console.log(doc._rev);
 			    if (widgets[doc._id]) {
 				widgets[doc._id].sync(doc);
 			    }
 			}
 
 
-			function run() {
+			window.onload = function() {
 			    var session = new couch.Session(db, on_change);
 			    session.start();
 
@@ -32,13 +33,42 @@
 				    w.append_to(main);
 				}
 			    }
+				
+				var videos = {
+					subway: new Video("subway"),
+					bus: new Video("bus"),
+					trolly: new Video("trolly"),
+					trolly_day: new Video("trolly_day")
+				}
+				
+				t = 0;
+				
+				var playing = setInterval(function(){
+					var total = 0;
+					for (i in widgets){
+						if (widgets[i].doc.node.stop - widgets[i].doc.node.start + t >= t){
+							
+						}
+						else{
+							total += widgets[i].doc.node.stop - widgets[i].doc.node.start;
+						}
+					}
+					
+					t++;
+				}, 1000/25);
 
 			}
 
 		</script>
 		<link rel="stylesheet" href="test.css"/>
 	</head>
-	<body onload="run()">
+	<body>
 		<div id="main"></div>
+		<div id="video">
+			<video id="subway" src="/novacut/media/subway.webm"></video>
+			<video id="bus" src="/novacut/media/bus.webm"></video>
+			<video id="trolly" src="/novacut/media/trolly.webm"></video>
+			<video id="trolly_day" src="/novacut/media/trolly_day.webm"></video>
+		</div>
 	</body>
 </html>

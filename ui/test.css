@@ -4,7 +4,7 @@
 }
 
 body{
-	background:#333;
+	background:#333
 }
 
 .slice{
@@ -21,8 +21,27 @@ body{
 }
 
 .slice img{
-	width:160px;
-	height:90px;
+	width:192px;
+	height:108px;
 	background:black;
 	margin-bottom:-3px;
+}
+
+#main{
+	position:absolute;
+	bottom:0px;
+	left:0px;
+	right:0px;
+}
+
+#video{
+	position:absolute;
+	top:0px;
+	left:0px;
+	bottom:0px;
+	background:#444;
+}
+
+#video video{
+	position:absolute;
 }
