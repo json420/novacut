@@ -64,7 +64,15 @@
 						$(widgets[ids[c]].doc.node.src).style.setProperty("z-index", l++);
 					}
 				}, 1000/25);
-
+				var slices = document.getElementsByClassName("slice");
+				for (var i = 0; i < slices.length; i++){
+					slices[i].addEventListener("mousedown", function(){
+						if (document.getElementsByClassName("selected").length > 0){
+							document.getElementsByClassName("selected")[0].classList.remove("selected");
+						}
+						this.classList.add("selected");
+					}, true);
+				}
 			}
 
 		</script>
