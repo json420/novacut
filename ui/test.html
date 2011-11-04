@@ -54,6 +54,7 @@
 					node = widgets[ids[c]].doc.node;
 					if (videos[node.src].getFrame() >= node.stop.frame){
 						videos[node.src].pause();
+						videos[widgets[ids[c]].doc.node.src].setFrame(widgets[ids[c]].doc.node.start.frame);
 						c++;
 						if (c == 4){
 							c = 0;
