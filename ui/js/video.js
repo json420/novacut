@@ -12,13 +12,13 @@ function Video(id){
 	
 	//How many frames are in the clip?
 	this.frames = function(){
-		return (Math.floor($('#'+this.id)[0].duration*this.framerate));
+		return (Math.floor($(this.id).duration*this.framerate));
 	}
 	
 	//play the video
 	this.play = function(){
 		if (this.playing)this.pause();
-		$('#'+this.id)[0].play();
+		$(this.id).play();
 		this.playing = true;
 	}
 	
@@ -31,7 +31,7 @@ function Video(id){
 	
 	//pause the video
 	this.pause = function(){
-		$('#'+this.id)[0].pause();
+		$(this.id).pause();
 		this.playing = false;
 		this.playingreverse = false
 	}
@@ -55,22 +55,22 @@ function Video(id){
 	
 	//return the current frame number
 	this.getFrame = function(){
-		return (Math.round($('#'+this.id)[0].currentTime*this.framerate));
+		return (Math.round($(this.id).currentTime*this.framerate));
 	}
 	
 	//go to a specific frame
 	this.setFrame = function(frame){
-		$('#'+this.id)[0].currentTime = frame/this.framerate;
+		$(this.id).currentTime = frame/this.framerate;
 	}
 	
 	//step forward or back the specified number of frames
 	this.step = function(frames){
-		$('#'+this.id)[0].currentTime += frames/this.framerate;
+		$(this.id).currentTime += frames/this.framerate;
 	}
 	
 	//return the playback position - float between 0 and 1
 	this.getPosition = function(){
-		element = $('#'+this.id)[0];
+		element = $(this.id);
 		inverse = (element.duration - element.currentTime)/element.duration;
 		position = (inverse - 0.5)*-1 + 0.5;
 		return (position);

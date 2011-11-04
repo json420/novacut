@@ -34,27 +34,34 @@
 				}
 			    }
 				
-				var videos = {
+				videos = {
 					subway: new Video("subway"),
 					bus: new Video("bus"),
 					trolly: new Video("trolly"),
 					trolly_day: new Video("trolly_day")
 				}
+				ids = [];
 				
-				t = 0;
-				
+				for (w in widgets){
+					ids.push(w);
+				}
+				c = 0;
+				var l = 10;
+				$(widgets[ids[0]].doc.node.src).style.setProperty("z-index", 9);
+				videos[widgets[ids[0]].doc.node.src].setFrame(widgets[ids[0]].doc.node.start.frame);
+				videos[widgets[ids[0]].doc.node.src].play();
 				var playing = setInterval(function(){
-					var total = 0;
-					for (i in widgets){
-						if (widgets[i].doc.node.stop - widgets[i].doc.node.start + t >= t){
-							
+					node = widgets[ids[c]].doc.node;
+					if (videos[node.src].getFrame() >= node.stop.frame){
+						videos[node.src].pause();
+						c++;
+						if (c == 4){
+							c = 0;
 						}
-						else{
-							total += widgets[i].doc.node.stop - widgets[i].doc.node.start;
-						}
+						videos[widgets[ids[c]].doc.node.src].setFrame(widgets[ids[c]].doc.node.start.frame);
+						videos[widgets[ids[c]].doc.node.src].play();
+						$(widgets[ids[c]].doc.node.src).style.setProperty("z-index", l++);
 					}
-					
-					t++;
 				}, 1000/25);
 
 			}
@@ -65,10 +72,10 @@
 	<body>
 		<div id="main"></div>
 		<div id="video">
-			<video id="subway" src="/novacut/media/subway.webm"></video>
 			<video id="bus" src="/novacut/media/bus.webm"></video>
-			<video id="trolly" src="/novacut/media/trolly.webm"></video>
+			<video id="subway" src="/novacut/media/subway.webm"></video>
 			<video id="trolly_day" src="/novacut/media/trolly_day.webm"></video>
+			<video id="trolly" src="/novacut/media/trolly.webm"></video>
 		</div>
 	</body>
 </html>
