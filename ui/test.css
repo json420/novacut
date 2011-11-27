@@ -19,12 +19,12 @@ body{
 	border-radius:4px;
 	display:inline-block;
 	padding-top:22px;
-	max-width:192px;
+	max-width:160px;
 }
 
 .slice img{
-	width:192px;
-	height:108px;
+	width:160px;
+	height:90px;
 	background:black;
 	margin-bottom:-3px;
 	display:inline-block;
@@ -52,7 +52,7 @@ body{
 
 #video{
 	position:absolute;
-	top:20px;
+	top:0;
 	left:50%;
 	margin-left:-245px;
 	width:490px;
