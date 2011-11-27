@@ -4,7 +4,7 @@
 }
 
 body{
-	background:url("img/black-Linen.png");
+	background:url("black-Linen.png");
 }
 
 .slice{
@@ -57,7 +57,7 @@ body{
 	margin-left:-245px;
 	width:490px;
 	height:310px;
-	background:url("img/concrete_wall.png");
+	background:url("concrete_wall.png");
 	border-radius:5px;
 	border-top:1px solid #555;
 	border-bottom:1px solid #111;
