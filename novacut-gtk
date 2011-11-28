@@ -23,9 +23,13 @@
 
 import optparse
 
-from userwebkit import BaseUI
+from userwebkit import BaseUI, handler
+import microfiber
+from filestore import _start_thread
+from gi.repository import GObject
 
 import novacut
+from novacut.download import Downloader, init_project
 
 
 index = 'index.html'
@@ -51,7 +55,50 @@ class UI(BaseUI):
     splash = 'splash.html'
     title = 'Novacut'
     databases = ['novacut', 'project']
-    
-    
+
+    def set_env(self, env):    
+        self.env = env
+        self.server = microfiber.Server(env)    
+        for name in self.databases:
+            try:
+                self.server.put(None, name)
+            except microfiber.PreconditionFailed:
+                pass
+        if self.intree:
+            self.url = '/_intree/' + self.page
+            self.server.put(
+                handler(self.ui), '_config', 'httpd_global_handlers', '_intree'
+            )
+        else:
+            self.url = '/'.join(['/_apps', self.app, self.page])
+
+        expected = set(['bus', 'media', 'subway', 'trolly', 'trolly_day'])
+
+        ids = set(r['id'] for r in self.server.get('novacut', '_all_docs')['rows'])
+
+        if ids.issuperset(expected):
+            self.download_complete(True)
+        else:
+            _start_thread(self.download)
+
+    def download(self):
+        try:
+            d = Downloader()
+            d.run()
+            init_project()
+            success = True
+        except Exception:
+            success = False
+        GObject.idle_add(self.download_complete, success)
+
+    def download_complete(self, success):
+        print(success)
+        self.view.set_env(self.env)
+        self.view.load_uri(self.server._full_url(self.url))
+        
+        
+        
+
+
 ui = UI(options.benchmark)
 ui.run()

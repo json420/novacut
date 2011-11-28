@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<link rel="stylesheet" href="style.css"/>
+		<script src="couch.js"></script>
+		<script src="/_apps/dc3/base.js"></script>
+		<script>
+			// The `novacut` CouchDB database:
+			
+			function init(){
+				db = new couch.Database('novacut');
+				project = db.get("fakeproject");
+				preview = $("preview");
+				for (var i = 0; i < project.clips.length; i++){
+					var name = project.clips[i];
+					var img = $el("img", {
+						src: "/novacut/" + name + "/1.jpg"
+					});
+					var li = $el("li", {
+						"data-src": name,
+						"draggable": "draggable"
+					});
+					li.appendChild(img);
+					$("clips").appendChild(li);
+					
+					li.onmouseover = function(){
+						
+					}
+					
+					li.onmousedown = function(){
+						src = "/novacut/media/" + this.dataset.src + ".webm"
+						if (preview.src.indexOf(src) == -1){
+							preview.src = src
+						}
+						if (preview.paused == true){
+							preview.play();
+						}
+						else{
+							preview.pause();
+						}
+					}
+				}
+				for (var i = 0; i < project.slices.length; i++){
+					var name = project.slices[i];
+					var slicenode = db.get(name);
+					var startframe = $el("img", {
+						src: "/novacut/" + slicenode.node.src + "/" + slicenode.node.start.frame + ".jpg"
+					});
+					var stopframe = $el("img", {
+						src: "/novacut/" + slicenode.node.src + "/" + slicenode.node.stop.frame + ".jpg"
+					});
+					var sliceelement = $el("li");
+					sliceelement.appendChild(startframe);
+					sliceelement.appendChild(stopframe);
+					$("slices").appendChild(sliceelement);
+				}
+			}
+			
+			function on_changes(response) {
+				response.results.forEach(function(row) {
+					console.log(row.doc._id);
+				});
+	 
+				
+			}
+
+			function monitor() {
+				var since = db.get().update_seq;
+				m = db.monitor_changes(on_changes, since)
+			}
+
+			window.onload = function(){
+				init();
+				monitor();
+				var playing = setInterval(function(){
+					if (preview.paused == false){
+						var pos = preview.currentTime / preview.duration * 100;
+						$("preview-container").getElementsByClassName("progress")[0].style.setProperty("width", pos + "%");
+					}
+				}, 40);
+			}
+		</script>
+	</head>
+	<body>
+		<ul id="clips">
+		</ul>
+		<div id="clip-text">
+			&lt;-- These are clips.
+		</div>
+		<div id="preview-container">
+			<video id="preview" width="480" height="270" autoplay>
+			</video>
+			<div class="progressbg">
+				<div class="progress"></div>
+			</div>
+			<div class="controls">
+				I'll pop some controls here...
+			</div>
+		</div>
+		<div id="prev-text">
+			This is a preview player --&gt;
+		</div>
+		<ul id="slices">
+			
+		</ul>
+		<div id="slice-text">
+			These are slices, but do fuck all<br>
+			V
+		</div>
+	</body>
+</html>
