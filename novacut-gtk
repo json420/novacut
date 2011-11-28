@@ -22,6 +22,7 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 import optparse
+import json
 
 from userwebkit import BaseUI, handler
 import microfiber
@@ -73,12 +74,11 @@ class UI(BaseUI):
             self.url = '/'.join(['/_apps', self.app, self.page])
 
         expected = set(['bus', 'media', 'subway', 'trolly', 'trolly_day'])
-
         ids = set(r['id'] for r in self.server.get('novacut', '_all_docs')['rows'])
-
         if ids.issuperset(expected):
             self.download_complete(True)
         else:
+            self.send('status', 'Downloading demo assets (may take a few minutes)...')
             _start_thread(self.download)
 
     def download(self):
@@ -89,12 +89,20 @@ class UI(BaseUI):
             success = True
         except Exception:
             success = False
-        GObject.idle_add(self.download_complete, success)
+        GObject.idle_add(self.download_complete, True)
 
     def download_complete(self, success):
-        print(success)
-        self.view.set_env(self.env)
-        self.view.load_uri(self.server._full_url(self.url))
+        if success:
+            self.view.set_env(self.env)
+            self.view.load_uri(self.server._full_url(self.url))
+        else:
+            self.send('status', 'Failed to download assets, possible network trouble?')
+
+    def send(self, signal, *args):
+        script = 'Signal.recv({!r})'.format(
+            json.dumps({'signal': signal, 'args': args})
+        )
+        self.view.execute_script(script)
         
         
         
