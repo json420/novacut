@@ -1,0 +1,73 @@
+*{
+	margin:0px;
+	padding:0px;
+}
+
+body{
+	background:url("black-Linen.png");
+}
+
+.slice{
+	margin:1px;
+	padding:2px;
+	background:-webkit-linear-gradient(top, #777, #555);
+	border-top:1px solid #888;
+	border-left:1px solid #888;
+	border-right:1px solid #444;
+	border-bottom:1px solid #444;
+	box-shadow:0px 1px 5px rgba(0,0,0,0.5);
+	border-radius:4px;
+	display:inline-block;
+	padding-top:22px;
+	max-width:160px;
+}
+
+.slice img{
+	width:160px;
+	height:90px;
+	background:black;
+	margin-bottom:-3px;
+	display:inline-block;
+}
+
+.slice img:first-child{
+	cursor:w-resize;
+}
+
+.slice img:last-child{
+	cursor:e-resize;
+}
+
+.slice.selected{
+	border:1px solid #e81f3b;
+	box-shadow:0px 0px 10px #e81f3b, inset 0px 0px 40px #e81f3b;
+}
+
+#main{
+	position:absolute;
+	bottom:0px;
+	left:0px;
+	right:0px;
+}
+
+#video{
+	position:absolute;
+	top:0;
+	left:50%;
+	margin-left:-245px;
+	width:490px;
+	height:310px;
+	background:url("concrete_wall.png");
+	border-radius:5px;
+	border-top:1px solid #555;
+	border-bottom:1px solid #111;
+	box-shadow:0px 2px 5px 1px rgba(0,0,0,0.6);
+}
+
+#video video{
+	position:absolute;
+	top:5px;
+	left:5px;
+	border-bottom:1px solid #555;
+	border-top:1px solid rgba(0,0,0,0.2);
+}

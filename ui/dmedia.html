@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<style>
+			*{
+				margin:0px;
+				padding:0px;
+			}
+		
+			body {
+			    font-family: "Ubuntu Light";
+			    font-size: 16px;
+			    background-color: #333;
+			    color: white;
+			    padding-top:30px;
+			    padding-left:300px;
+			}
+			
+			#head{
+				position:fixed;
+				z-index:1000;
+				top:0px;
+				left:0px;
+				right:0px;
+				height:20px;
+				padding:5px;
+				padding-right:30px;
+				background:-webkit-linear-gradient(top, #666, #444);
+				text-align:right;
+				cursor:default;
+			}
+			
+			#head a{
+				text-decoration:none;
+				color:white;
+				cursor:default;				
+			}
+			
+			#head a:hover{
+				color:#e81f3b;
+			}
+			
+			#info{
+				position:fixed;
+				top:30px;
+				left:0px;
+				bottom:0px;
+				width:290px;
+				background:-webkit-linear-gradient(top, #555, #444);
+				padding:5px;
+				cursor:default;
+			}
+			
+			.thumb {
+			    margin: 4px;
+			    border:3px solid #ccc;
+			    box-shadow:0px 2px 5px 1px rgba(0,0,0,0.4);
+			    overflow: hidden;
+			    display: inline-block;
+			    background-position: center center;
+			    background-size: cover;
+			    background: #fff;
+			    cursor:pointer;
+			}
+			
+			.label  {
+			    position: absolute;
+			    overflow: hidden;
+			    margin: 0;
+			    padding: 0px;
+			    background:#333;
+			    text-align:center;
+				line-height:100px;
+			}
+
+			.small div{
+				height: 108px;
+				width: 108px;
+			}
+
+			.medium div{
+				height: 162px;
+				width: 162px;
+			}
+
+			.large div{
+				height: 216px;
+				width: 216px;
+			}
+
+
+		</style>
+		<script src="couch.js"></script>
+		<script src="/_apps/dc3/base.js"></script>
+		<script>
+			// The `novacut` CouchDB database:
+			var db = new couch.Database("dmedia");
+
+
+			function append(parent, doc) {
+				if (doc.meta){
+					var div = $el("div", {
+						"class": "thumb",
+						"draggable": "true",
+						"data-resolution": doc.meta.width + "x" + doc.meta.height,
+						"data-aperture": doc.meta.aperture,
+						"data-camera": doc.meta.camera,
+						"data-focal_length": doc.meta.focal_length,
+						"data-iso": doc.meta.iso,
+						"data-lens": doc.meta.lens,
+						"data-shutter": doc.meta.shutter
+					});
+				}
+				else{
+					var div = $el("div", {
+						"class": "thumb",
+						"draggable": "true"
+					});
+				}
+				if (doc._attachments.thumbnail) {
+					var url = db.att_url(doc, "thumbnail");
+					div.style.backgroundImage = "url(\"" + url + "\")";   
+				}
+				else {
+					div.appendChild($el("div", {textContent: doc.name, "class": "label"}));
+				}
+				parent.appendChild(div);
+				div.onclick = function(event){
+					var info = $("info");
+					var data = "<strong>Resolution:</strong> " + this.dataset.resolution + "<br>";
+					data += "<strong>Aperture:</strong> " + this.dataset.aperture + "<br>";
+					data += "<strong>Camera:</strong> " + this.dataset.camera + "<br>";
+					data += "<strong>Focal Length:</strong> " + this.dataset.focal_length + "<br>";
+					data += "<strong>ISO:</strong> " + this.dataset.iso + "<br>";
+					data += "<strong>Lens:</strong> " + this.dataset.lens + "<br>";
+					data += "<strong>Shutter:</strong> " + this.dataset.shutter + "<br>";
+					info.innerHTML = data;
+				}
+			}
+
+
+			function on_changes(r) {
+				var parent = $("hello");
+				r["results"].forEach(function(row) {
+					var doc = row.doc;
+					if (doc.type == "dmedia/file" && doc.origin == "user" && doc._attachments.thumbnail) {
+						append(parent, doc);
+					}
+				});
+				if (parent.lastChild) {
+					parent.lastChild.scrollIntoView();
+				}
+			}
+
+			function monitor() {
+				var since = db.get().update_seq;
+				var m = db.monitor_changes(on_changes, since);
+			}
+
+			function show() {
+				var r = db.view("user", "ctime", {include_docs: true, limit: 100, skip: 100});
+				var parent = $("hello");
+				r["rows"].forEach(function(row) {
+					append(parent, row.doc);
+				});
+			}
+
+			function size(i){
+				switch (i){
+					case 0:
+						$("hello").classList.add("small");
+						$("hello").classList.remove("medium");
+						$("hello").classList.remove("large");
+						break;
+					case 1:
+						$("hello").classList.add("medium");
+						$("hello").classList.remove("small");
+						$("hello").classList.remove("large");
+						break;
+					case 2:
+						$("hello").classList.add("large");
+						$("hello").classList.remove("medium");
+						$("hello").classList.remove("small");
+						break;
+				}
+				fitIcons();
+			}
+			
+			function fitIcons(){
+				width = window.innerWidth - 300;
+				icons = document.getElementsByClassName("thumb");
+				iconwidth = icons[0].getBoundingClientRect().width;
+				count = Math.floor(width/(iconwidth+8));
+				space = width % (count * (iconwidth+8))
+				newmargin = (space/(count*2)) + 4;
+				
+				for (i = 0; i < icons.length; i++){
+					icons[i].style.setProperty("margin-left", newmargin + "px");
+					icons[i].style.setProperty("margin-right", newmargin + "px");
+				}
+			}
+			
+			window.onresize = function(){
+				fitIcons();
+			}
+			
+			window.onload = function(){
+				show();
+				fitIcons();
+			}
+			
+		</script>
+	</head>
+	<body>
+		<div id="head"><a href="#" onclick="size(0);">Small</a> | <a href="#" onclick="size(1);">Medium</a> | <a href="#" onclick="size(2);">Large</a></div>
+		<div id="info">'sup peeps? This is where all the information will go!</div>
+		<div id="hello" class="medium"></div>
+	</body>
+</html>
