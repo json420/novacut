@@ -26,14 +26,14 @@ Temporary hack to download the demo assets so people can play with the demo.
 import os
 import tempfile
 from hashlib import md5
+import json
+import time
 
 from dmedia.client import HTTPClient
-from microfiber import Database, dc3_env, NotFound
-from filestore import _start_thread
+from microfiber import Database, dc3_env, NotFound, random_id
 
-from gi.repository import GObject
+from novacut import schema
 
-GObject.threads_init()
 
 class Downloader:
     def __init__(self):
@@ -71,24 +71,48 @@ class Downloader:
         db.load(tmp_fp)
 
 
-mainloop = GObject.MainLoop()
+def init_project():
+    framerate = {
+        'num': 25,
+        'denom': 1,
+    }
 
-def done(success):
-    print('done', success)
-    mainloop.quit()
+    clips = [
+        ('subway', 246),
+        ('trolly_day', 370),
+        ('trolly', 500),
+        ('bus', 290),
+    ]
 
+    docs = []
+    slice_ids = []
 
-def download():
+    for (_id, frames) in clips:
+        doc = {
+            '_id': _id,
+            'type': 'dmedia/file',
+            'time': time.time(),
+            'duration': {
+                'frames': frames,
+            },
+            'framerate': framerate,
+        }
+        docs.append(doc)
+
+        doc = schema.create_slice(_id, {'frame': 0}, {'frame': frames})
+        slice_ids.append(doc['_id'])
+        docs.append(doc)
+
+    docs.append(schema.create_sequence(slice_ids))
+
+    db = Database('project', dc3_env())
     try:
-        d = Downloader()
-        d.run()
-        success = True
-    except Exception:
-        success = False
-    GObject.idle_add(done, success)
+        db.delete()
+    except NotFound:
+        pass
+    db.put(None)
+    db.bulksave(docs)
 
 
-_start_thread(download)
 
-mainloop.run()
 
