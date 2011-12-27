@@ -56,6 +56,7 @@ class UI(BaseUI):
     splash = 'splash.html'
     title = 'Novacut'
     databases = ['novacut', 'project']
+    maximize = True
 
     def set_env(self, env):    
         self.env = env
