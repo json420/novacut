@@ -207,6 +207,7 @@ def check_project(doc):
     ... }
     ...
     >>> check_project(doc)
+
     """
     check_novacut(doc)
     _check(doc, ['_id'], None,
@@ -244,14 +245,68 @@ def normalized_dumps(obj):
     return json.dumps(obj, sort_keys=True, separators=(',',':'))
 
 
+def check_node(doc):
+    """
+    Verify that *doc* is a valid novacut/node document.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     'ver': 0,
+    ...     'type': 'novacut/node',
+    ...     'time': 1234567890,
+    ...     'node': {
+    ...         'type': 'foo',
+    ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
+    ...     },
+    ... }
+    ...
+    >>> check_node(doc)
+
+    """
+    check_novacut(doc)
+    _check(doc, ['_id'], None,
+        _random_id,
+    )
+    _check(doc, ['type'], str,
+        (_equals, 'novacut/node'),
+    )
+    _check(doc, ['node'], dict)
+    _check(doc, ['node', 'type'], str,
+        _nonempty,
+    )
+    _check(doc, ['node', 'src'], (str, list, dict))
+
+
 def create_node(node):
     return {
         '_id': random_id(),
+        'ver': 0,
         'type': 'novacut/node',
         'time': time.time(),
         'node': node,
     }
 
+
+def check_slice(doc):
+    check_node(doc)
+    _check(doc, ['node', 'type'], str,
+        (_equals, 'slice'),
+    )
+    _check(doc, ['node', 'src'], str,
+        _any_id,
+    )
+    _check(doc, ['node', 'start'], dict,
+        _nonempty
+    )
+    _check(doc, ['node', 'stop'], dict,
+        _nonempty
+    )
+    _check(doc, ['node', 'stream'], str,
+        (_is_in, 'video', 'audio'),
+    )
+  
 
 def create_slice(src, start, stop, stream='video'):
     node = {
@@ -265,12 +320,10 @@ def create_slice(src, start, stop, stream='video'):
 
 
 def create_sequence(src):
+    assert isinstance(src, list)
     node = {
         'type': 'sequence',
         'src': src,
     }
     return create_node(node)
-
-
-
 
