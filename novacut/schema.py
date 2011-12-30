@@ -147,6 +147,92 @@ from dmedia.schema import (
 )
 
 
+def check_novacut(doc):
+    """
+    Verify the common schema that all Novacut docs should have.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'NZXXMYLDOV2F6ZTUO5PWM5DX',
+    ...     'ver': 0,
+    ...     'type': 'novacut/foo',
+    ...     'time': 1234567890,
+    ... }
+    ...
+    >>> check_novacut(doc)
+
+    """
+    _check(doc, [], dict)
+    _check(doc, ['_id'], None,
+        _any_id,
+    )
+    _check(doc, ['ver'], int,
+        (_equals, 0),
+    )
+    _check(doc, ['type'], str,
+        (_matches, 'novacut/[a-z]+$'),
+    )
+    _check(doc, ['time'], (int, float),
+        (_at_least, 0),
+    )
+
+
+def project_db_name(_id):
+    """
+    Return the CouchDB database name for the project with *_id*.
+
+    For example:
+
+    >>> project_db_name('HB6YSCKAY27KIWUTWKGKCTNI')
+    'novacut-hb6ysckay27kiwutwkgkctni'
+
+    """
+    return 'novacut-' + _id.lower()
+
+
+def check_project(doc):
+    """
+    Verify that *doc* is a valid novacut/project document.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     'ver': 0,
+    ...     'type': 'novacut/project',
+    ...     'time': 1234567890,
+    ...     'db': 'novacut-hb6ysckay27kiwutwkgkctni',
+    ...     'name': 'Bewitched, Bothered and Bewildered',
+    ... }
+    ...
+    >>> check_project(doc)
+    """
+    check_novacut(doc)
+    _check(doc, ['_id'], None,
+        _random_id,
+    )
+    _check(doc, ['type'], str,
+        (_equals, 'novacut/project'),
+    )
+    _check(doc, ['db'], str,
+        (_equals, project_db_name(doc['_id'])),
+    )
+    _check(doc, ['name'], str),
+
+
+def create_project(name=''):
+    _id = random_id()
+    return {
+        '_id': _id,
+        'ver': 0,
+        'type': 'novacut/project',
+        'time': time.time(),
+        'db': project_db_name(_id),
+        'name': name,
+    }
+
+
 def normalized_dumps(obj):
     """
     Return *obj* encoded as normalized JSON, the hashing form.
@@ -186,25 +272,5 @@ def create_sequence(src):
     return create_node(node)
 
 
-def project_db_name(_id):
-    """
-    Return the CouchDB database name for the project with *_id*.
 
-    For example:
-
-    >>> project_db_name('HB6YSCKAY27KIWUTWKGKCTNI')
-    'novacut-hb6ysckay27kiwutwkgkctni'
-
-    """
-    return 'novacut-' + _id.lower()
-
-
-def create_project():
-    _id = random_id()
-    return {
-        '_id': _id,
-        'type': 'novacut/project',
-        'time': time.time(),
-        'db': project_db_name(_id),
-    }
 

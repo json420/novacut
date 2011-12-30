@@ -41,3 +41,12 @@ class TestFunctions(TestCase):
             schema.project_db_name(_id),
             'novacut-{}'.format(_id.lower())
         )
+
+    def test_create_project(self):
+        doc = schema.create_project()
+        schema.check_project(doc)
+        self.assertEqual(doc['name'], '')
+
+        doc = schema.create_project(name='Hobo Spaceship')
+        schema.check_project(doc)
+        self.assertEqual(doc['name'], 'Hobo Spaceship')
