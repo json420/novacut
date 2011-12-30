@@ -471,3 +471,16 @@ def create_sequence(src):
     }
     return create_node(node)
 
+
+def project_db_name(_id):
+    """
+    Return the CouchDB database name for the project with *_id*.
+
+    For example:
+
+    >>> project_db_name('HB6YSCKAY27KIWUTWKGKCTNI')
+    'novacut-hb6ysckay27kiwutwkgkctni'
+
+    """
+    return 'novacut-' + _id.lower()
+

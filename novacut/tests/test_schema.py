@@ -25,7 +25,19 @@ Unit tests for the `novacut.schema` module.
 
 from unittest import TestCase
 
+from microfiber import random_id
+
+from novacut import schema
+
 
 class TestFunctions(TestCase):
-    def test_foo(self):
-        assert True
+    def test_project_db_name(self):
+        self.assertEqual(
+            schema.project_db_name('AAAAAAAAAAAAAAAAAAAAAAAA'),
+            'novacut-aaaaaaaaaaaaaaaaaaaaaaaa',
+        )
+        _id = random_id()
+        self.assertEqual(
+            schema.project_db_name(_id),
+            'novacut-{}'.format(_id.lower())
+        )
