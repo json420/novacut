@@ -41,7 +41,7 @@ input[type=text], button {
     box-sizing: content-box;
     border: 0px;
     border-radius: 5px;
-    box-shadow: 0px 2px 10px rgba(0,0,0,0.5);
+    box-shadow: 0px 2px 10px #222;
 }
 
 

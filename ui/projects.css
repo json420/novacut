@@ -2,14 +2,10 @@
     margin: 10px;
     padding: 10px;
     background-color: #444;
-    cursor: pointer;
+    cursor: default;
     font-size: 15px;
     -webkit-user-select: none;
-    box-shadow: 0px 2px 10px #222;
 }
 
-.project:hover {
-    background-color: #555;
-}
 
 

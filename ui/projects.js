@@ -1,9 +1,9 @@
 "use strict";
 
 function create_project() {
-    var title = $('title').value;
+    var title = UI.title.value;
     Hub.send('create_project', title);
-    $('title').value = '';
+    UI.title.value = '';
 }
 
 function open_project(project_id) {
@@ -33,6 +33,7 @@ var UI = {
 
 window.addEventListener('load',
     function() {
+        UI.title = $('title');
         novacut.view(UI.on_projects, 'project', 'atime', {descending: true});
     }
 );
