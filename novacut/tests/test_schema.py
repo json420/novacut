@@ -34,12 +34,12 @@ class TestFunctions(TestCase):
     def test_project_db_name(self):
         self.assertEqual(
             schema.project_db_name('AAAAAAAAAAAAAAAAAAAAAAAA'),
-            'novacut-aaaaaaaaaaaaaaaaaaaaaaaa',
+            'novacut-0-aaaaaaaaaaaaaaaaaaaaaaaa',
         )
         _id = random_id()
         self.assertEqual(
             schema.project_db_name(_id),
-            'novacut-{}'.format(_id.lower())
+            'novacut-0-{}'.format(_id.lower())
         )
 
     def test_create_project(self):

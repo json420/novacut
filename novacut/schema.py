@@ -146,6 +146,8 @@ from dmedia.schema import (
     _intrinsic_id,
 )
 
+from novacut import VER, DBNAME
+
 
 def check_novacut(doc):
     """
@@ -168,7 +170,7 @@ def check_novacut(doc):
         _any_id,
     )
     _check(doc, ['ver'], int,
-        (_equals, 0),
+        (_equals, VER),
     )
     _check(doc, ['type'], str,
         (_matches, 'novacut/[a-z]+$'),
@@ -185,10 +187,10 @@ def project_db_name(_id):
     For example:
 
     >>> project_db_name('HB6YSCKAY27KIWUTWKGKCTNI')
-    'novacut-hb6ysckay27kiwutwkgkctni'
+    'novacut-0-hb6ysckay27kiwutwkgkctni'
 
     """
-    return 'novacut-' + _id.lower()
+    return '-'.join(['novacut', str(VER), _id.lower()])
 
 
 def check_project(doc):
@@ -202,7 +204,7 @@ def check_project(doc):
     ...     'ver': 0,
     ...     'type': 'novacut/project',
     ...     'time': 1234567890,
-    ...     'db': 'novacut-hb6ysckay27kiwutwkgkctni',
+    ...     'db': 'novacut-0-hb6ysckay27kiwutwkgkctni',
     ...     'name': 'Bewitched, Bothered and Bewildered',
     ... }
     ...
@@ -226,7 +228,7 @@ def create_project(name=''):
     _id = random_id()
     return {
         '_id': _id,
-        'ver': 0,
+        'ver': VER,
         'type': 'novacut/project',
         'time': time.time(),
         'db': project_db_name(_id),
@@ -282,7 +284,7 @@ def check_node(doc):
 def create_node(node):
     return {
         '_id': random_id(),
-        'ver': 0,
+        'ver': VER,
         'type': 'novacut/node',
         'time': time.time(),
         'node': node,

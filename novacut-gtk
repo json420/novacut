@@ -28,14 +28,23 @@ import novacut
 
 class App(BaseApp):
     name = 'novacut'
+    dbname = novacut.DBNAME
     version = novacut.__version__
     title = 'Novacut'
     splash = 'splash.html'
     page = 'projects.html'
-    databases = ['novacut0']
 
-    maximize = True
+    #maximize = True
 
+    signals = {
+        'create_project': [],
+    }
+
+    def connect_hub_signals(self, hub):
+        hub.connect('create_project', self.on_create_project)
+
+    def on_create_project(self, hub):
+        print('create_project')
 
 app = App()
 app.run()
