@@ -25,7 +25,7 @@ from userwebkit import BaseApp
 
 import novacut
 from novacut import schema
-
+from novacut import views
 
 class App(BaseApp):
     name = 'novacut'
@@ -44,6 +44,9 @@ class App(BaseApp):
 
     def connect_hub_signals(self, hub):
         hub.connect('create_project', self.on_create_project)
+
+    def post_env_init(self):
+        views.init_views(self.db, views.novacut_main)
 
     def on_create_project(self, hub, title):
         doc = schema.create_project(title)
