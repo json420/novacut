@@ -3,99 +3,10 @@
 <head>
 <style>
 body {
-    font-family: Ubuntu;
-    font-size: 15px;
     background-color: #333;
-    color: #fff;
-}
-
-#status {
-    text-align: center;
 }
 </style>
-<script>
-
-
-function $(id) {
-    /*
-    Return the element with id="id".
-
-    If `id` is an Element, it is returned unchanged.
-
-    Examples:
-
-    >>> $('browser');
-    <div id="browser" class="box">
-    >>> var el = $('browser');
-    >>> $(el);
-    <div id="browser" class="box">
-
-    */
-    if (id instanceof Element) {
-        return id;
-    }
-    return document.getElementById(id);
-}
-
-
-/*
-Relay signals between JavaScript and Gtk.
-
-For example, to send a signal to Gtk via document.title:
-
->>> Signal.send('click');
->>> Signal.send('changed', 'foo', 'bar');
-
-*/
-var Signal = {
-    i: 0,
-
-    names: {},
-
-    connect: function(signal, callback, self) {
-        if (! Signal.names[signal]) {
-            Signal.names[signal] = [];
-        }
-        Signal.names[signal].push({callback: callback, self: self});
-    },
-
-    emit: function(signal, args) {
-        var items = Signal.names[signal];
-        if (items) {
-            items.forEach(function(i) {
-                i.callback.apply(i.self, args);
-            });
-        }
-    },
-
-    send: function() {
-        var args = Array.prototype.slice.call(arguments);
-        var obj = {
-            i: Signal.i,
-            signal: args[0],
-            args: args.slice(1),
-        };
-        Signal.i += 1;
-        document.title = JSON.stringify(obj);
-    },
-
-    recv: function(string) {
-        var obj = JSON.parse(string);
-        Signal.emit(obj.signal, obj.args);
-    },
-
-}
-
-Signal.connect('status',
-    function(msg) {
-        $('status').textContent = msg;
-    }
-);
-
-      
-</script>
 </head>
 <body>
-<p id="status"></p>
 </body>
 </html>

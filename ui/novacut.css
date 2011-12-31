@@ -1,0 +1,52 @@
+body {
+    background-color: #333;
+    color: white;
+}
+
+.grid_1 {
+    width: 215px;
+    margin: 10px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+.grid_2 {
+    width: 450px;
+    margin: 10px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+.grid_3 {
+    width: 685px;
+    margin: 10px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+.grid_4 {
+    width: 920px;
+    margin: 10px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+
+
+input[type=text], button {
+    font-family: Ubuntu;
+    font-size: 16px;
+    padding: 10px;
+    margin: 10px;
+    box-sizing: content-box;
+    border: 0px;
+    border-radius: 5px;
+    box-shadow: 0px 2px 10px #222;
+}
+
+
+
+input[type=text] {
+    color: white;
+    background: -webkit-linear-gradient(top, #444, #666);
+}

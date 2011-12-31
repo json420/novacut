@@ -25,7 +25,71 @@ Unit tests for the `novacut.schema` module.
 
 from unittest import TestCase
 
+from microfiber import random_id
+
+from novacut import schema
+
 
 class TestFunctions(TestCase):
-    def test_foo(self):
-        assert True
+    def test_project_db_name(self):
+        self.assertEqual(
+            schema.project_db_name('AAAAAAAAAAAAAAAAAAAAAAAA'),
+            'novacut-0-aaaaaaaaaaaaaaaaaaaaaaaa',
+        )
+        _id = random_id()
+        self.assertEqual(
+            schema.project_db_name(_id),
+            'novacut-0-{}'.format(_id.lower())
+        )
+
+    def test_create_project(self):
+        doc = schema.create_project()
+        schema.check_project(doc)
+        self.assertEqual(doc['title'], '')
+
+        doc = schema.create_project(title='Hobo Spaceship')
+        schema.check_project(doc)
+        self.assertEqual(doc['title'], 'Hobo Spaceship')
+
+    def test_create_slice(self):
+        src = random_id()
+        doc = schema.create_slice(src, {'frame': 17}, {'frame': 1869})
+        schema.check_node(doc)
+        schema.check_slice(doc)
+        self.assertEqual(doc['node'],
+            {
+                'type': 'slice',
+                'src': src,
+                'start': {'frame': 17},
+                'stop': {'frame': 1869},
+                'stream': 'video',
+            }
+        )
+
+        src = random_id() 
+        doc = schema.create_slice(src, {'sample': 48000}, {'sample': 96000},
+            'audio'
+        )
+        schema.check_node(doc)
+        schema.check_slice(doc)
+        self.assertEqual(doc['node'],
+            {
+                'type': 'slice',
+                'src': src,
+                'start': {'sample': 48000},
+                'stop': {'sample': 96000},
+                'stream': 'audio',
+            }
+        )
+
+    def test_create_sequence(self):
+        one = random_id()
+        two = random_id()
+        doc = schema.create_sequence([one, two])
+        schema.check_node(doc)
+        self.assertEqual(doc['node'],
+            {
+                'type': 'sequence',
+                'src': [one, two],
+            }
+        )

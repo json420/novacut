@@ -127,310 +127,120 @@ is enormously useful for two reasons:
 
 import time
 import json
-from os import urandom
-from base64 import b32encode
-import re
 
 from microfiber import random_id
+from dmedia.schema import (
+    _label,
+    _value,
+    _exists,
+    _check,
+    _check_if_exists,
+    _at_least,
+    _lowercase,
+    _matches,
+    _nonempty,
+    _is_in,
+    _equals,
+    _any_id,
+    _random_id,
+    _intrinsic_id,
+)
 
 
-DIGEST_BYTES = 30
+# schema-compatibility version:
+VER = 0
+
+# versioned primary database name:
+DBNAME = 'novacut-{}'.format(VER)
 
 
-# Some private helper functions that don't directly define any schema.
-#
-# If this seems unnecessary or even a bit un-Pythonic (where's my duck typing?),
-# keep in mind that the goal of this module is to:
-#
-#   1. Unambiguously define the schema
-#
-#   2. Provide exceedingly helpful error messages when values do not conform
-#      with the schema
-#
-# That is all.
-
-
-def _label(path):
+def check_novacut(doc):
     """
-    Create a helpful debugging label to indicate the attribute in question.
+    Verify the common schema that all Novacut docs should have.
 
-    For example:
+    For example, a conforming value:
 
-    >>> _label([])
-    'doc'
-    >>> _label(['log'])
-    "doc['log']"
-    >>> _label(['log', 'considered', 2, 'src'])
-    "doc['log']['considered'][2]['src']"
-
-    See also `_value()`.
-    """
-    return 'doc' + ''.join('[{!r}]'.format(key) for key in path)
-
-
-def _value(doc, path):
-    """
-    Retrieve value from *doc* by traversing *path*.
-
-    For example:
-
-    >>> doc = {'log': {'considered': [None, None, {'src': 'hello'}, None]}}
-    >>> _value(doc, [])
-    {'log': {'considered': [None, None, {'src': 'hello'}, None]}}
-    >>> _value(doc, ['log'])
-    {'considered': [None, None, {'src': 'hello'}, None]}
-    >>> _value(doc, ['log', 'considered', 2, 'src'])
-    'hello'
-
-    Or if you try to retrieve something that doesn't exist:
-
-    >>> _value(doc, ['log', 'considered', 7])
-    Traceback (most recent call last):
-      ...
-    ValueError: doc['log']['considered'][7] does not exist
-
-    Or if a key/index is missing higher up in the path:
-
-    >>> _value(doc, ['dog', 'considered', 7])
-    Traceback (most recent call last):
-      ...
-    ValueError: doc['dog'] does not exist
-
-    See also `_label()`.
-    """
-    value = doc
-    p = []
-    for key in path:
-        p.append(key)
-        try:
-            value = value[key]
-        except (KeyError, IndexError):
-            raise ValueError(
-                '{} does not exist'.format(_label(p))
-            )
-    return value
-
-
-def _exists(doc, path):
-    """
-    Return ``True`` if the end of *path* exists.
-
-    For example:
-
-    >>> doc = {'foo': {'hello': 'world'}, 'bar': ['hello', 'naughty', 'nurse']}
-    >>> _exists(doc, ['foo', 'hello'])
-    True
-    >>> _exists(doc, ['foo', 'sup'])
-    False
-    >>> _exists(doc, ['bar', 2])
-    True
-    >>> _exists(doc, ['bar', 3])
-    False
-
-    Or if a key/index is missing higher up the path:
-
-    >>> _exists(doc, ['stuff', 'junk'])
-    Traceback (most recent call last):
-      ...
-    ValueError: doc['stuff'] does not exist
-
-    See also `_check_if_exists()`.
-    """
-    if len(path) == 0:
-        return True
-    base = _value(doc, path[:-1])
-    key = path[-1]
-    try:
-        value = base[key]
-        return True
-    except (KeyError, IndexError):
-        return False
-
-
-def _isinstance(value, label, allowed):
-    """
-    Verify that *value* is an instance of *allowed*.
-
-    For example:
-
-    >>> _isinstance('18', "doc['bytes']", int)
-    Traceback (most recent call last):
-      ...
-    TypeError: doc['bytes']: need a <class 'int'>; got a <class 'str'>: '18'
-
-    """
-    if not isinstance(value, allowed):
-        raise TypeError('{}: need a {!r}; got a {!r}: {!r}'.format(
-                label, allowed, type(value), value
-            )
-        )
-
-
-def _check(doc, path, allowed, *checks):
-    """
-    Run a series of *checks* on the value in *doc* addressed by *path*.
-
-    For example:
-
-    >>> doc = {'foo': [None, {'bar': 'aye'}, None]}
-    >>> _check(doc, ['foo', 1, 'bar'], str,
-    ...     (_is_in, 'bee', 'sea'),
-    ... )
+    >>> doc = {
+    ...     '_id': 'NZXXMYLDOV2F6ZTUO5PWM5DX',
+    ...     'ver': 0,
+    ...     'type': 'novacut/foo',
+    ...     'time': 1234567890,
+    ... }
     ...
-    Traceback (most recent call last):
-      ...
-    ValueError: doc['foo'][1]['bar'] value 'aye' not in ('bee', 'sea')
+    >>> check_novacut(doc)
 
-    Or if a value is missing:
+    """
+    _check(doc, [], dict)
+    _check(doc, ['_id'], None,
+        _any_id,
+    )
+    _check(doc, ['ver'], int,
+        (_equals, VER),
+    )
+    _check(doc, ['type'], str,
+        (_matches, 'novacut/[a-z]+$'),
+    )
+    _check(doc, ['time'], (int, float),
+        (_at_least, 0),
+    )
 
-    >>> _check(doc, ['foo', 3], str,
-    ...     (_equals, 'hello'),
-    ... )
+
+def project_db_name(_id):
+    """
+    Return the CouchDB database name for the project with *_id*.
+
+    For example:
+
+    >>> project_db_name('HB6YSCKAY27KIWUTWKGKCTNI')
+    'novacut-0-hb6ysckay27kiwutwkgkctni'
+
+    """
+    return '-'.join(['novacut', str(VER), _id.lower()])
+
+
+def check_project(doc):
+    """
+    Verify that *doc* is a valid novacut/project document.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     'ver': 0,
+    ...     'type': 'novacut/project',
+    ...     'time': 1234567890,
+    ...     'db': 'novacut-0-hb6ysckay27kiwutwkgkctni',
+    ...     'title': 'Bewitched, Bothered and Bewildered',
+    ... }
     ...
-    Traceback (most recent call last):
-      ...
-    ValueError: doc['foo'][3] does not exist
-
-    See also `_check_if_exists()`.
-    """
-    value = _value(doc, path)
-    label = _label(path)
-    _isinstance(value, label, allowed)
-    if value is None:
-        return
-    for c in checks:
-        if isinstance(c, tuple):
-            (c, args) = (c[0], c[1:])
-        else:
-            args = tuple()
-        c(value, label, *args)
-
-
-def _check_if_exists(doc, path, allowed, *checks):
-    """
-    Run *checks* only if value at *path* exists.
-
-    For example:
-
-    >>> doc = {'name': 17}
-    >>> _check_if_exists(doc, ['dir'], str)
-    >>> _check_if_exists(doc, ['name'], str)
-    Traceback (most recent call last):
-      ...
-    TypeError: doc['name']: need a <class 'str'>; got a <class 'int'>: 17
-
-
-    See also `_check()` and `_exists()`.
-    """
-    if _exists(doc, path):
-        _check(doc, path, allowed, *checks)
-
-
-def _at_least(value, label, minvalue):
-    """
-    Verify that *value* is greater than or equal to *minvalue*.
-
-    For example:
-
-    >>> _at_least(0, "doc['bytes']", 1)
-    Traceback (most recent call last):
-      ...
-    ValueError: doc['bytes'] must be >= 1; got 0
+    >>> check_project(doc)
 
     """
-    if value < minvalue:
-        raise ValueError(
-            '%s must be >= %r; got %r' % (label, minvalue, value)
-        )
+    check_novacut(doc)
+    _check(doc, ['_id'], None,
+        _random_id,
+    )
+    _check(doc, ['type'], str,
+        (_equals, 'novacut/project'),
+    )
+    _check(doc, ['db'], str,
+        (_equals, project_db_name(doc['_id'])),
+    )
+    _check(doc, ['title'], str),
 
 
-def _lowercase(value, label):
-    """
-    Verify that *value* is lowercase.
-
-    For example:
-
-    >>> _lowercase('MOV', "doc['ext']")
-    Traceback (most recent call last):
-      ...
-    ValueError: doc['ext'] must be lowercase; got 'MOV'
-
-    """
-    if not value.islower():
-        raise ValueError(
-            "{} must be lowercase; got {!r}".format(label, value)
-        )
-
-
-def _matches(value, label, pattern):
-    """
-    Verify that *value* matches regex *pattern*.
-
-    For example:
-
-    >>> _matches('hello_world', "doc['plugin']", '^[a-z][_a-z0-9]*$')
-    >>> _matches('hello-world', "doc['plugin']", '^[a-z][_a-z0-9]*$')
-    Traceback (most recent call last):
-      ...
-    ValueError: doc['plugin']: 'hello-world' does not match '^[a-z][_a-z0-9]*$'
-
-    """
-    if not re.match(pattern, value):
-        raise ValueError(
-            '{}: {!r} does not match {!r}'.format(label, value, pattern)
-        )
-
-
-def _nonempty(value, label):
-    """
-    Verify that *value* is not empty (ie len() > 0).
-
-    For example:
-
-    >>> _nonempty({}, 'stored')
-    Traceback (most recent call last):
-      ...
-    ValueError: stored cannot be empty; got {}
-
-    """
-    if len(value) == 0:
-        raise ValueError('{} cannot be empty; got {!r}'.format(label, value))
-
-
-def _is_in(value, label, *possible):
-    """
-    Check that *value* is one of *possible*.
-
-    For example:
-
-    >>> _is_in('foo', "doc['media']", 'video', 'audio', 'image')
-    Traceback (most recent call last):
-      ...
-    ValueError: doc['media'] value 'foo' not in ('video', 'audio', 'image')
-
-    """
-    if value not in possible:
-        raise ValueError(
-            '{} value {!r} not in {!r}'.format(label, value, possible)
-        )
-
-
-def _equals(value, label, expected):
-    """
-    Check that *value* equals *expected*.
-
-    For example:
-
-    >>> _equals('file', "doc['type']", 'dmedia/file')
-    Traceback (most recent call last):
-      ...
-    ValueError: doc['type'] must equal 'dmedia/file'; got 'file'
-
-    """
-    if value != expected:
-        raise ValueError(
-            '{} must equal {!r}; got {!r}'.format(label, expected, value)
-        )
+def create_project(title=''):
+    _id = random_id()
+    ts = time.time()
+    return {
+        '_id': _id,
+        'ver': VER,
+        'type': 'novacut/project',
+        'time': ts,
+        'atime': ts,
+        'db': project_db_name(_id),
+        'title': title,
+    }
 
 
 def normalized_dumps(obj):
@@ -444,14 +254,68 @@ def normalized_dumps(obj):
     return json.dumps(obj, sort_keys=True, separators=(',',':'))
 
 
+def check_node(doc):
+    """
+    Verify that *doc* is a valid novacut/node document.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     'ver': 0,
+    ...     'type': 'novacut/node',
+    ...     'time': 1234567890,
+    ...     'node': {
+    ...         'type': 'foo',
+    ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
+    ...     },
+    ... }
+    ...
+    >>> check_node(doc)
+
+    """
+    check_novacut(doc)
+    _check(doc, ['_id'], None,
+        _random_id,
+    )
+    _check(doc, ['type'], str,
+        (_equals, 'novacut/node'),
+    )
+    _check(doc, ['node'], dict)
+    _check(doc, ['node', 'type'], str,
+        _nonempty,
+    )
+    _check(doc, ['node', 'src'], (str, list, dict))
+
+
 def create_node(node):
     return {
         '_id': random_id(),
+        'ver': VER,
         'type': 'novacut/node',
         'time': time.time(),
         'node': node,
     }
 
+
+def check_slice(doc):
+    check_node(doc)
+    _check(doc, ['node', 'type'], str,
+        (_equals, 'slice'),
+    )
+    _check(doc, ['node', 'src'], str,
+        _any_id,
+    )
+    _check(doc, ['node', 'start'], dict,
+        _nonempty
+    )
+    _check(doc, ['node', 'stop'], dict,
+        _nonempty
+    )
+    _check(doc, ['node', 'stream'], str,
+        (_is_in, 'video', 'audio'),
+    )
+  
 
 def create_slice(src, start, stop, stream='video'):
     node = {
@@ -465,6 +329,7 @@ def create_slice(src, start, stop, stream='video'):
 
 
 def create_sequence(src):
+    assert isinstance(src, list)
     node = {
         'type': 'sequence',
         'src': src,
