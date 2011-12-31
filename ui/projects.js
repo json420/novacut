@@ -21,12 +21,7 @@ var UI = {
         rows.forEach(function(row) {
             var _id = row.id;
             var p = $el('p', {'id': _id, 'class': 'project'});
-            if (row.value) {
-                p.textContent = row.value;
-            }
-            else {
-                p.appendChild($el('em', {textContent: 'Untitled'}));
-            }
+            set_title(p, row.value);
             p.onclick = function() {
                 open_project(_id);
             }

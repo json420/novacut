@@ -7,6 +7,6 @@ var db = new couch.Database(doc.db);
 
 window.addEventListener('load',
     function() {
-        $('title').textContent = doc['title'];
+        set_title('title', doc.title);
     }
 );
