@@ -21,93 +21,21 @@
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
-import optparse
-import json
-
-from userwebkit import BaseUI, handler
-import microfiber
-from filestore import _start_thread
-from gi.repository import GObject
+from userwebkit import BaseApp
 
 import novacut
-from novacut.download import Downloader, init_project
 
 
-index = 'index.html'
-
-parser = optparse.OptionParser(
-    version=novacut.__version__,
-)
-parser.add_option('--benchmark',
-    help='benchmark app startup time',
-    action='store_true',
-    default=False,
-)
-parser.add_option('--page',
-    help='starting page to load; default={!r}'.format(index),
-    default=index,
-)
-(options, args) = parser.parse_args()
-
-
-class UI(BaseUI):
-    app = 'novacut'
-    page = options.page
-    splash = 'splash.html'
+class App(BaseApp):
+    name = 'novacut'
+    version = novacut.__version__
     title = 'Novacut'
-    databases = ['novacut', 'project']
+    splash = 'splash.html'
+    page = 'projects.html'
+    databases = ['novacut0']
+
     maximize = True
 
-    def set_env(self, env):    
-        self.env = env
-        self.server = microfiber.Server(env)    
-        for name in self.databases:
-            try:
-                self.server.put(None, name)
-            except microfiber.PreconditionFailed:
-                pass
-        if self.intree:
-            self.url = '/_intree/' + self.page
-            self.server.put(
-                handler(self.ui), '_config', 'httpd_global_handlers', '_intree'
-            )
-        else:
-            self.url = '/'.join(['/_apps', self.app, self.page])
 
-        expected = set(['bus', 'media', 'subway', 'trolly', 'trolly_day'])
-        ids = set(r['id'] for r in self.server.get('novacut', '_all_docs')['rows'])
-        if ids.issuperset(expected):
-            self.download_complete(True)
-        else:
-            self.send('status', 'Downloading demo assets (may take a few minutes)...')
-            _start_thread(self.download)
-
-    def download(self):
-        try:
-            d = Downloader()
-            d.run()
-            init_project()
-            success = True
-        except Exception:
-            success = False
-        GObject.idle_add(self.download_complete, True)
-
-    def download_complete(self, success):
-        if success:
-            self.view.set_env(self.env)
-            self.view.load_uri(self.server._full_url(self.url))
-        else:
-            self.send('status', 'Failed to download assets, possible network trouble?')
-
-    def send(self, signal, *args):
-        script = 'Signal.recv({!r})'.format(
-            json.dumps({'signal': signal, 'args': args})
-        )
-        self.view.execute_script(script)
-        
-        
-        
-
-
-ui = UI(options.benchmark)
-ui.run()
+app = App()
+app.run()
