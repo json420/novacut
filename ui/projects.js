@@ -3,6 +3,7 @@
 function create_project() {
     var title = $('title').value;
     Hub.send('create_project', title);
+    $('title').value = '';
 }
 
 function open_project(project_id) {
@@ -19,7 +20,7 @@ var UI = {
         div.textContent = '';
         rows.forEach(function(row) {
             var _id = row.id;
-            var p = $el('p', {id: _id});
+            var p = $el('p', {'id': _id, 'class': 'project'});
             if (row.value) {
                 p.textContent = row.value;
             }

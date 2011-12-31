@@ -1,0 +1,37 @@
+.project {
+    margin: 10px;
+    padding: 10px;
+    background-color: #444;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.project:hover {
+    background-color: #555;
+}
+
+
+input[type=text] {
+    font-family: Ubuntu;
+    font-size: 16px;
+    padding: 5px;
+    margin: 10px;
+    box-sizing: content-box;
+    color: white;
+    background: -webkit-linear-gradient(top, #444, #666);
+    border: 0px;
+    border-radius: 5px;
+    box-shadow: 0px 2px 10px rgba(0,0,0,0.5);
+}
+
+button {
+    font-family: Ubuntu;
+    font-size: 16px;
+    padding: 5px;
+    margin: 10px;
+    box-sizing: content-box;
+    border: 0px;
+    border-radius: 5px;
+    box-shadow: 0px 2px 10px rgba(0,0,0,0.5);
+}
+

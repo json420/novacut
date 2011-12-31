@@ -3,3 +3,30 @@ body {
     color: white;
 }
 
+.grid_1 {
+    width: 215px;
+    margin: 10px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+.grid_2 {
+    width: 450px;
+    margin: 10px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+.grid_3 {
+    width: 685px;
+    margin: 10px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+.grid_4 {
+    width: 920px;
+    margin: 10px;
+    display: inline-block;
+    vertical-align: top;
+}
