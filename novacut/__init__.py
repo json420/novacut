@@ -25,8 +25,3 @@
 
 __version__ = '12.01.0'
 
-# schema-compatibility version:
-VER = 0
-
-# versioned primary database name:
-DBNAME = 'novacut-{}'.format(VER)

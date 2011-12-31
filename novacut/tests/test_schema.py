@@ -45,11 +45,11 @@ class TestFunctions(TestCase):
     def test_create_project(self):
         doc = schema.create_project()
         schema.check_project(doc)
-        self.assertEqual(doc['name'], '')
+        self.assertEqual(doc['title'], '')
 
-        doc = schema.create_project(name='Hobo Spaceship')
+        doc = schema.create_project(title='Hobo Spaceship')
         schema.check_project(doc)
-        self.assertEqual(doc['name'], 'Hobo Spaceship')
+        self.assertEqual(doc['title'], 'Hobo Spaceship')
 
     def test_create_slice(self):
         src = random_id()

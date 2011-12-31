@@ -24,11 +24,12 @@
 from userwebkit import BaseApp
 
 import novacut
+from novacut import schema
 
 
 class App(BaseApp):
     name = 'novacut'
-    dbname = novacut.DBNAME
+    dbname = schema.DBNAME
     version = novacut.__version__
     title = 'Novacut'
     splash = 'splash.html'
@@ -37,14 +38,14 @@ class App(BaseApp):
     #maximize = True
 
     signals = {
-        'create_project': [],
+        'create_project': ['title'],
     }
 
     def connect_hub_signals(self, hub):
         hub.connect('create_project', self.on_create_project)
 
-    def on_create_project(self, hub):
-        print('create_project')
+    def on_create_project(self, hub, title):
+        print('create_project', title)
 
 app = App()
 app.run()
