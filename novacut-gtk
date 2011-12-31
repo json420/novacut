@@ -50,6 +50,7 @@ class App(BaseApp):
         self.db.post(doc)
         self.server.put(None, doc['db'])
         self.server.post(doc, doc['db'])
+        #self.load_page('cutter.html#' + doc['_id'])
         self.hub.send('project_created', doc['_id'])
         
 
