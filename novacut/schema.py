@@ -231,11 +231,13 @@ def check_project(doc):
 
 def create_project(title=''):
     _id = random_id()
+    ts = time.time()
     return {
         '_id': _id,
         'ver': VER,
         'type': 'novacut/project',
-        'time': time.time(),
+        'time': ts,
+        'atime': ts,
         'db': project_db_name(_id),
         'title': title,
     }

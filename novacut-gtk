@@ -39,13 +39,19 @@ class App(BaseApp):
 
     signals = {
         'create_project': ['title'],
+        'project_created': ['project_id'],
     }
 
     def connect_hub_signals(self, hub):
         hub.connect('create_project', self.on_create_project)
 
     def on_create_project(self, hub, title):
-        print('create_project', title)
+        doc = schema.create_project(title)
+        self.db.post(doc)
+        self.server.put(None, doc['db'])
+        self.server.post(doc, doc['db'])
+        self.hub.send('project_created', doc['_id'])
+        
 
 app = App()
 app.run()
