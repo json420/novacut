@@ -50,3 +50,7 @@ input[type=text] {
     color: white;
     background: -webkit-linear-gradient(top, #444, #666);
 }
+
+video {
+    color: black;
+}

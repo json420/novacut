@@ -14,10 +14,9 @@ Provides: python-novacut, python3-novacut
 Replaces: python-novacut (<< ${source:Version}), python3-novacut (<< ${source:Version})
 Conflicts: python-novacut (<< ${source:Version}), python3-novacut (<< ${source:Version})
 Depends: ${misc:Depends}, python3 (>= 3.2),
-    dmedia (>= 11.12),
-    python3-microfiber (>= 11.12),
-    python3-userwebkit (>= 11.12),
-    dc3 (>= 11.12),
+    dmedia (>= 12.01),
+    python3-microfiber (>= 12.01),
+    python3-userwebkit (>= 12.01),
     python3-gobject,
     gir1.2-gtk-3.0,
     gir1.2-webkit-3.0,
