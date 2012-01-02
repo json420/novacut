@@ -59,7 +59,10 @@ class App(BaseApp):
             return
         try:
             u = urlparse(uri)
-            _id = u.path
+            # FIXME: we strip of the time specifier if present, which doesn't
+            # seem to work using dmedia: URIs, or perhaps doesn't work yet in
+            # WebKitGtk:
+            _id = u.path.split('#')[0]
             doc = self.local.get_doc(_id)
             if doc.get('proxies'):
                 proxies = doc['proxies']
