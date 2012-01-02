@@ -21,7 +21,10 @@
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
+from urllib.parse import urlparse
+
 from userwebkit import BaseApp
+from dmedia import local
 
 import novacut
 from novacut import schema
@@ -35,6 +38,8 @@ class App(BaseApp):
     splash = 'splash.html'
     page = 'projects.html'
 
+    proxy_bus = 'org.freedesktop.DMedia'
+
     #maximize = True
 
     signals = {
@@ -47,6 +52,27 @@ class App(BaseApp):
 
     def post_env_init(self):
         views.init_views(self.db, views.novacut_main)
+        self.local = local.LocalSlave(self.env)
+
+    def dmedia_resolver(self, uri):
+        if self.env is None:
+            return
+        try:
+            u = urlparse(uri)
+            _id = u.path
+            doc = self.local.get_doc(_id)
+            if doc.get('proxies'):
+                proxies = doc['proxies']
+                for proxy in proxies:
+                    try:
+                        st = self.local.stat(proxy)
+                        return 'file://' + st.name
+                    except (local.NoSuchFile, local.FileNotLocal):
+                        pass
+            st = self.local.stat2(doc)
+            return 'file://' + st.name
+        except Exception:    
+            return ''
 
     def on_create_project(self, hub, title):
         doc = schema.create_project(title)
