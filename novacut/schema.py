@@ -151,7 +151,7 @@ from dmedia.schema import (
 VER = 0
 
 # versioned primary database name:
-DBNAME = 'novacut-{}'.format(VER)
+DB_NAME = 'novacut-{}'.format(VER)
 
 
 def check_novacut(doc):
@@ -209,7 +209,7 @@ def check_project(doc):
     ...     'ver': 0,
     ...     'type': 'novacut/project',
     ...     'time': 1234567890,
-    ...     'db': 'novacut-0-hb6ysckay27kiwutwkgkctni',
+    ...     'db_name': 'novacut-0-hb6ysckay27kiwutwkgkctni',
     ...     'title': 'Bewitched, Bothered and Bewildered',
     ... }
     ...
@@ -223,7 +223,7 @@ def check_project(doc):
     _check(doc, ['type'], str,
         (_equals, 'novacut/project'),
     )
-    _check(doc, ['db'], str,
+    _check(doc, ['db_name'], str,
         (_equals, project_db_name(doc['_id'])),
     )
     _check(doc, ['title'], str),
@@ -238,7 +238,7 @@ def create_project(title=''):
         'type': 'novacut/project',
         'time': ts,
         'atime': ts,
-        'db': project_db_name(_id),
+        'db_name': project_db_name(_id),
         'title': title,
     }
 

@@ -32,7 +32,7 @@ from novacut import views
 
 class App(BaseApp):
     name = 'novacut'
-    dbname = schema.DBNAME
+    dbname = schema.DB_NAME
     version = novacut.__version__
     title = 'Novacut'
     splash = 'splash.html'
@@ -80,8 +80,8 @@ class App(BaseApp):
     def on_create_project(self, hub, title):
         doc = schema.create_project(title)
         self.db.post(doc)
-        self.server.put(None, doc['db'])
-        self.server.post(doc, doc['db'])
+        self.server.put(None, doc['db_name'])
+        self.server.post(doc, doc['db_name'])
         #self.load_page('cutter.html#' + doc['_id'])
         self.hub.send('project_created', doc['_id'])
         
