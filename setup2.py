@@ -32,6 +32,11 @@ from distutils.core import setup
 from distutils.cmd import Command
 from unittest import TestLoader, TextTestRunner
 from doctest import DocTestSuite
+import sys
+
+if sys.version_info.major != 2:
+    print(sys.argv)
+    sys.exit(1)
 
 import novacut2
 
