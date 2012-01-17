@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python
 
 # novacut: the collaborative video editor
 # Copyright (C) 2011 Novacut Inc
@@ -24,11 +24,16 @@
 from os import path
 import json
 
-from novacut.schema import random_id
-from novacut.renderer import Renderer
-from novacut.tests.test_renderer import DummyBuilder, sample1, sample2
+from dc3lib.microfiber import Database, random_id
+from novacut2.renderer import Renderer
+from novacut2.builder import LiveBuilder
 
 tree = path.dirname(path.abspath(__file__))
+
+
+sample1 = 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
+sample2 = 'W62OZLFQUSKE4K6SLJWJ4EHFDUTRLD7JKQXUQMDJSSUG6TAQ'
+
 
 docs = [
     {
@@ -37,7 +42,6 @@ docs = [
         'framerate': {'num': 25, 'denom': 1},
         'samplerate': 48000,
     },
-
 ]
 
 
@@ -68,9 +72,6 @@ for loop in range(4):
         doc = make_slice(frame)
         docs.append(doc)
         slices.append(doc['_id'])
-
-
-
 
 
 sequence_id = random_id()
@@ -112,7 +113,12 @@ render = {
 docs.append(render)
 
 
-b = DummyBuilder(docs)
+project_id = random_id()
+b = LiveBuilder(project_id)
+b.db.ensure()
+b.db.bulksave(docs)
+
+
 r = Renderer(render['node'], b, path.join(tree, 'tmp-demo.ogv'))
 r.run()
 
