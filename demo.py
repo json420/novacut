@@ -126,3 +126,6 @@ docs.reverse()
 fp = open(path.join(tree, 'tmp-demo.json'), 'wb')
 json.dump(docs, fp, sort_keys=True, indent=4)
 print(len(docs))
+
+print(project_id)
+print(sequence_id)

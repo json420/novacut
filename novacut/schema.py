@@ -127,7 +127,7 @@ is enormously useful for two reasons:
 
 import time
 import json
-from base64 import b32encode
+from base64 import b32encode, b64encode
 from copy import deepcopy
 from collections import namedtuple
 
@@ -255,10 +255,11 @@ def intrinsic_graph(_id, get_doc, results):
     if isinstance(src, str):
         new = intrinsic_src(src, get_doc, results)
     elif isinstance(src, list):
-        new = [intrinsic_src(value) for value in src]
+        new = [intrinsic_src(value, get_doc, results) for value in src]
     elif isinstance(src, dict):
         new = dict(
-            (key, intrinsic_src(value)) for (key, value) in src.items()
+            (key, intrinsic_src(value, get_doc, results))
+            for (key, value) in src.items()
         )
     node['src'] = new
     inode = intrinsic_node(node)
@@ -397,6 +398,23 @@ def create_node(node):
         'type': 'novacut/node',
         'time': time.time(),
         'node': node,
+    }
+
+
+def create_inode(inode):
+    return {
+        '_id': inode.id,
+        '_attachments': {
+            'node': {
+                'data': b64encode(inode.data).decode('utf-8'),
+                'content_type': 'application/json',
+            }
+        },
+        'ver': VER,
+        'type': 'novacut/node',
+        'time': time.time(),
+        'node': inode.node,
+        'renders': {},
     }
 
 
