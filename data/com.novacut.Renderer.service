@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=com.novacut.Renderer
+Exec=/usr/lib/novacut/novacut-service

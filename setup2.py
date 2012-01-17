@@ -125,6 +125,14 @@ setup(
     author='Jason Gerard DeRose',
     author_email='jderose@novacut.com',
     license='AGPLv3+',
-    packages=['novacut2'],
     cmdclass={'test': Test},
+    packages=['novacut2'],
+    data_files=[
+        ('lib/novacut',
+            ['novacut-service'],
+        ),
+        ('share/dbus-1/services/',
+            ['data/com.novacut.Renderer.service']
+        ),
+    ],
 )
