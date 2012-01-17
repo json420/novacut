@@ -31,6 +31,40 @@ from novacut import schema
 
 
 class TestFunctions(TestCase):
+    def test_intrinsic_node(self):
+        node = {
+            'src': 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N',
+            'type': 'slice',
+            'stream': 'video',
+            'start': {
+                'frame': 200,
+            },
+            'stop': {
+                'frame': 245,
+            },
+        }
+        data = schema.normalized_dumps(node)
+        t = schema.intrinsic_node(node)
+        self.assertIsInstance(t, schema.Intrinsic)
+        self.assertEqual(t.id, schema.hash_node(data))
+        self.assertEqual(t.data, data)
+        self.assertIs(t.node, node)
+        self.assertEqual(schema.normalized_dumps(t.node), data)
+
+    def test_intrinsic_src(self):
+        _id = random_id(30)
+        self.assertEqual(
+            schema.intrinsic_src(_id, None, None),
+            _id
+        )
+
+        _id = random_id(30)
+        src = {'id': _id, 'foo': 'bar'}
+        self.assertEqual(
+            schema.intrinsic_src(src, None, None),
+            {'id': _id, 'foo': 'bar'}
+        )
+
     def test_project_db_name(self):
         self.assertEqual(
             schema.project_db_name('AAAAAAAAAAAAAAAAAAAAAAAA'),
