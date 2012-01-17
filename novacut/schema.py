@@ -127,7 +127,9 @@ is enormously useful for two reasons:
 
 import time
 import json
+from base64 import b32encode
 
+from skein import skein512
 from microfiber import random_id
 from dmedia.schema import (
     _label,
@@ -153,6 +155,56 @@ VER = 0
 # versioned primary database name:
 DB_NAME = 'novacut-{}'.format(VER)
 
+# Skein personalization string
+PERS_NODE = b'20120117 jderose@novacut.com novacut/node'
+DIGEST_BITS = 240
+
+
+def normalized_dumps(obj):
+    """
+    Return *obj* encoded as normalized JSON, the hashing form.
+
+    >>> normalized_dumps({'see': 1, 'aye': 2, 'bee': 3})
+    b'{"aye":2,"bee":3,"see":1}'
+
+    """
+    return json.dumps(obj, sort_keys=True, separators=(',',':')).encode('utf-8')
+
+
+def hash_node(node_bytes):
+    """
+    Hash the normalized JSON-encoded node value.
+
+    For example:
+
+    >>> node = {
+    ...     'src': 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N',
+    ...     'type': 'slice',
+    ...     'stream': 'video',
+    ...     'start': {
+    ...         'frame': 200,
+    ...     },
+    ...     'stop': {
+    ...         'frame': 245,
+    ...     },
+    ... }
+    ...
+    >>> hash_node(normalized_dumps(node))
+    'JCQ3YMFDNOBY4V5LB6IFTRYMJT5BLPFQUINEZNKU7W6DKC7S'
+
+
+    Note that even a small change in the edit will result in a different hash:
+
+    >>> node['start']['frame'] = 201
+    >>> hash_node(normalized_dumps(node))
+    'SPD2YAMBM3YP3I2L32BKMXQ5JAU2PD6XUQHCEC4LPERAS54J'
+
+    """
+    skein = skein512(node_bytes,
+        digest_bits=DIGEST_BITS,
+        pers=PERS_NODE,
+    )
+    return b32encode(skein.digest()).decode('utf-8')
 
 
 
@@ -243,17 +295,6 @@ def create_project(title=''):
         'db_name': project_db_name(_id),
         'title': title,
     }
-
-
-def normalized_dumps(obj):
-    """
-    Return *obj* encoded as normalized JSON, the hashing form.
-
-    >>> normalized_dumps({'see': 1, 'aye': 2, 'bee': 3})
-    '{"aye":2,"bee":3,"see":1}'
-
-    """
-    return json.dumps(obj, sort_keys=True, separators=(',',':'))
 
 
 def check_node(doc):
