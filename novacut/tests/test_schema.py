@@ -93,3 +93,45 @@ class TestFunctions(TestCase):
                 'src': [one, two],
             }
         )
+
+    def test_iter_src(self):
+        src = random_id()
+        self.assertEqual(
+            list(schema.iter_src(src)),
+            [src]
+        )
+
+        src = [random_id() for i in range(10)]
+        self.assertEqual(
+            list(schema.iter_src(src)),
+            src
+        )
+
+        ids = [random_id() for i in range(10)]
+        src = [{'id': _id} for _id in ids]
+        self.assertEqual(
+            list(schema.iter_src(src)),
+            ids
+        )
+
+
+        src = {
+            'foo': random_id(),
+            'bar': random_id(),
+            'baz': random_id(),
+        }
+        self.assertEqual(
+            set(schema.iter_src(src)),
+            set(v for v in src.values())
+        )
+        
+        ids = [random_id() for i in range(3)]
+        src = {
+            'foo': {'id': ids[0]},
+            'bar': {'id': ids[1]},
+            'baz': {'id': ids[2]},
+        }
+        self.assertEqual(
+            set(schema.iter_src(src)),
+            set(ids)
+        )

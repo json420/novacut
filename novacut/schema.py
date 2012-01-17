@@ -154,6 +154,8 @@ VER = 0
 DB_NAME = 'novacut-{}'.format(VER)
 
 
+
+
 def check_novacut(doc):
     """
     Verify the common schema that all Novacut docs should have.
@@ -315,7 +317,7 @@ def check_slice(doc):
     _check(doc, ['node', 'stream'], str,
         (_is_in, 'video', 'audio'),
     )
-  
+
 
 def create_slice(src, start, stop, stream='video'):
     node = {
@@ -335,4 +337,23 @@ def create_sequence(src):
         'src': src,
     }
     return create_node(node)
+
+
+def iter_src(src):
+    if isinstance(src, str):
+        yield src
+    elif isinstance(src, list):
+        for value in src:
+            if isinstance(value, str):
+                yield value
+            else:
+                yield value['id']
+    elif isinstance(src, dict):
+        for value in src.values():
+            if isinstance(value, str):
+                yield value
+            else:
+                yield value['id']
+            
+        
 
