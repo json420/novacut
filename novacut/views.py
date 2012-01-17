@@ -30,10 +30,8 @@ from microfiber import NotFound
 
 log = logging.getLogger()
 
-
-_sum = '_sum'
 _count = '_count'
-
+_sum = '_sum'
 
 # Reduce function to both count and sum in a single view (thanks manveru!)
 _both = """
@@ -50,6 +48,35 @@ function(key, values, rereduce) {
 """
 
 
+
+# The generic 'doc' design, quite helpful for developers:
+doc_ver = """
+function(doc) {
+    emit(doc.ver, null);
+}
+"""
+
+doc_type = """
+function(doc) {
+    emit(doc.type, null);
+}
+"""
+
+doc_time = """
+function(doc) {
+    emit(doc.time, null);
+}
+"""
+
+doc_design = ('doc', (
+    ('ver', doc_ver, _count),
+    ('type', doc_type, _count),
+    ('time', doc_time, None),
+))
+
+
+
+# For novacut/project docs:
 project_atime = """
 function(doc) {
     if (doc.type == 'novacut/project') {
@@ -58,11 +85,22 @@ function(doc) {
 }
 """
 
+project_title = """
+function(doc) {
+    if (doc.type == 'novacut/project') {
+        emit(doc.title, doc.atime);
+    }
+}
+"""
+
 
 # Design docs for main novacut-VER database
 novacut_main = (
+    doc_design, 
+
     ('project', (
         ('atime', project_atime, None),
+        ('title', project_title, None),
     )),
 )
 
