@@ -136,7 +136,7 @@ setup(
     author_email='jderose@novacut.com',
     license='AGPLv3+',
     packages=['novacut'],
-    scripts=['novacut-gtk'],
+    scripts=['novacut-gtk', 'novacut-cli'],
     data_files=[
         ('share/couchdb/apps/novacut',
             [path.join('ui', name) for name in os.listdir('ui')]

@@ -25,3 +25,5 @@
 
 __version__ = '12.01.0'
 
+BUS = 'com.novacut.Renderer'
+
