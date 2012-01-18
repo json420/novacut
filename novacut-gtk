@@ -88,9 +88,7 @@ class App(BaseApp):
         self.hub.send('project_created', doc['_id'])
 
     def on_load_project(self, hub, project_id):
-        print('load_project', project_id)
         db = self.server.database(schema.project_db_name(project_id))
-        print(db.ensure())
         views.init_views(db, views.novacut_projects)
         
 

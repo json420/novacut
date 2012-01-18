@@ -76,10 +76,27 @@ doc_design = ('doc', (
 
 
 # For novacut/node docs:
+node_type = """
+function(doc) {
+    if (doc.type == 'novacut/node') {
+        emit(doc.node.type, null);
+    }
+}
+"""
+
 node_src = """
 function(doc) {
-    if (doc.type == 'novacut/project') {
-        emit(doc.atime, doc.title);
+    if (doc.type == 'novacut/node') {
+        var src = doc.node.src;
+        if (typeof src == 'string') {
+            emit(src, null);
+        }
+        else if (src.constructor.name == 'Array') {
+            var i;
+            for (i in src) {
+                emit(src[i], null);
+            }
+        }
     }
 }
 """
@@ -116,6 +133,11 @@ novacut_main = (
 
 novacut_projects = (
     doc_design,
+    
+    ('node', (
+        ('type', node_type, _count),
+        ('src', node_src, _count),
+    )),
 )
 
 
