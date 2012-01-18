@@ -1,17 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="stylesheet" href="/_apps/userwebkit/base.css" />
-<link rel="stylesheet" href="novacut.css" />
+<link rel="stylesheet" href="/_apps/dmedia/grid.css"></link>
 <link rel="stylesheet" href="projects.css" />
 <script src="/_apps/userwebkit/couch.js"></script>
 <script src="/_apps/userwebkit/base.js"></script>
+<script src="/_apps/dmedia/common.js"></script>
 <script src="novacut.js"></script>
 <script src="projects.js"></script>
 </head>
 <body>
-<input placeholder="New Project Name" type="text" id="title" class="grid_1">
-<button onclick="create_project()" class="grid_1">Create Project</button>
-<div id="projects"></div>
+
+<form id="new_project">
+<div class="grid_row">
+    <input placeholder="New project name" type="text" class="grid_4">
+    <button class="grid_4" disabled>Create Project</button>
+</div>
+</form>
+
+<ul id="projects"></ul>
+
 </body>
 </html>

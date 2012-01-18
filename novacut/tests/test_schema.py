@@ -31,6 +31,40 @@ from novacut import schema
 
 
 class TestFunctions(TestCase):
+    def test_intrinsic_node(self):
+        node = {
+            'src': 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N',
+            'type': 'slice',
+            'stream': 'video',
+            'start': {
+                'frame': 200,
+            },
+            'stop': {
+                'frame': 245,
+            },
+        }
+        data = schema.normalized_dumps(node)
+        t = schema.intrinsic_node(node)
+        self.assertIsInstance(t, schema.Intrinsic)
+        self.assertEqual(t.id, schema.hash_node(data))
+        self.assertEqual(t.data, data)
+        self.assertIs(t.node, node)
+        self.assertEqual(schema.normalized_dumps(t.node), data)
+
+    def test_intrinsic_src(self):
+        _id = random_id(30)
+        self.assertEqual(
+            schema.intrinsic_src(_id, None, None),
+            _id
+        )
+
+        _id = random_id(30)
+        src = {'id': _id, 'foo': 'bar'}
+        self.assertEqual(
+            schema.intrinsic_src(src, None, None),
+            {'id': _id, 'foo': 'bar'}
+        )
+
     def test_project_db_name(self):
         self.assertEqual(
             schema.project_db_name('AAAAAAAAAAAAAAAAAAAAAAAA'),
@@ -92,4 +126,46 @@ class TestFunctions(TestCase):
                 'type': 'sequence',
                 'src': [one, two],
             }
+        )
+
+    def test_iter_src(self):
+        src = random_id()
+        self.assertEqual(
+            list(schema.iter_src(src)),
+            [src]
+        )
+
+        src = [random_id() for i in range(10)]
+        self.assertEqual(
+            list(schema.iter_src(src)),
+            src
+        )
+
+        ids = [random_id() for i in range(10)]
+        src = [{'id': _id} for _id in ids]
+        self.assertEqual(
+            list(schema.iter_src(src)),
+            ids
+        )
+
+
+        src = {
+            'foo': random_id(),
+            'bar': random_id(),
+            'baz': random_id(),
+        }
+        self.assertEqual(
+            set(schema.iter_src(src)),
+            set(v for v in src.values())
+        )
+        
+        ids = [random_id() for i in range(3)]
+        src = {
+            'foo': {'id': ids[0]},
+            'bar': {'id': ids[1]},
+            'baz': {'id': ids[2]},
+        }
+        self.assertEqual(
+            set(schema.iter_src(src)),
+            set(ids)
         )

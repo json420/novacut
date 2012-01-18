@@ -2,9 +2,9 @@ Source: novacut
 Section: python
 Priority: optional
 Maintainer: Jason Gerard DeRose <jderose@novacut.com>
-Build-Depends: debhelper (>= 8.9), python3 (>= 3.2)
+Build-Depends: debhelper (>= 8.9), python3 (>= 3.2), python (>= 2.7)
 Standards-Version: 3.9.2
-X-Python-Version: 3.2
+X-Python-Version: 2.7
 X-Python3-Version: 3.2
 Homepage: https://launchpad.net/novacut
 
@@ -13,17 +13,20 @@ Architecture: all
 Provides: python-novacut, python3-novacut
 Replaces: python-novacut (<< ${source:Version}), python3-novacut (<< ${source:Version})
 Conflicts: python-novacut (<< ${source:Version}), python3-novacut (<< ${source:Version})
-Depends: ${misc:Depends}, python3 (>= 3.2),
+Depends: ${misc:Depends}, python3 (>= 3.2), python (>= 2.7),
+    python-gobject-2,
+    python-gst0.10,
+    python-dbus,
     dmedia (>= 12.01),
     python3-microfiber (>= 12.01),
     python3-userwebkit (>= 12.01),
-    python3-gobject,
+    python3-gi | python3-gobject,
     gir1.2-gtk-3.0,
     gir1.2-webkit-3.0,
-    gir1.2-gstreamer-0.10,
     gstreamer0.10-plugins-good,
-    gstreamer0.10-gnonlin,
+    gstreamer0.10-plugins-ugly,
     gstreamer0.10-ffmpeg,
+    gstreamer0.10-gnonlin,
 Recommends: gstreamer0.10-plugins-ugly, gstreamer0.10-plugins-bad
 Description: Collaborative editor for professional TV and movie production.
  FIXME.

@@ -127,8 +127,12 @@ is enormously useful for two reasons:
 
 import time
 import json
+from base64 import b32encode, b64encode
+from copy import deepcopy
+from collections import namedtuple
 
-from microfiber import random_id
+from skein import skein512
+from microfiber import random_id, RANDOM_B32LEN
 from dmedia.schema import (
     _label,
     _value,
@@ -152,6 +156,116 @@ VER = 0
 
 # versioned primary database name:
 DB_NAME = 'novacut-{}'.format(VER)
+
+# Skein personalization string
+PERS_NODE = b'20120117 jderose@novacut.com novacut/node'
+DIGEST_BITS = 240
+DIGEST_BYTES = DIGEST_BITS // 8
+DIGEST_B32LEN = DIGEST_BITS // 5
+Intrinsic = namedtuple('Intrinsic', 'id data node')
+
+
+def normalized_dumps(obj):
+    """
+    Return *obj* encoded as normalized JSON, the hashing form.
+
+    >>> normalized_dumps({'see': 1, 'aye': 2, 'bee': 3})
+    b'{"aye":2,"bee":3,"see":1}'
+
+    """
+    return json.dumps(obj, sort_keys=True, separators=(',',':')).encode('utf-8')
+
+
+def hash_node(data):
+    """
+    Hash the normalized JSON-encoded node value.
+
+    For example:
+
+    >>> node = {
+    ...     'src': 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N',
+    ...     'type': 'slice',
+    ...     'stream': 'video',
+    ...     'start': {
+    ...         'frame': 200,
+    ...     },
+    ...     'stop': {
+    ...         'frame': 245,
+    ...     },
+    ... }
+    ...
+    >>> hash_node(normalized_dumps(node))
+    'JCQ3YMFDNOBY4V5LB6IFTRYMJT5BLPFQUINEZNKU7W6DKC7S'
+
+
+    Note that even a small change in the edit will result in a different hash:
+
+    >>> node['start']['frame'] = 201
+    >>> hash_node(normalized_dumps(node))
+    'SPD2YAMBM3YP3I2L32BKMXQ5JAU2PD6XUQHCEC4LPERAS54J'
+
+    """
+    skein = skein512(data, digest_bits=DIGEST_BITS, pers=PERS_NODE)
+    return b32encode(skein.digest()).decode('utf-8')
+
+
+def iter_src(src):
+    if isinstance(src, str):
+        yield src
+    elif isinstance(src, list):
+        for value in src:
+            if isinstance(value, str):
+                yield value
+            else:
+                yield value['id']
+    elif isinstance(src, dict):
+        for value in src.values():
+            if isinstance(value, str):
+                yield value
+            else:
+                yield value['id']
+
+
+def intrinsic_node(node):
+    data = normalized_dumps(node)
+    _id = hash_node(data)
+    return Intrinsic(_id, data, node)
+
+
+def intrinsic_src(src, get_doc, results):
+    _id = (src if isinstance(src, str) else src['id'])
+    if len(_id) != RANDOM_B32LEN:
+        return src
+    _id = intrinsic_graph(_id, get_doc, results)
+    if isinstance(src, str):
+        return _id
+    src['id'] = _id
+    return src
+
+
+def intrinsic_graph(_id, get_doc, results):
+    try:
+        return results[_id].id
+    except KeyError:
+        pass
+    doc = get_doc(_id)
+    node = deepcopy(doc['node'])
+    src = node['src']
+    assert isinstance(src, (str, list, dict))
+    if isinstance(src, str):
+        new = intrinsic_src(src, get_doc, results)
+    elif isinstance(src, list):
+        new = [intrinsic_src(value, get_doc, results) for value in src]
+    elif isinstance(src, dict):
+        new = dict(
+            (key, intrinsic_src(value, get_doc, results))
+            for (key, value) in src.items()
+        )
+    node['src'] = new
+    inode = intrinsic_node(node)
+    results[_id] = inode
+    return inode.id
+
 
 
 def check_novacut(doc):
@@ -243,17 +357,6 @@ def create_project(title=''):
     }
 
 
-def normalized_dumps(obj):
-    """
-    Return *obj* encoded as normalized JSON, the hashing form.
-
-    >>> normalized_dumps({'see': 1, 'aye': 2, 'bee': 3})
-    '{"aye":2,"bee":3,"see":1}'
-
-    """
-    return json.dumps(obj, sort_keys=True, separators=(',',':'))
-
-
 def check_node(doc):
     """
     Verify that *doc* is a valid novacut/node document.
@@ -298,6 +401,23 @@ def create_node(node):
     }
 
 
+def create_inode(inode):
+    return {
+        '_id': inode.id,
+        '_attachments': {
+            'node': {
+                'data': b64encode(inode.data).decode('utf-8'),
+                'content_type': 'application/json',
+            }
+        },
+        'ver': VER,
+        'type': 'novacut/node',
+        'time': time.time(),
+        'node': inode.node,
+        'renders': {},
+    }
+
+
 def check_slice(doc):
     check_node(doc)
     _check(doc, ['node', 'type'], str,
@@ -315,7 +435,7 @@ def check_slice(doc):
     _check(doc, ['node', 'stream'], str,
         (_is_in, 'video', 'audio'),
     )
-  
+
 
 def create_slice(src, start, stop, stream='video'):
     node = {
@@ -335,4 +455,7 @@ def create_sequence(src):
         'src': src,
     }
     return create_node(node)
+
+            
+        
 

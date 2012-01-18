@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # novacut: the collaborative video editor
 # Copyright (C) 2011 Novacut Inc
@@ -22,7 +22,7 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 """
-Install `novacut`.
+Install `novacut2`.
 """
 
 import os
@@ -34,16 +34,15 @@ from unittest import TestLoader, TextTestRunner
 from doctest import DocTestSuite
 import sys
 
-if sys.version_info.major != 3:
+if sys.version_info.major != 2:
     print(sys.argv)
     sys.exit(1)
 
-import novacut
+import novacut2
 
 
 tree = path.dirname(path.abspath(__file__))
-packagedir = path.join(tree, 'novacut')
-ui = path.join(tree, 'ui')
+packagedir = path.join(tree, 'novacut2')
 
 
 def pynames_iter(pkdir, pkname=None):
@@ -95,10 +94,6 @@ class Test(Command):
 
     def run(self):
         pynames = list(self._pynames_iter())
-        pynames.remove('novacut.dbus')
-        for name in pynames:
-            print(name)
-        #raise SystemExit()
 
         # Add unit-tests:
         if self.no_unittest:
@@ -128,25 +123,21 @@ class Test(Command):
 
 
 setup(
-    name='novacut',
+    name='novacut2',
     description='the collaborative video editor',
     url='https://launchpad.net/novacut',
-    version=novacut.__version__,
+    version=novacut2.__version__,
     author='Jason Gerard DeRose',
     author_email='jderose@novacut.com',
     license='AGPLv3+',
-    packages=['novacut'],
-    scripts=['novacut-gtk', 'novacut-cli'],
+    cmdclass={'test': Test},
+    packages=['novacut2'],
     data_files=[
-        ('share/couchdb/apps/novacut',
-            [path.join('ui', name) for name in os.listdir('ui')]
+        ('lib/novacut',
+            ['novacut-service'],
         ),
-        ('share/applications',
-            ['data/novacut.desktop']
-        ),
-        ('share/icons/hicolor/48x48/apps',
-            ['data/novacut.svg']
+        ('share/dbus-1/services/',
+            ['data/com.novacut.Renderer.service']
         ),
     ],
-    cmdclass={'test': Test},
 )

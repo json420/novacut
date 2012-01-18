@@ -19,11 +19,7 @@
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
+
 """
-`novacut` - the collaborative video editor.
+Unit tests for the `novacut2` package.
 """
-
-__version__ = '12.01.0'
-
-BUS = 'com.novacut.Renderer'
-

@@ -20,10 +20,11 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 """
-`novacut` - the collaborative video editor.
+Stop-gap renderer using Python2, python-gst.
+
+This will go away once we can build our renderer with GStreamer 1.0, PyGI, and
+Python3.
 """
 
 __version__ = '12.01.0'
-
-BUS = 'com.novacut.Renderer'
 

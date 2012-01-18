@@ -1,0 +1,145 @@
+#!/usr/bin/python3
+
+# novacut: the collaborative video editor
+# Copyright (C) 2011 Novacut Inc
+#
+# This file is part of `novacut`.
+#
+# `novacut` is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# `novacut` is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with `novacut`.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#   Jason Gerard DeRose <jderose@novacut.com>
+
+"""
+Command line tool for talking to Novacut DBus services.
+"""
+
+import optparse
+from collections import OrderedDict
+import sys
+from gettext import ngettext
+from os import path
+
+import dbus
+from dmedia.units import minsec
+
+import novacut
+
+
+methods = OrderedDict()
+session = dbus.SessionBus()
+
+
+def error(msg, code=1):
+    print('ERROR:', msg)
+    sys.exit(code)
+
+
+def print_methods():
+    print('DBus methods on {}:'.format(novacut.BUS))
+    width = max(len(name) for name in methods)
+    for name in methods:
+        cls = methods[name]
+        print('  {}  {}'.format(name.ljust(width), cls.__doc__))
+
+
+def print_usage(cls):
+    print('Usage:')
+    print(' ', *cls.usage())
+
+
+class MethodMeta(type):
+    def __new__(meta, name, bases, dict):
+        cls = type.__new__(meta, name, bases, dict)
+        if not name.startswith('_'):
+            methods[name] = cls
+        return cls
+
+
+class _Method(metaclass=MethodMeta):
+    args = tuple()
+
+    def __init__(self, bus):
+        self.bus = bus
+        self.proxy = session.get_object(bus, '/')
+
+    @classmethod
+    def usage(cls):
+        script = path.basename(sys.argv[0])
+        cmd = [script, cls.__name__]
+        cmd.extend(arg.upper() for arg in cls.args)
+        return cmd
+
+    def run(self, args):
+        args = self.validate_args(*args)
+        method = self.proxy.get_dbus_method(self.__class__.__name__)
+        return self.format_output(method(*args))
+
+    def validate_args(self, *args):
+        return args
+
+    def format_output(self, output):
+        return output
+
+
+
+class Version(_Method):
+    'Show version of running `novacut-service`'
+
+
+class Kill(_Method):
+    'Shutdown `novacut-service`'
+    
+    def format_output(self, seconds):
+        return '{} was running for {}'.format(self.bus, minsec(seconds))
+
+
+
+parser = optparse.OptionParser(
+    usage='%prog METHOD [ARGS...]',
+	version=novacut.__version__,
+)
+parser.add_option('--bus',
+    help='DBus bus name; default is {!r}'.format(novacut.BUS),
+    default=novacut.BUS
+)
+(options, args) = parser.parse_args()
+
+
+if len(args) == 0:
+    parser.print_help()
+    print('')
+    print_methods()
+    sys.exit(0)
+
+name = args[0]
+args = args[1:]
+if name not in methods:
+    print_methods()
+    print('')
+    error('Unknown method {!r}'.format(name))
+
+cls = methods[name]
+if len(args) != len(cls.args):
+    print_usage(cls)
+    print('')
+    msg = ngettext(
+        '{!r} takes exactly {} argument',
+        '{!r} takes exactly {} arguments',
+        len(cls.args)
+    )
+    error(msg.format(name, len(cls.args)))
+
+method = cls(options.bus)
+print(method.run(args))

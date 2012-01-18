@@ -1,0 +1,98 @@
+#!/usr/bin/python
+
+# novacut: the collaborative video editor
+# Copyright (C) 2011 Novacut Inc
+#
+# This file is part of `novacut`.
+#
+# `novacut` is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# `novacut` is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with `novacut`.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#   Jason Gerard DeRose <jderose@novacut.com>
+
+"""
+DBus service that exposes the render server.
+"""
+
+import time
+start_time = time.time()
+
+import optparse
+import json
+from os import path
+
+import dbus
+import dbus.service
+from dbus.mainloop.glib import DBusGMainLoop
+import gobject
+
+import novacut2
+
+
+BUS = 'com.novacut.Renderer'
+IFACE = BUS
+
+gobject.threads_init()
+DBusGMainLoop(set_as_default=True)
+session = dbus.SessionBus()
+
+
+def dumps(obj):
+    return json.dumps(obj, sort_keys=True, separators=(',', ': '), indent=4)
+
+
+class Service(dbus.service.Object):
+    def __init__(self, bus):
+        self.bus = bus
+        self.mainloop = gobject.MainLoop()
+        super(Service, self).__init__(session, object_path='/')
+        self.busname = dbus.service.BusName(bus, session)
+
+    def run(self):
+        self.mainloop.run()
+
+    def kill(self):
+        self.mainloop.quit()
+
+    @dbus.service.method(IFACE, in_signature='', out_signature='s')
+    def Version(self):
+        """
+        Return Novacut version.
+        """
+        return novacut2.__version__
+
+    @dbus.service.method(IFACE, in_signature='', out_signature='i')
+    def Kill(self):
+        """
+        Kill the `novacut-service` process.
+        """
+        self.kill()
+        return int(time.time() - start_time)
+
+
+parser = optparse.OptionParser(
+	version=novacut2.__version__,
+)
+parser.add_option('--bus',
+    help='DBus bus name; default is {!r}'.format(BUS),
+    default=BUS
+)
+(options, args) = parser.parse_args()
+
+
+service = Service(options.bus)
+try:
+    service.run()
+finally:
+    service.kill()
