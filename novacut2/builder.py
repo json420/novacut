@@ -20,9 +20,10 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 import json
+import time
 
 import dbus
-from dc3lib.microfiber import Database, NotFound
+from dc3lib.microfiber import Database, NotFound, random_id
 
 from renderer import Builder
 
@@ -42,6 +43,20 @@ def project_db_name(_id):
 
     """
     return '-'.join(['novacut', str(VER), _id.lower()])
+
+
+def create_project(title=''):
+    _id = random_id()
+    ts = time.time()
+    return {
+        '_id': _id,
+        'ver': VER,
+        'type': 'novacut/project',
+        'time': ts,
+        'atime': ts,
+        'db_name': project_db_name(_id),
+        'title': title,
+    }
 
 
 

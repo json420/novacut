@@ -2,6 +2,7 @@
 
 
 function open_project(project_id) {
+    Hub.send('load_project', project_id)
     window.location.assign('cutter.html#' + project_id); 
 }
 

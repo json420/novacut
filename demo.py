@@ -26,7 +26,7 @@ import json
 
 from dc3lib.microfiber import Database, random_id
 from novacut2.renderer import Renderer
-from novacut2.builder import LiveBuilder
+from novacut2.builder import LiveBuilder, create_project
 
 tree = path.dirname(path.abspath(__file__))
 
@@ -113,9 +113,13 @@ render = {
 docs.append(render)
 
 
-project_id = random_id()
-b = LiveBuilder(project_id)
+project = create_project('{} Slices'.format(len(slices)))
+b = LiveBuilder(project['_id'])
+novacut = Database('novacut-0', b.db.env)
+novacut.ensure()
+novacut.post(project)
 b.db.ensure()
+b.db.post(project)
 b.db.bulksave(docs)
 
 
@@ -125,7 +129,5 @@ r.run()
 docs.reverse()
 fp = open(path.join(tree, 'tmp-demo.json'), 'wb')
 json.dump(docs, fp, sort_keys=True, indent=4)
-print(len(docs))
-
-print(project_id)
 print(sequence_id)
+print(project)

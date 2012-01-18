@@ -45,10 +45,12 @@ class App(BaseApp):
     signals = {
         'create_project': ['title'],
         'project_created': ['project_id'],
+        'load_project': ['project_id'],
     }
 
     def connect_hub_signals(self, hub):
         hub.connect('create_project', self.on_create_project)
+        hub.connect('load_project', self.on_load_project)
 
     def post_env_init(self):
         views.init_views(self.db, views.novacut_main)
@@ -84,6 +86,12 @@ class App(BaseApp):
         self.server.post(doc, doc['db_name'])
         #self.load_page('cutter.html#' + doc['_id'])
         self.hub.send('project_created', doc['_id'])
+
+    def on_load_project(self, hub, project_id):
+        print('load_project', project_id)
+        db = self.server.database(schema.project_db_name(project_id))
+        print(db.ensure())
+        views.init_views(db, views.novacut_projects)
         
 
 app = App()

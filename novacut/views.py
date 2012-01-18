@@ -75,6 +75,15 @@ doc_design = ('doc', (
 ))
 
 
+# For novacut/node docs:
+node_src = """
+function(doc) {
+    if (doc.type == 'novacut/project') {
+        emit(doc.atime, doc.title);
+    }
+}
+"""
+
 
 # For novacut/project docs:
 project_atime = """
@@ -102,6 +111,11 @@ novacut_main = (
         ('atime', project_atime, None),
         ('title', project_title, None),
     )),
+)
+
+
+novacut_projects = (
+    doc_design,
 )
 
 
