@@ -20,7 +20,7 @@ button {
     font-weight: bold;
 }
 
-button:disabled, {
+button:disabled {
     font-weight: normal;
     font-style: italic;
 }

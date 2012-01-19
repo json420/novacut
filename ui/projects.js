@@ -2,11 +2,8 @@
 
 
 function open_project(project_id) {
-    Hub.send('load_project', project_id)
     window.location.assign('cutter.html#' + project_id); 
 }
-
-Hub.connect('project_created', open_project);
 
 
 var UI = {
@@ -55,7 +52,7 @@ var UI = {
                 li.appendChild(info);
 
                 li.onclick = function() {
-                    open_project(row.id);
+                    Hub.send('load_project', row.id)
                 }
 
                 return li;
