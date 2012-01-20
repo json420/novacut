@@ -535,26 +535,27 @@ class TestRenderer(TestCase):
         tmp = TempDir()
         builder = DummyBuilder(docs)
 
-        job = {
-            'src': sequence1,
+        root = sequence1
+        settings = {
             'muxer': {'name': 'oggmux'},
         }
         dst = tmp.join('out1.ogv')
-        inst = renderer.Renderer(job, builder, dst)
+        inst = renderer.Renderer(root, settings, builder, dst)
 
-        self.assertTrue(inst.job is job)
-        self.assertTrue(inst.builder is builder)
+        self.assertIs(inst.root, root)
+        self.assertIs(inst.settings, settings)
+        self.assertIs(inst.builder, builder)
 
         self.assertIsInstance(inst.src, gst.Element)
-        self.assertTrue(inst.src.get_parent() is inst.pipeline)
+        self.assertIs(inst.src.get_parent(), inst.pipeline)
         self.assertEqual(inst.src.get_factory().get_name(), 'gnlcomposition')
 
         self.assertIsInstance(inst.mux, gst.Element)
-        self.assertTrue(inst.mux.get_parent() is inst.pipeline)
+        self.assertIs(inst.mux.get_parent(), inst.pipeline)
         self.assertEqual(inst.mux.get_factory().get_name(), 'oggmux')
 
         self.assertIsInstance(inst.sink, gst.Element)
-        self.assertTrue(inst.sink.get_parent() is inst.pipeline)
+        self.assertIs(inst.sink.get_parent(), inst.pipeline)
         self.assertEqual(inst.sink.get_factory().get_name(), 'filesink')
         self.assertEqual(inst.sink.get_property('location'), dst)
 

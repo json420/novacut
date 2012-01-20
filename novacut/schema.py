@@ -132,7 +132,7 @@ from copy import deepcopy
 from collections import namedtuple
 
 from skein import skein512
-from microfiber import random_id, RANDOM_B32LEN
+from microfiber import random_id, RANDOM_B32LEN, Conflict
 from dmedia.schema import (
     _label,
     _value,
@@ -266,6 +266,17 @@ def intrinsic_graph(_id, get_doc, results):
     results[_id] = inode
     return inode.id
 
+
+def save_to_intrinsic(root, src, dst):
+    results = {}
+    iroot = intrinsic_graph(root, src.get, results)
+    for inode in results.values():
+        doc = create_inode(inode)
+        try:
+            dst.save(doc)
+        except Conflict:
+            pass
+    return iroot
 
 
 def check_novacut(doc):
@@ -411,7 +422,46 @@ def create_inode(inode):
             }
         },
         'ver': VER,
-        'type': 'novacut/node',
+        'type': 'novacut/inode',
+        'time': time.time(),
+        'node': inode.node,
+        'renders': {},
+    }
+
+
+def create_settings(node):
+    inode = intrinsic_node(node)
+    return {
+        '_id': inode.id,
+        '_attachments': {
+            'node': {
+                'data': b64encode(inode.data).decode('utf-8'),
+                'content_type': 'application/json',
+            }
+        },
+        'ver': VER,
+        'type': 'novacut/settings',
+        'time': time.time(),
+        'node': inode.node,
+    }
+
+
+def create_job(root, settings):
+    node = {
+        'root': root,
+        'settings': settings,
+    }
+    inode = intrinsic_node(node)
+    return {
+        '_id': inode.id,
+        '_attachments': {
+            'node': {
+                'data': b64encode(inode.data).decode('utf-8'),
+                'content_type': 'application/json',
+            }
+        },
+        'ver': VER,
+        'type': 'novacut/job',
         'time': time.time(),
         'node': inode.node,
         'renders': {},
