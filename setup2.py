@@ -134,10 +134,7 @@ setup(
     packages=['novacut2'],
     data_files=[
         ('lib/novacut',
-            ['novacut-service'],
-        ),
-        ('share/dbus-1/services/',
-            ['data/com.novacut.Renderer.service']
+            ['novacut-renderer'],
         ),
     ],
 )

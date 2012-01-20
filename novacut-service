@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # novacut: the collaborative video editor
 # Copyright (C) 2011 Novacut Inc
@@ -37,25 +37,21 @@ import subprocess
 import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
-import gobject
+from gi.repository import GObject
 
-import novacut2
+import novacut
 
 
 BUS = 'com.novacut.Renderer'
 IFACE = BUS
 
-gobject.threads_init()
+GObject.threads_init()
 DBusGMainLoop(set_as_default=True)
 session = dbus.SessionBus()
 
 
-def dumps(obj):
-    return json.dumps(obj, sort_keys=True, separators=(',', ': '), indent=4)
-
-
-def render(job_id):
-    print(subprocess.check_output(['./novacut-renderer', job_id]))
+renderer = path.join(path.dirname(__file__), 'novacut-renderer')
+assert path.isfile(renderer)
 
 
 def _start_thread(target, *args):
@@ -65,13 +61,12 @@ def _start_thread(target, *args):
     return thread
 
 
-
 class Service(dbus.service.Object):
-    worker = None
+    workers = {}
 
     def __init__(self, bus):
         self.bus = bus
-        self.mainloop = gobject.MainLoop()
+        self.mainloop = GObject.MainLoop()
         super(Service, self).__init__(session, object_path='/')
         self.busname = dbus.service.BusName(bus, session)
 
@@ -81,12 +76,17 @@ class Service(dbus.service.Object):
     def kill(self):
         self.mainloop.quit()
 
+    def render(self, job_id):
+        cmd = [renderer, job_id]
+        file_id = subprocess.check_output(cmd).decode('utf-8')
+        self.RenderFinished(job_id, file_id)
+
     @dbus.service.method(IFACE, in_signature='', out_signature='s')
     def Version(self):
         """
         Return Novacut version.
         """
-        return novacut2.__version__
+        return novacut.__version__
 
     @dbus.service.method(IFACE, in_signature='', out_signature='i')
     def Kill(self):
@@ -96,24 +96,23 @@ class Service(dbus.service.Object):
         self.kill()
         return int(time.time() - start_time)
 
-    @dbus.service.method(IFACE, in_signature='s', out_signature='')
+    @dbus.service.method(IFACE, in_signature='s', out_signature='b')
     def Render(self, job_id):
         """
         Render an edit.
         """
-        self.worker = _start_thread(render, job_id)
+        if job_id in self.workers:
+            return False
+        self.workers[job_id] = _start_thread(self.render, job_id)
+        return True
 
-    @dbus.service.signal(IFACE, signature='s')
-    def RenderFinished(self, job_id):
-        pass
-        
-
-        
-    
+    @dbus.service.signal(IFACE, signature='ss')
+    def RenderFinished(self, job_id, file_id):
+        del self.workers[job_id]
 
 
 parser = optparse.OptionParser(
-	version=novacut2.__version__,
+	version=novacut.__version__,
 )
 parser.add_option('--bus',
     help='DBus bus name; default is {!r}'.format(BUS),

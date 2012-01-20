@@ -147,6 +147,12 @@ setup(
         ('share/icons/hicolor/48x48/apps',
             ['data/novacut.svg']
         ),
+        ('lib/novacut',
+            ['novacut-service'],
+        ),
+        ('share/dbus-1/services/',
+            ['data/com.novacut.Renderer.service']
+        ),
     ],
     cmdclass={'test': Test},
 )
