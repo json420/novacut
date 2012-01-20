@@ -27,7 +27,6 @@ import gobject
 gobject.threads_init()
 
 
-
 class FakeBin(gst.Bin):
     def __init__(self, rate):
         super(FakeBin, self).__init__()
@@ -40,15 +39,22 @@ class FakeBin(gst.Bin):
         self._rate.link(self._sink)
 
         # Ghost Pads
-        sinkpad = self._q.get_pad('sink')
+        pad = self._q.get_pad('sink')
         self.add_pad(
-            gst.GhostPad('sink', sinkpad)
+            gst.GhostPad('sink', pad)
         )
-        sinkpad.connect('notify::caps', self._on_notify_caps)
+        pad.connect('notify::caps', self._on_notify_caps)
 
     def _get_doc(self):
         self._finalize()
         return self._doc
+        
+    def _query_duration(self, pad):
+        q = gst.query_new_duration(gst.FORMAT_TIME)
+        if pad.get_peer().query(q):
+            (format, duration) = q.parse_duration()
+            if format == gst.FORMAT_TIME:
+                return duration
 
 
 class VideoBin(FakeBin):
@@ -57,31 +63,43 @@ class VideoBin(FakeBin):
 
     def _on_notify_caps(self, pad, args):
         caps = pad.get_negotiated_caps()
-        if caps:
-            d = caps[0]
-            self._doc['framerate'] = {
-                'num': d['framerate'].num,
-                'denom': d['framerate'].denom,
-            }
+        if not caps:
+            return
+        d = caps[0]
+        self._doc['framerate'] = {
+            'num': d['framerate'].num,
+            'denom': d['framerate'].denom,
+        }
+        self._doc['width'] = d['width']
+        self._doc['height'] = d['height']
+        duration = self._query_duration(pad)
+        if duration:
+            self._doc['ns'] = duration
+            self._doc['duration'] = float(duration) / gst.SECOND
 
     def _finalize(self):
         self._doc['frames'] = self._rate.get_property('in')
 
 
-  
 class AudioBin(FakeBin):
     def __init__(self):
         super(AudioBin, self).__init__('audiorate')
 
     def _on_notify_caps(self, pad, args):
         caps = pad.get_negotiated_caps()
-        if caps:
-            d = caps[0]
-            self._doc['samplerate'] = d['rate']
-            self._doc['channels'] = d['channels']
+        if not caps:
+            return
+        d = caps[0]
+        self._doc['samplerate'] = d['rate']
+        self._doc['channels'] = d['channels']
+        duration = self._query_duration(pad)
+        if duration:
+            self._doc['samples'] = d['rate'] * duration / gst.SECOND
 
     def _finalize(self):
-        self._doc['samples'] = self._rate.get_property('in')
+        # FIXME: why is this so worthless?
+        if 'samples' not in self._doc:
+            self._doc['samples'] = self._rate.get_property('in')
 
 
 class Extractor(object):
