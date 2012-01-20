@@ -28,11 +28,12 @@ db.ensure()
 project = Database(p['db_name'], env)
 if project.ensure():
     project.post(p)
-    project.bulksave(docs)
+    project.post({'docs': docs}, '_bulk_docs')
 try:
     db.save(p)
 except Conflict:
     pass
+db.post({'docs': docs}, '_bulk_docs')
 
 root = schema.save_to_intrinsic('AUABDULVRZIBH727GQP2HXSA', project, db)
 print('root:', root)
