@@ -28,8 +28,9 @@ gobject.threads_init()
 
 
 class FakeBin(gst.Bin):
-    def __init__(self, doc, rate):
+    def __init__(self, callback, doc, rate):
         super(FakeBin, self).__init__()
+        self._callback = callback
         self._doc = doc
         self._q = gst.element_factory_make('queue')
         self._rate = gst.element_factory_make(rate)
@@ -45,10 +46,6 @@ class FakeBin(gst.Bin):
         )
         pad.connect('notify::caps', self._on_notify_caps)
 
-    def _get_doc(self):
-        self._finalize()
-        return self._doc
-        
     def _query_duration(self, pad):
         q = gst.query_new_duration(gst.FORMAT_TIME)
         if pad.get_peer().query(q):
@@ -58,8 +55,8 @@ class FakeBin(gst.Bin):
 
 
 class VideoBin(FakeBin):
-    def __init__(self, doc):
-        super(VideoBin, self).__init__(doc, 'videorate')
+    def __init__(self, callback, doc):
+        super(VideoBin, self).__init__(callback, doc, 'videorate')
 
     def _on_notify_caps(self, pad, args):
         caps = pad.get_negotiated_caps()
@@ -78,14 +75,15 @@ class VideoBin(FakeBin):
         if ns:
             self._doc['video_ns'] = ns
             self._doc['frames'] = ns * num / denom / gst.SECOND
+        self._callback(self)
 
     def _finalize(self):
         self._doc['frames2'] = self._rate.get_property('in')
 
 
 class AudioBin(FakeBin):
-    def __init__(self, doc):
-        super(AudioBin, self).__init__(doc, 'audiorate')
+    def __init__(self, callback, doc):
+        super(AudioBin, self).__init__(callback, doc, 'audiorate')
 
     def _on_notify_caps(self, pad, args):
         caps = pad.get_negotiated_caps()
@@ -98,6 +96,7 @@ class AudioBin(FakeBin):
         if ns:
             self._doc['audio_ns'] = ns
             self._doc['samples'] = d['rate'] * ns / gst.SECOND
+        self._callback(self)
 
     def _finalize(self):
         # FIXME: why is this so worthless?
@@ -152,7 +151,7 @@ class Extractor(object):
 
     def link_pad(self, pad, name):
         cls = {'audio': AudioBin, 'video': VideoBin}[name]
-        fakebin = cls(self.doc)
+        fakebin = cls(self.on_callback, self.doc)
         self.pipeline.add(fakebin)
         pad.link(fakebin.get_pad('sink'))
         fakebin.set_state(gst.STATE_PLAYING)
@@ -168,19 +167,22 @@ class Extractor(object):
             self.video = self.link_pad(pad, 'video')
 
     def on_no_more_pads(self, element):
-        print('no more decoded pads')
+        self.need = set(filter(None, [self.audio, self.video]))
+        self.have = set()
+
+    def on_callback(self, fakebin):
+        self.have.add(fakebin)
+        if self.have == self.need:
+            gobject.idle_add(self.kill)
 
     def on_have_type(self, element, prop, caps):
         self.doc['content_type'] = caps.to_string()
 
     def on_eos(self, bus, msg):
-        if self.video:
-            self.video._finalize()
         self.kill()
 
     def on_error(self, bus, msg):
         error = msg.parse_error()[1]
         self.kill()
-        print(error)
         sys.exit(2)
 
