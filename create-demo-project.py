@@ -34,10 +34,8 @@ try:
 except Conflict:
     pass
 
-root = 'AUABDULVRZIBH727GQP2HXSA'
-iroot = schema.save_to_intrinsic(root, project, db)
-print(iroot)
-
+root = schema.save_to_intrinsic('AUABDULVRZIBH727GQP2HXSA', project, db)
+print('root:', root)
 
 node = {
     'muxer': {'name': 'oggmux'},
@@ -57,10 +55,18 @@ node = {
         },
     },
 }
+doc = schema.create_settings(node)
+try:
+    db.save(doc)
+except Conflict:
+    pass
+print('settings:', doc['_id'])
 
-
-settings = schema.create_settings(node)
-
-print(schema.create_job(iroot, settings))
+doc = schema.create_job(root, doc['_id'])
+try:
+    db.save(doc)
+except Conflict:
+    pass
+print('job:', doc['_id'])
 
 

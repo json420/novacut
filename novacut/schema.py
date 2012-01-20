@@ -275,7 +275,7 @@ def save_to_intrinsic(root, src, dst):
         try:
             dst.save(doc)
         except Conflict:
-            print('conflict', inode.id)
+            pass
     return iroot
 
 

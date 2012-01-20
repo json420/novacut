@@ -251,14 +251,15 @@ class VideoEncoder(EncoderBin):
 
 
 class Renderer(object):
-    def __init__(self, job, builder, dst):
+    def __init__(self, root, settings, builder, dst):
         """
         Initialize.
 
         :param job: a ``dict`` describing the transcode to perform.
         :param fs: a `FileStore` instance in which to store transcoded file
         """
-        self.job = job
+        self.root = root
+        self.settings = settings
         self.builder = builder
         self.mainloop = gobject.MainLoop()
         self.pipeline = gst.Pipeline()
@@ -270,8 +271,8 @@ class Renderer(object):
         self.bus.connect('message::error', self.on_error)
 
         # Create elements
-        self.src = builder.build(job['src'])
-        self.mux = make_element(job['muxer'])
+        self.src = builder.build(root)
+        self.mux = make_element(settings['muxer'])
         self.sink = gst.element_factory_make('filesink')
 
         # Add elements to pipeline
@@ -301,15 +302,15 @@ class Renderer(object):
 
     def link_pad(self, pad, name, key):
         log.info('link_pad: %r, %r, %r', pad, name, key)
-        if key in self.job:
+        if key in self.settings:
             klass = {'audio': AudioEncoder, 'video': VideoEncoder}[key]
-            el = klass(self.job[key])
+            el = klass(self.settings[key])
         else:
             el = gst.element_factory_make('fakesink')
         self.pipeline.add(el)
         log.info('Linking pad %r with %r', name, el)
         pad.link(el.get_compatible_pad(pad, pad.get_caps()))
-        if key in self.job:
+        if key in self.settings:
             el.link(self.mux)
         el.set_state(gst.STATE_PLAYING)
         return el

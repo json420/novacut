@@ -61,11 +61,11 @@ def create_project(title=''):
 
 
 class LiveBuilder(Builder):
-    def __init__(self, project_id):
+    def __init__(self):
         self.Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
         env = json.loads(self.Dmedia.GetEnv())
         env['url'] = env['url'].encode('utf-8')
-        self.db = Database(project_db_name(project_id), env)
+        self.db = Database('novacut-0', env)
         self._cache = {}
 
     def resolve_file(self, _id):
