@@ -3,6 +3,8 @@
 import json
 import time
 from microfiber import dmedia_env, Database, Conflict
+from novacut import schema
+from collections import OrderedDict
 
 docs = json.load(open('demo.json', 'r'))
 for doc in docs:
@@ -31,5 +33,8 @@ try:
     db.save(p)
 except Conflict:
     pass
+
+root = 'AUABDULVRZIBH727GQP2HXSA'
+print(schema.save_to_intrinsic(root, project, db))
 
 
