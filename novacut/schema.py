@@ -464,6 +464,7 @@ def create_job(root, settings):
         'type': 'novacut/job',
         'time': time.time(),
         'node': inode.node,
+        'renders': {},
     }
 
 

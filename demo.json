@@ -1,29 +1,4 @@
-[
-    {
-        "_id": "I3NX6UGZYGDZLAHHK2CZ4372", 
-        "node": {
-            "muxer": {
-                "name": "oggmux"
-            }, 
-            "src": "AUABDULVRZIBH727GQP2HXSA", 
-            "video": {
-                "encoder": {
-                    "name": "theoraenc", 
-                    "props": {
-                        "quality": 44
-                    }
-                }, 
-                "filter": {
-                    "caps": {
-                        "height": "540", 
-                        "width": "960"
-                    }, 
-                    "mime": "video/x-raw-yuv"
-                }
-            }
-        }, 
-        "type": "novacut/render"
-    }, 
+[ 
     {
         "_id": "AUABDULVRZIBH727GQP2HXSA", 
         "node": {

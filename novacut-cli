@@ -105,6 +105,12 @@ class Kill(_Method):
         return '{} was running for {}'.format(self.bus, minsec(seconds))
 
 
+class Render(_Method):
+    'Render an edit'
+
+    args = ['job_id']
+
+
 
 parser = optparse.OptionParser(
     usage='%prog METHOD [ARGS...]',

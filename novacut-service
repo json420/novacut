@@ -31,6 +31,7 @@ start_time = time.time()
 import optparse
 import json
 from os import path
+import multiprocessing
 
 import dbus
 import dbus.service
@@ -52,7 +53,30 @@ def dumps(obj):
     return json.dumps(obj, sort_keys=True, separators=(',', ': '), indent=4)
 
 
+def render(job_id):
+    from novacut2.worker import Worker
+    worker = Worker()
+    src = worker.run(job_id)
+
+
+def _start_process(target, *args):
+    process = multiprocessing.Process(target=target, args=args)
+    process.daemon = True
+    process.start()
+    return process
+
+
+def _start_thread(target, *args):
+    thread = Thread(target=target, args=args)
+    thread.daemon = True
+    thread.start()
+    return thread
+
+
+
 class Service(dbus.service.Object):
+    worker = None
+
     def __init__(self, bus):
         self.bus = bus
         self.mainloop = gobject.MainLoop()
@@ -79,6 +103,25 @@ class Service(dbus.service.Object):
         """
         self.kill()
         return int(time.time() - start_time)
+
+    @dbus.service.method(IFACE, in_signature='s', out_signature='')
+    def Render(self, job_id):
+        """
+        Render an edit.
+        """
+        if self.worker is not None:
+            self.worker.terminate()
+            self.worker.join()
+            self.worker = None
+        self.worker = _start_process(render, job_id)
+
+    @dbus.service.signal(IFACE, signature='s')
+    def RenderFinished(self, job_id):
+        pass
+        
+
+        
+    
 
 
 parser = optparse.OptionParser(
