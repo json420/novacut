@@ -77,8 +77,6 @@ class Worker(object):
             'time': doc['time'],
         }
         self.novacut.save(job)
-        src = self.Dmedia.Resolve(_id)
-        print('file://' + src)
-        return src
+        return _id
         
         

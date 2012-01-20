@@ -1,0 +1,50 @@
+#!/usr/bin/python
+
+# novacut: the collaborative video editor
+# Copyright (C) 2011 Novacut Inc
+#
+# This file is part of `novacut`.
+#
+# `novacut` is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# `novacut` is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with `novacut`.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#   Jason Gerard DeRose <jderose@novacut.com>
+
+"""
+Script to fire-off a render.
+"""
+
+import optparse
+import novacut2
+
+import gobject
+import dbus
+from dbus.mainloop.glib import DBusGMainLoop
+
+
+gobject.threads_init()
+DBusGMainLoop(set_as_default=True)
+session = dbus.SessionBus()
+
+
+parser = optparse.OptionParser(
+	version=novacut2.__version__,
+)
+(options, args) = parser.parse_args()
+job_id = args[0]
+
+from novacut2.worker import Worker
+worker = Worker()
+_id = worker.run(job_id)
+print(_id)
