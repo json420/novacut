@@ -77,7 +77,7 @@ class VideoBin(FakeBin):
         self._doc['height'] = d['height']
         if ns:
             self._doc['video_ns'] = ns
-            self._doc['frames'] = ns * num / denom / gst.SECOND
+            self._doc['duration']['frames'] = ns * num / denom / gst.SECOND
 
     def _finalize(self):
         self._doc['frames2'] = self._rate.get_property('in')
@@ -92,7 +92,7 @@ class AudioBin(FakeBin):
         self._doc['channels'] = d['channels']
         if ns:
             self._doc['audio_ns'] = ns
-            self._doc['samples'] = d['rate'] * ns / gst.SECOND
+            self._doc['duration']['samples'] = d['rate'] * ns / gst.SECOND
         self._callback(self)
 
     def _finalize(self):
@@ -103,7 +103,7 @@ class AudioBin(FakeBin):
 
 class Extractor(object):
     def __init__(self, filename):
-        self.doc = {'video_ns': 0, 'audio_ns': 0}
+        self.doc = {'video_ns': 0, 'audio_ns': 0, 'duration': {}}
         self.mainloop = gobject.MainLoop()
         self.pipeline = gst.Pipeline()
 
@@ -147,8 +147,12 @@ class Extractor(object):
         self.pipeline.set_state(gst.STATE_NULL)
         self.pipeline.get_state()
         ns = max(self.doc.pop('video_ns'), self.doc.pop('audio_ns'))
-        self.doc['seconds'] = float(ns) / gst.SECOND
+        self.doc['duration']['ns'] = ns
+        self.doc['duration']['seconds'] = float(ns) / gst.SECOND
         self.mainloop.quit()
+        
+    def on_have_type(self, element, prop, caps):
+        self.doc['content_type'] = caps.to_string()
 
     def link_pad(self, pad, name):
         cls = {'audio': AudioBin, 'video': VideoBin}[name]
@@ -176,11 +180,7 @@ class Extractor(object):
         if self.have == self.need:
             gobject.idle_add(self.kill)
 
-    def on_have_type(self, element, prop, caps):
-        self.doc['content_type'] = caps.to_string()
-
     def on_eos(self, bus, msg):
-        print('eos')
         self.kill()
 
     def on_error(self, bus, msg):
