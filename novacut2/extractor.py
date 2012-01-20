@@ -28,9 +28,9 @@ gobject.threads_init()
 
 
 class FakeBin(gst.Bin):
-    def __init__(self, rate):
+    def __init__(self, doc, rate):
         super(FakeBin, self).__init__()
-        self._doc = {}
+        self._doc = doc
         self._q = gst.element_factory_make('queue')
         self._rate = gst.element_factory_make(rate)
         self._sink = gst.element_factory_make('fakesink')
@@ -58,32 +58,34 @@ class FakeBin(gst.Bin):
 
 
 class VideoBin(FakeBin):
-    def __init__(self):
-        super(VideoBin, self).__init__('videorate')
+    def __init__(self, doc):
+        super(VideoBin, self).__init__(doc, 'videorate')
 
     def _on_notify_caps(self, pad, args):
         caps = pad.get_negotiated_caps()
         if not caps:
             return
         d = caps[0]
+        num = d['framerate'].num
+        denom = d['framerate'].denom
         self._doc['framerate'] = {
-            'num': d['framerate'].num,
-            'denom': d['framerate'].denom,
+            'num': num,
+            'denom': denom,
         }
         self._doc['width'] = d['width']
         self._doc['height'] = d['height']
-        duration = self._query_duration(pad)
-        if duration:
-            self._doc['ns'] = duration
-            self._doc['duration'] = float(duration) / gst.SECOND
+        ns = self._query_duration(pad)
+        if ns:
+            self._doc['video_ns'] = ns
+            self._doc['frames'] = ns * num / denom / gst.SECOND
 
     def _finalize(self):
-        self._doc['frames'] = self._rate.get_property('in')
+        self._doc['frames2'] = self._rate.get_property('in')
 
 
 class AudioBin(FakeBin):
-    def __init__(self):
-        super(AudioBin, self).__init__('audiorate')
+    def __init__(self, doc):
+        super(AudioBin, self).__init__(doc, 'audiorate')
 
     def _on_notify_caps(self, pad, args):
         caps = pad.get_negotiated_caps()
@@ -92,9 +94,10 @@ class AudioBin(FakeBin):
         d = caps[0]
         self._doc['samplerate'] = d['rate']
         self._doc['channels'] = d['channels']
-        duration = self._query_duration(pad)
-        if duration:
-            self._doc['samples'] = d['rate'] * duration / gst.SECOND
+        ns = self._query_duration(pad)
+        if ns:
+            self._doc['audio_ns'] = ns
+            self._doc['samples'] = d['rate'] * ns / gst.SECOND
 
     def _finalize(self):
         # FIXME: why is this so worthless?
@@ -104,7 +107,7 @@ class AudioBin(FakeBin):
 
 class Extractor(object):
     def __init__(self, filename):
-        self.doc = {}
+        self.doc = {'video_ns': 0, 'audio_ns': 0}
         self.mainloop = gobject.MainLoop()
         self.pipeline = gst.Pipeline()
 
@@ -123,6 +126,7 @@ class Extractor(object):
 
         # Connect handler for 'new-decoded-pad' signal
         self.dec.connect('pad-added', self.on_pad_added)
+        self.dec.connect('no-more-pads', self.on_no_more_pads)
         self.typefind = self.dec.get_by_name('typefind')
         self.typefind.connect('have-type', self.on_have_type)
 
@@ -140,13 +144,15 @@ class Extractor(object):
         self.mainloop.run()
 
     def kill(self):
+        ns = max(self.doc['video_ns'], self.doc['audio_ns'])
+        self.doc['seconds'] = float(ns) / gst.SECOND
         self.pipeline.set_state(gst.STATE_NULL)
         self.pipeline.get_state()
         self.mainloop.quit()
 
     def link_pad(self, pad, name):
         cls = {'audio': AudioBin, 'video': VideoBin}[name]
-        fakebin = cls()
+        fakebin = cls(self.doc)
         self.pipeline.add(fakebin)
         pad.link(fakebin.get_pad('sink'))
         fakebin.set_state(gst.STATE_PLAYING)
@@ -161,14 +167,15 @@ class Extractor(object):
             assert self.video is None
             self.video = self.link_pad(pad, 'video')
 
+    def on_no_more_pads(self, element):
+        print('no more decoded pads')
+
     def on_have_type(self, element, prop, caps):
         self.doc['content_type'] = caps.to_string()
 
     def on_eos(self, bus, msg):
-        if self.video is not None:
-            self.doc.update(self.video._get_doc())
-        if self.audio is not None:
-            self.doc.update(self.audio._get_doc())
+        if self.video:
+            self.video._finalize()
         self.kill()
 
     def on_error(self, bus, msg):
