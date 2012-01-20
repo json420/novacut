@@ -53,16 +53,20 @@ class FakeBin(gst.Bin):
             if format == gst.FORMAT_TIME:
                 return duration
 
+    def _on_notify_caps(self, pad, args):
+        caps = pad.get_negotiated_caps()
+        if not caps:
+            return
+        ns = self._query_duration(pad)
+        self._extract(caps[0], ns)
+        self._callback(self)
+
 
 class VideoBin(FakeBin):
     def __init__(self, callback, doc):
         super(VideoBin, self).__init__(callback, doc, 'videorate')
 
-    def _on_notify_caps(self, pad, args):
-        caps = pad.get_negotiated_caps()
-        if not caps:
-            return
-        d = caps[0]
+    def _extract(self, d, ns):
         num = d['framerate'].num
         denom = d['framerate'].denom
         self._doc['framerate'] = {
@@ -71,11 +75,9 @@ class VideoBin(FakeBin):
         }
         self._doc['width'] = d['width']
         self._doc['height'] = d['height']
-        ns = self._query_duration(pad)
         if ns:
             self._doc['video_ns'] = ns
             self._doc['frames'] = ns * num / denom / gst.SECOND
-        self._callback(self)
 
     def _finalize(self):
         self._doc['frames2'] = self._rate.get_property('in')
@@ -85,14 +87,9 @@ class AudioBin(FakeBin):
     def __init__(self, callback, doc):
         super(AudioBin, self).__init__(callback, doc, 'audiorate')
 
-    def _on_notify_caps(self, pad, args):
-        caps = pad.get_negotiated_caps()
-        if not caps:
-            return
-        d = caps[0]
+    def _extract(self, d, ns):
         self._doc['samplerate'] = d['rate']
         self._doc['channels'] = d['channels']
-        ns = self._query_duration(pad)
         if ns:
             self._doc['audio_ns'] = ns
             self._doc['samples'] = d['rate'] * ns / gst.SECOND
@@ -137,16 +134,20 @@ class Extractor(object):
 
         self.audio = None
         self.video = None
+        self._killed = False
 
     def run(self):
         self.pipeline.set_state(gst.STATE_PLAYING)
         self.mainloop.run()
 
     def kill(self):
-        ns = max(self.doc['video_ns'], self.doc['audio_ns'])
-        self.doc['seconds'] = float(ns) / gst.SECOND
+        if self._killed:
+            return
+        self._killed = True
         self.pipeline.set_state(gst.STATE_NULL)
         self.pipeline.get_state()
+        ns = max(self.doc.pop('video_ns'), self.doc.pop('audio_ns'))
+        self.doc['seconds'] = float(ns) / gst.SECOND
         self.mainloop.quit()
 
     def link_pad(self, pad, name):
@@ -179,6 +180,7 @@ class Extractor(object):
         self.doc['content_type'] = caps.to_string()
 
     def on_eos(self, bus, msg):
+        print('eos')
         self.kill()
 
     def on_error(self, bus, msg):
