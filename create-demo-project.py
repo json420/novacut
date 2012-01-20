@@ -35,6 +35,32 @@ except Conflict:
     pass
 
 root = 'AUABDULVRZIBH727GQP2HXSA'
-print(schema.save_to_intrinsic(root, project, db))
+iroot = schema.save_to_intrinsic(root, project, db)
+print(iroot)
+
+
+node = {
+    'muxer': {'name': 'oggmux'},
+    'video': {
+        'encoder': {
+            'name': 'theoraenc',
+            'props': {
+                'quality': 52,
+            },
+        },
+        'filter': {
+            'mime': 'video/x-raw-yuv',
+            'caps': {
+                'width': 960,
+                'height': 540,
+            },
+        },
+    },
+}
+
+
+settings = schema.create_settings(node)
+
+print(schema.create_job(iroot, settings))
 
 

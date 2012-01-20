@@ -429,6 +429,44 @@ def create_inode(inode):
     }
 
 
+def create_settings(node):
+    inode = intrinsic_node(node)
+    return {
+        '_id': inode.id,
+        '_attachments': {
+            'node': {
+                'data': b64encode(inode.data).decode('utf-8'),
+                'content_type': 'application/json',
+            }
+        },
+        'ver': VER,
+        'type': 'novacut/settings',
+        'time': time.time(),
+        'node': inode.node,
+    }
+
+
+def create_job(root, settings):
+    node = {
+        'root': root,
+        'settings': settings,
+    }
+    inode = intrinsic_node(node)
+    return {
+        '_id': inode.id,
+        '_attachments': {
+            'node': {
+                'data': b64encode(inode.data).decode('utf-8'),
+                'content_type': 'application/json',
+            }
+        },
+        'ver': VER,
+        'type': 'novacut/job',
+        'time': time.time(),
+        'node': inode.node,
+    }
+
+
 def check_slice(doc):
     check_node(doc)
     _check(doc, ['node', 'type'], str,
