@@ -7,34 +7,6 @@
 }
 
 
-button {
-    border-width: 1px;
-    padding-left: 4px;  /* 1px less becaues of 1px border */
-    line-height: 22px;  /* 2px less becaues of 1px border */
-    border-style: solid;
-    border-color: #aaa;
-    color: white;
-    background:-webkit-linear-gradient(top, #aaa, #000);
-    border-radius: 5px;
-    box-shadow: 0px 2px 10px rgba(0,0,0,0.5);
-    font-weight: bold;
-}
-
-button:disabled {
-    font-weight: normal;
-    font-style: italic;
-}
-
-input {
-    padding-left: 5px;
-    color: white;
-    background: -webkit-linear-gradient(top, #444, #666);
-    border: 0px;
-    border-radius: 5px;
-    box-shadow: 0px 2px 10px rgba(0,0,0,0.5);
-}
-
-
 ul {
     list-style: none;
 }
