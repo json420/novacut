@@ -19,6 +19,12 @@
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
+"""
+Experimental extractor pipeline.
+
+FIXME: we should probably just use dmedia-extract now.
+"""
+
 import sys
 import gst
 import gobject

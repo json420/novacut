@@ -19,6 +19,10 @@
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
+"""
+Higher level worker that executes a render.
+"""
+
 import json
 
 import dbus
