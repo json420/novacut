@@ -26,5 +26,5 @@ This will go away once we can build our renderer with GStreamer 1.0, PyGI, and
 Python3.
 """
 
-__version__ = '12.01.0'
+__version__ = '12.02.0'
 
