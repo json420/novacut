@@ -38,7 +38,7 @@ class App(BaseApp):
 
     proxy_bus = 'org.freedesktop.Dmedia'
 
-    #maximize = True
+    maximize = True
 
     signals = {
         'create_project': ['title'],
