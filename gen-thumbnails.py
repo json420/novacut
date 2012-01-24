@@ -7,9 +7,12 @@ import shutil
 from subprocess import check_call
 import json
 import tempfile
+from base64 import b64encode
 
 from microfiber import Database, NotFound
 import dbus
+from dmedia.units import bytes10
+from novacut import schema
 
 
 def pipeline(*elements):
@@ -26,7 +29,7 @@ def thumbnails_pipeline(src, dst):
         ['decodebin2'],
         ['queue'],
         ['ffvideoscale', 'method=10'],
-        ['video/x-raw-yuv,height=108'], # 126
+        ['video/x-raw-yuv,height=108'], # 126 or 108
         ['queue'],
         ['jpegenc', 'quality=90'],
         ['multifilesink', 'location={}'.format(dst)]
@@ -47,22 +50,41 @@ tmp = tempfile.mkdtemp()
 dst = path.join(tmp, '%d')
 thumbnails_pipeline(src, dst)
 
-try:
-    doc = db.get(_id)
-    db.delete(_id, rev=doc['_rev'])
-except NotFound:
-    pass
 
-rev = None
+att = {}
 for i in sorted(os.listdir(tmp)):
     fp = open(path.join(tmp, i), 'rb')
-    if rev is None:
-        rev = db.put_att('image/jpeg', fp, _id, i)['rev']
-    else:
-        rev = db.put_att('image/jpeg', fp, _id, i, rev=rev)['rev']
+    att[i] = {
+        'content_type': 'image/jpeg',
+        'data': b64encode(fp.read()).decode('utf-8'),
+    }
+    
+doc = {
+    '_id': _id,
+    '_attachments': att,
+}
+s = schema.normalized_dumps(doc)
+print(bytes10(len(s)))
+print('')
+    
+
+try:
+    old = db.get(_id)
+    doc['_rev'] = old['_rev']
+    db.save(doc)
+except NotFound:
+    db.save(doc)
+
+#rev = None
+#for i in sorted(os.listdir(tmp)):
+#    fp = open(path.join(tmp, i), 'rb')
+#    if rev is None:
+#        rev = db.put_att('image/jpeg', fp, _id, i)['rev']
+#    else:
+#        rev = db.put_att('image/jpeg', fp, _id, i, rev=rev)['rev']
 
 shutil.rmtree(tmp)
-db.post(None, '_compact')
+#db.post(None, '_compact')
 
     
 
