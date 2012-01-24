@@ -3,7 +3,7 @@
 import json
 import time
 from microfiber import dmedia_env, Database, Conflict
-from novacut import schema
+from novacut import schema, views
 from collections import OrderedDict
 
 docs = json.load(open('demo.json', 'r'))
@@ -34,6 +34,9 @@ try:
 except Conflict:
     pass
 db.post({'docs': docs}, '_bulk_docs')
+
+views.init_views(db, views.novacut_main)
+views.init_views(project, views.novacut_projects)
 
 root = schema.save_to_intrinsic('AUABDULVRZIBH727GQP2HXSA', project, db)
 print('root:', root)
