@@ -40,7 +40,7 @@ class DmediaSrc(Gst.Bin):
         self._fs = FileStore('/home')
         self.add(self._filesrc)
         self.add_pad(
-            Gst.GhostPad.new('src', self._filesrc.get_pad('src'))
+            Gst.GhostPad.new('src', self._filesrc.get_static_pad('src'))
         )
 
     def do_get_property(self, name):
