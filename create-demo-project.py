@@ -35,6 +35,8 @@ except Conflict:
     pass
 #db.post({'docs': docs}, '_bulk_docs')
 
+raise SystemExit()
+
 views.init_views(db, views.novacut_main)
 views.init_views(project, views.novacut_projects)
 

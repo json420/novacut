@@ -33,11 +33,13 @@ import json
 from os import path
 from threading import Thread
 import subprocess
+import logging
 
 import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GObject
+import dmedia
 
 import novacut
 
@@ -48,6 +50,7 @@ IFACE = BUS
 GObject.threads_init()
 DBusGMainLoop(set_as_default=True)
 session = dbus.SessionBus()
+log = logging.getLogger()
 
 
 renderer = path.join(path.dirname(__file__), 'novacut-renderer')
@@ -102,12 +105,15 @@ class Service(dbus.service.Object):
         Render an edit.
         """
         if job_id in self.workers:
+            log.info('Render job %r is already running', job_id)
             return False
+        log.info('Starting render job %r', job_id)
         self.workers[job_id] = _start_thread(self.render, job_id)
         return True
 
     @dbus.service.signal(IFACE, signature='ss')
     def RenderFinished(self, job_id, file_id):
+        log.info('Render job %s has finished', job_id)
         del self.workers[job_id]
 
 
@@ -121,6 +127,7 @@ parser.add_option('--bus',
 (options, args) = parser.parse_args()
 
 
+dmedia.configure_logging()
 service = Service(options.bus)
 try:
     service.run()

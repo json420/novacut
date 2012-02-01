@@ -17,8 +17,18 @@ var UI = {
 //            doc_ids.push(row.id);
 //        });
 //        Hub.send('copy_docs', p.db.name, db.name, doc_ids);
+
+        Hub.send('render', id, 'AUABDULVRZIBH727GQP2HXSA', null);
     },
 
 }
 
 window.addEventListener('load', UI.init);
+
+Hub.connect('render_finished',
+    function(job_id, file_id) {
+        var player = $('player');
+        player.src = 'dmedia:' + file_id;
+        player.play();
+    }
+);

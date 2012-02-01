@@ -21,11 +21,34 @@
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
-from userwebkit import BaseApp
+from userwebkit import BaseApp, session
+from microfiber import Conflict
 
 import novacut
 from novacut import schema
 from novacut import views
+
+
+def default_settings():
+    node = {
+        'muxer': {'name': 'oggmux'},
+        'video': {
+            'encoder': {
+                'name': 'theoraenc',
+                'props': {
+                    'quality': 52,
+                },
+            },
+            'filter': {
+                'mime': 'video/x-raw-yuv',
+                'caps': {
+                    'width': 960,
+                    'height': 540,
+                },
+            },
+        },
+    }
+    return schema.create_settings(node)
 
 
 class App(BaseApp):
@@ -38,19 +61,36 @@ class App(BaseApp):
 
     proxy_bus = 'org.freedesktop.Dmedia'
 
-    maximize = True
+    #maximize = True
 
     signals = {
         'create_project': ['title'],
         'project_created': ['project_id'],
         'load_project': ['project_id'],
         'copy_docs': ['src_db_name', 'dst_db_name', 'doc_ids'],
+        'render': ['project_id', 'root_id', 'settings_id'],
+        'render_finished': ['job_id', 'file_id'],
     }
+
+    __Renderer = None
+
+    @property
+    def Renderer(self):
+        if self.__Renderer is None:
+            self.__Renderer = session.get('com.novacut.Renderer', '/')
+            self.__Renderer.connect('g-signal', self.on_g_signal)
+        return self.__Renderer
+
+    def on_g_signal(self, proxy, sender, signal, params):
+        if signal == 'RenderFinished':
+            (job_id, file_id) = params.unpack()
+            self.hub.send('render_finished', job_id, file_id)    
 
     def connect_hub_signals(self, hub):
         hub.connect('create_project', self.on_create_project)
         hub.connect('load_project', self.on_load_project)
         hub.connect('copy_docs', self.on_copy_docs)
+        hub.connect('render', self.on_render)
 
     def post_env_init(self):
         views.init_views(self.db, views.novacut_main)
@@ -82,7 +122,24 @@ class App(BaseApp):
             del doc['_rev']
             docs.append(doc)
         self.server.post({'docs': docs}, dst_db, '_bulk_docs')
-        
+
+    def on_render(self, hub, project_id, root_id, settings_id):
+        project = self.server.database(schema.project_db_name(project_id))
+        _id = schema.save_to_intrinsic(root_id, project, self.db)
+        if settings_id is None:
+            settings = default_settings()
+            settings_id = settings['_id']
+            try:
+                self.db.save(settings)
+            except Conflict:
+                pass
+        job = schema.create_job(_id, settings_id)
+        job_id = job['_id']
+        try:
+            self.db.save(job)
+        except Conflict:
+            pass
+        self.Renderer.Render('(s)', job_id)
 
 
 app = App()

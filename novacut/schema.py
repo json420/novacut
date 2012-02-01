@@ -272,6 +272,11 @@ def save_to_intrinsic(root, src, dst):
     results = {}
     iroot = intrinsic_graph(root, src.get, results)
     for doc in results.values():
+        for key in ('_rev', '_attachments'):
+            try:
+                del doc[key]
+            except KeyError:
+                pass
         try:
             dst.save(doc)
         except Conflict:
