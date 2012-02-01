@@ -22,7 +22,7 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 from userwebkit import BaseApp, session
-from microfiber import Conflict
+from microfiber import Conflict, NotFound
 
 import novacut
 from novacut import schema
@@ -84,7 +84,7 @@ class App(BaseApp):
     def on_g_signal(self, proxy, sender, signal, params):
         if signal == 'RenderFinished':
             (job_id, file_id) = params.unpack()
-            self.hub.send('render_finished', job_id, file_id)    
+            self.hub.send('render_finished', job_id, file_id)
 
     def connect_hub_signals(self, hub):
         hub.connect('create_project', self.on_create_project)
@@ -136,9 +136,14 @@ class App(BaseApp):
         job = schema.create_job(_id, settings_id)
         job_id = job['_id']
         try:
+            job = self.db.get(job_id)
+        except NotFound:
             self.db.save(job)
-        except Conflict:
-            pass
+        if job.get('renders'):
+            file_id = list(job['renders'])[0]
+            print('using existing render', file_id)
+            self.hub.send('render_finished', job_id, file_id)
+            return
         self.Renderer.Render('(s)', job_id)
 
 
