@@ -29,16 +29,14 @@ def thumbnails_pipeline(src, dst):
         ['decodebin2'],
         ['queue'],
         ['ffvideoscale', 'method=10'],
-        ['video/x-raw-yuv,height=108'], # 126 or 108
+        ['video/x-raw-yuv,height=126'], # 126 or 108
         ['queue'],
         ['jpegenc', 'quality=90'],
         ['multifilesink', 'location={}'.format(dst)]
     )
 
 session = dbus.SessionBus()
-
 Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
-
 db = Database('thumbnails', json.loads(Dmedia.GetEnv()))
 db.ensure()
 
@@ -46,22 +44,23 @@ _id = sys.argv[1]
 src = Dmedia.Resolve(_id)
 
 tmp = tempfile.mkdtemp()
-
 dst = path.join(tmp, '%d')
 thumbnails_pipeline(src, dst)
 
 
 att = {}
-for i in sorted(os.listdir(tmp)):
-    fp = open(path.join(tmp, i), 'rb')
+count = len(os.listdir(tmp))
+for i in range(count):
+    fp = open(path.join(tmp, str(i)), 'rb')
     att[i] = {
         'content_type': 'image/jpeg',
         'data': b64encode(fp.read()).decode('utf-8'),
     }
-    
+
 doc = {
     '_id': _id,
     '_attachments': att,
+    'count': count,
 }
 s = schema.normalized_dumps(doc)
 print(bytes10(len(s)))
@@ -74,14 +73,6 @@ try:
     db.save(doc)
 except NotFound:
     db.save(doc)
-
-#rev = None
-#for i in sorted(os.listdir(tmp)):
-#    fp = open(path.join(tmp, i), 'rb')
-#    if rev is None:
-#        rev = db.put_att('image/jpeg', fp, _id, i)['rev']
-#    else:
-#        rev = db.put_att('image/jpeg', fp, _id, i, rev=rev)['rev']
 
 shutil.rmtree(tmp)
 #db.post(None, '_compact')
