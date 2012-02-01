@@ -30,6 +30,7 @@ from __future__ import print_function
 import sys
 from os import path
 import json
+from base64 import b64encode
 import optparse
 
 
@@ -42,28 +43,32 @@ parser.add_option('--frame',
 )
 (options, args) = parser.parse_args()
 
+
 if len(args) != 1:
-    print('takes exacly 1 argument FILENAME', file=sys.stderr)
+    print('takes exacly 1 argument FILE_ID', file=sys.stderr)
     sys.exit(1)
-filename = path.abspath(args[0])
-if not path.isfile(filename):
-    print('not a file: {!r}'.format(filename), file=sys.stderr)
-    sys.exit(1)
+_id = args[0]
 
 
+import dbus
 import gst
 import gobject
-
+from dc3lib.microfiber import Database, NotFound
 
 gobject.threads_init()
+session = dbus.SessionBus()
+Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
+db = Database('thumbnails', json.loads(Dmedia.GetEnv()))
+db.ensure()
 
 
-class Extractor(object):
+class Thumbnailer(object):
     def __init__(self, filename, frame):
         self.frame = frame
         self.mainloop = gobject.MainLoop()
         self.pipeline = gst.Pipeline()
-        self.data = ''
+        self.count = 0
+        self.attachments = {}
 
         # Create bus and connect several handlers
         self.bus = self.pipeline.get_bus()
@@ -76,7 +81,6 @@ class Extractor(object):
         self.demux = gst.element_factory_make('qtdemux')
         self.dec = gst.element_factory_make('ffdec_h264')
 
-        self.q = gst.element_factory_make('queue')
         self.rate = gst.element_factory_make('videorate')
         self.scale = gst.element_factory_make('ffvideoscale')
         self.enc = gst.element_factory_make('jpegenc')
@@ -85,18 +89,19 @@ class Extractor(object):
         # Set properties
         self.src.set_property('location', filename)
         self.scale.set_property('method', 10)
+        self.enc.set_property('quality', 90)
         self.sink.set_property('signal-handoffs', True)
+        #self.sink.set_property('num-buffers', 15)
 
         # Signals
         self.demux.connect('pad-added', self.on_pad_added)
-        self.sink.connect('preroll-handoff', self.on_preroll_handoff)
+        self.sink.connect('handoff', self.on_handoff)
 
         # Add elements to pipeline
         self.pipeline.add(self.src)
         self.pipeline.add(self.demux)
         self.pipeline.add(self.dec)
 
-        self.pipeline.add(self.q)
         self.pipeline.add(self.rate)
         self.pipeline.add(self.scale)
         self.pipeline.add(self.enc)
@@ -104,9 +109,7 @@ class Extractor(object):
 
         # Link elements
         self.src.link(self.demux)
-        #self.demux.link(self.dec)
-        self.dec.link(self.q)
-        self.q.link(self.rate)
+        self.dec.link(self.rate)
         self.rate.link(self.scale)
         self.scale.link(self.enc, gst.caps_from_string('video/x-raw-yuv, height=126'))
         self.enc.link(self.sink)
@@ -115,23 +118,41 @@ class Extractor(object):
         caps = pad.get_caps()[0]
         if caps.get_name() == 'video/x-h264':
             framerate = caps['framerate']
+            self.denom = framerate.denom
+            self.num = framerate.num
             pad.link(self.dec.get_pad('sink'))
+            self.ns = self.frame * gst.SECOND * framerate.denom / framerate.num
             self.pipeline.seek_simple(
                 gst.FORMAT_TIME,
-                gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_ACCURATE,
-                self.frame * gst.SECOND * framerate.denom / framerate.num
+                gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_KEY_UNIT, #gst.SEEK_FLAG_ACCURATE,
+                self.ns
             )
 
+    def on_handoff(self, element, buf, pad):
+        self.count += 1
+        if self.count > 15:
+            print('skip', file=sys.stderr)
+            return
+        frame = int(round(buf.timestamp * self.num / self.denom / float(gst.SECOND)))
+        self.attachments[str(frame)] = {
+            'content_type': 'image/jpeg',
+            'data': b64encode(buf.data),
+        }
+        print('handoff', frame, self.count, file=sys.stderr)
+        if self.count == 15:
+            gobject.idle_add(self.kill)
+
     def on_preroll_handoff(self, element, buf, pad):
-        print('preroll-handoff', buf.timestamp, file=sys.stderr)
+        print('preroll-handoff', self.ns, buf.timestamp, file=sys.stderr)
         self.data = buf.data
         gobject.idle_add(self.kill)
 
     def run(self):
-        self.pipeline.set_state(gst.STATE_PAUSED)
+        self.pipeline.set_state(gst.STATE_PLAYING)
         self.mainloop.run()
 
     def kill(self):
+        print('kill', file=sys.stderr)
         self.pipeline.set_state(gst.STATE_NULL)
         self.pipeline.get_state()
         self.mainloop.quit()
@@ -147,8 +168,19 @@ class Extractor(object):
         sys.exit(2)
 
 
-extractor = Extractor(filename, options.frame)
-extractor.run()
-sys.stdout.write(extractor.data)
+filename = Dmedia.Resolve(_id)
+thumbnailer = Thumbnailer(filename, options.frame)
+thumbnailer.run()
+
+try:
+    doc = db.get(_id)
+except NotFound:
+    doc = {
+        '_id': _id,
+        '_attachments': {},
+    }
+doc['_attachments'].update(thumbnailer.attachments)
+db.save(doc)
+
 
 
