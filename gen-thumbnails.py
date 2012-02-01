@@ -29,7 +29,7 @@ def thumbnails_pipeline(src, dst):
         ['decodebin2'],
         ['queue'],
         ['ffvideoscale', 'method=10'],
-        ['video/x-raw-yuv,height=126'], # 126 or 108
+        ['video/x-raw-yuv,height=108'], # 126 or 108
         ['queue'],
         ['jpegenc', 'quality=90'],
         ['multifilesink', 'location={}'.format(dst)]
@@ -62,10 +62,6 @@ doc = {
     '_attachments': att,
     'count': count,
 }
-s = schema.normalized_dumps(doc)
-print(bytes10(len(s)))
-print('')
-    
 
 try:
     old = db.get(_id)
