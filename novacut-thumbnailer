@@ -43,11 +43,11 @@ parser.add_option('--frame',
 (options, args) = parser.parse_args()
 
 if len(args) != 1:
-    print('takes exacly 1 argument FILENAME')
+    print('takes exacly 1 argument FILENAME', file=sys.stderr)
     sys.exit(1)
 filename = path.abspath(args[0])
 if not path.isfile(filename):
-    print('not a file: {!r}'.format(filename))
+    print('not a file: {!r}'.format(filename), file=sys.stderr)
     sys.exit(1)
 
 
@@ -123,7 +123,7 @@ class Extractor(object):
             )
 
     def on_preroll_handoff(self, element, buf, pad):
-        #print('preroll-handoff', buf.timestamp)
+        print('preroll-handoff', buf.timestamp, file=sys.stderr)
         self.data = buf.data
         gobject.idle_add(self.kill)
 
@@ -137,11 +137,12 @@ class Extractor(object):
         self.mainloop.quit()
 
     def on_eos(self, bus, msg):
-        #print('eos')
+        print('eos', file=sys.stderr)
         self.kill()
 
     def on_error(self, bus, msg):
         error = msg.parse_error()[1]
+        print(error, file=sys.stderr)
         self.kill()
         sys.exit(2)
 
