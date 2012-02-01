@@ -33,7 +33,7 @@ try:
     db.save(p)
 except Conflict:
     pass
-db.post({'docs': docs}, '_bulk_docs')
+#db.post({'docs': docs}, '_bulk_docs')
 
 views.init_views(db, views.novacut_main)
 views.init_views(project, views.novacut_projects)

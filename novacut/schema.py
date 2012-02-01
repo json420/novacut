@@ -233,22 +233,23 @@ def intrinsic_node(node):
 
 
 def intrinsic_src(src, get_doc, results):
-    _id = (src if isinstance(src, str) else src['id'])
-    if len(_id) != RANDOM_B32LEN:
-        return src
-    _id = intrinsic_graph(_id, get_doc, results)
+    id1 = (src if isinstance(src, str) else src['id'])
+    id2 = intrinsic_graph(id1, get_doc, results)
     if isinstance(src, str):
-        return _id
-    src['id'] = _id
+        return id2
+    src['id'] = id2
     return src
 
 
 def intrinsic_graph(_id, get_doc, results):
     try:
-        return results[_id].id
+        return results[_id]['_id']
     except KeyError:
         pass
     doc = get_doc(_id)
+    if len(_id) != RANDOM_B32LEN:
+        results[_id] = doc
+        return _id
     node = deepcopy(doc['node'])
     src = node['src']
     assert isinstance(src, (str, list, dict))
@@ -263,15 +264,14 @@ def intrinsic_graph(_id, get_doc, results):
         )
     node['src'] = new
     inode = intrinsic_node(node)
-    results[_id] = inode
+    results[_id] = create_inode(inode)
     return inode.id
 
 
 def save_to_intrinsic(root, src, dst):
     results = {}
     iroot = intrinsic_graph(root, src.get, results)
-    for inode in results.values():
-        doc = create_inode(inode)
+    for doc in results.values():
         try:
             dst.save(doc)
         except Conflict:
