@@ -1,0 +1,153 @@
+#!/usr/bin/python
+
+# dmedia: distributed media library
+# Copyright (C) 2011 Novacut Inc
+#
+# This file is part of `dmedia`.
+#
+# `dmedia` is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# `dmedia` is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more
+# details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with `dmedia`.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#   Jason Gerard DeRose <jderose@novacut.com>
+
+"""
+A quick and dirty GStreamer thumbnailer.
+"""
+
+from __future__ import print_function
+
+import sys
+from os import path
+import json
+import optparse
+
+
+parser = optparse.OptionParser()
+parser.add_option('--frame',
+    type='int',
+    help='thumbnail specific frame number, starting from zero; default=0',
+    metavar='N',
+    default=0,
+)
+(options, args) = parser.parse_args()
+
+if len(args) != 1:
+    print('takes exacly 1 argument FILENAME')
+    sys.exit(1)
+filename = path.abspath(args[0])
+if not path.isfile(filename):
+    print('not a file: {!r}'.format(filename))
+    sys.exit(1)
+
+
+import gst
+import gobject
+
+
+gobject.threads_init()
+
+
+class Extractor(object):
+    def __init__(self, filename, frame):
+        self.frame = frame
+        self.mainloop = gobject.MainLoop()
+        self.pipeline = gst.Pipeline()
+        self.data = ''
+
+        # Create bus and connect several handlers
+        self.bus = self.pipeline.get_bus()
+        self.bus.add_signal_watch()
+        self.bus.connect('message::eos', self.on_eos)
+        self.bus.connect('message::error', self.on_error)
+
+        # Create elements
+        self.src = gst.element_factory_make('filesrc')
+        self.demux = gst.element_factory_make('qtdemux')
+        self.dec = gst.element_factory_make('ffdec_h264')
+
+        self.q = gst.element_factory_make('queue')
+        self.rate = gst.element_factory_make('videorate')
+        self.scale = gst.element_factory_make('ffvideoscale')
+        self.enc = gst.element_factory_make('jpegenc')
+        self.sink = gst.element_factory_make('fakesink')
+
+        # Set properties
+        self.src.set_property('location', filename)
+        self.scale.set_property('method', 10)
+        self.sink.set_property('signal-handoffs', True)
+
+        # Signals
+        self.demux.connect('pad-added', self.on_pad_added)
+        self.sink.connect('preroll-handoff', self.on_preroll_handoff)
+
+        # Add elements to pipeline
+        self.pipeline.add(self.src)
+        self.pipeline.add(self.demux)
+        self.pipeline.add(self.dec)
+
+        self.pipeline.add(self.q)
+        self.pipeline.add(self.rate)
+        self.pipeline.add(self.scale)
+        self.pipeline.add(self.enc)
+        self.pipeline.add(self.sink)
+
+        # Link elements
+        self.src.link(self.demux)
+        #self.demux.link(self.dec)
+        self.dec.link(self.q)
+        self.q.link(self.rate)
+        self.rate.link(self.scale)
+        self.scale.link(self.enc, gst.caps_from_string('video/x-raw-yuv, height=126'))
+        self.enc.link(self.sink)
+
+    def on_pad_added(self, element, pad):
+        caps = pad.get_caps()[0]
+        if caps.get_name() == 'video/x-h264':
+            framerate = caps['framerate']
+            pad.link(self.dec.get_pad('sink'))
+            self.pipeline.seek_simple(
+                gst.FORMAT_TIME,
+                gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_ACCURATE,
+                self.frame * gst.SECOND * framerate.denom / framerate.num
+            )
+
+    def on_preroll_handoff(self, element, buf, pad):
+        #print('preroll-handoff', buf.timestamp)
+        self.data = buf.data
+        gobject.idle_add(self.kill)
+
+    def run(self):
+        self.pipeline.set_state(gst.STATE_PAUSED)
+        self.mainloop.run()
+
+    def kill(self):
+        self.pipeline.set_state(gst.STATE_NULL)
+        self.pipeline.get_state()
+        self.mainloop.quit()
+
+    def on_eos(self, bus, msg):
+        #print('eos')
+        self.kill()
+
+    def on_error(self, bus, msg):
+        error = msg.parse_error()[1]
+        self.kill()
+        sys.exit(2)
+
+
+extractor = Extractor(filename, options.frame)
+extractor.run()
+sys.stdout.write(extractor.data)
+
+
