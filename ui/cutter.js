@@ -4,6 +4,7 @@ var id = window.location.hash.slice(1);
 
 var doc = novacut.get_sync(id);
 var db = new couch.Database(doc.db_name);
+var doc = db.get_sync(id);
 
 
 var UI = {
@@ -18,7 +19,7 @@ var UI = {
 //        });
 //        Hub.send('copy_docs', p.db.name, db.name, doc_ids);
 
-        Hub.send('render', id, 'AUABDULVRZIBH727GQP2HXSA', null);
+        Hub.send('render', id, doc['root_id'], null);
     },
 
 }
