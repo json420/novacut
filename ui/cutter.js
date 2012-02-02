@@ -10,18 +10,16 @@ var doc = db.get_sync(id);
 var UI = {
     init: function() {
         set_title('title', doc.title);
-
-//        var p = new Project(dmedia);
-//        var rows = p.db.view_sync('doc', 'type', {key: 'dmedia/file', reduce: false, limit: 20}).rows;
-//        var doc_ids = [];
-//        rows.forEach(function(row) {
-//            doc_ids.push(row.id);
-//        });
-//        Hub.send('copy_docs', p.db.name, db.name, doc_ids);
-
-        Hub.send('render', id, doc['root_id'], null);
+        var root = db.get(
+        db.get(UI.on_rows, '_all_docs');
     },
 
+    on_rows: function(req) {
+        var rows = req.read().rows;
+        rows.forEach(function(row) {
+            console.log(row.id);
+        });
+    },
 }
 
 window.addEventListener('load', UI.init);

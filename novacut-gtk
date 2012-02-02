@@ -70,6 +70,8 @@ class App(BaseApp):
         'copy_docs': ['src_db_name', 'dst_db_name', 'doc_ids'],
         'render': ['project_id', 'root_id', 'settings_id'],
         'render_finished': ['job_id', 'file_id'],
+        'thumbnail': ['file_id', 'chunk'],
+        'thumbnail_finished': ['file_id', 'chunk'],
     }
 
     __Renderer = None
@@ -85,12 +87,16 @@ class App(BaseApp):
         if signal == 'RenderFinished':
             (job_id, file_id) = params.unpack()
             self.hub.send('render_finished', job_id, file_id)
+        elif signal == 'ThumbnailFinished':
+            (file_id, chunk) = params.unpack()
+            self.hub.send('thumbnail_finished', file_id, chunk)
 
     def connect_hub_signals(self, hub):
         hub.connect('create_project', self.on_create_project)
         hub.connect('load_project', self.on_load_project)
         hub.connect('copy_docs', self.on_copy_docs)
         hub.connect('render', self.on_render)
+        hub.connect('thumbnail', self.on_thumbnail)
 
     def post_env_init(self):
         views.init_views(self.db, views.novacut_main)
