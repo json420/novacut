@@ -120,6 +120,16 @@ function(doc) {
 """
 
 
+# For dmedia/file docs:
+clip_framerate = """
+function(doc) {
+    if (doc.type == 'dmedia/file' && doc.framerate) {
+        emit(doc.framerate, null);   
+    }
+}
+"""
+
+
 # Design docs for main novacut-VER database
 novacut_main = (
     doc_design, 
@@ -137,6 +147,10 @@ novacut_projects = (
     ('node', (
         ('type', node_type, _count),
         ('src', node_src, _count),
+    )),
+
+    ('clip', (
+        ('framerate', clip_framerate, _count),
     )),
 )
 
