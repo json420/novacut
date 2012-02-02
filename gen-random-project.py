@@ -57,7 +57,6 @@ for row in dmedia_0.view('user', 'video', limit=options.slices)['rows']:
     )
     docs.append(doc)
 
-raise SystemExit()
 
 frames = []
 
