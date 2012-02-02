@@ -13,7 +13,14 @@ project.view(callback, "node", "type", {key: "sequence"});
 
 */
 
+var getHashList, sortcontainer;
+
+"use strict";
+
 function getOffset(e){e=e.offsetParent;p=[0,0];while(e!=null){p[0]+=e.offsetLeft;p[1]+=e.offsetTop;e=e.offsetParent}return p;}
+
+var dmedia = new couch.Database("dmedia");
+var thumbnails = new couch.Database("thumbnails");
 
 function Clip(id){
     var self = this;
@@ -21,14 +28,40 @@ function Clip(id){
     self.element.classList.add("sorting-clip");
     self.element.dataset.id = id;
     self.id = id;
-    self.element.style.setProperty("background", "url(" + db.att_url(id, 'thumbnail') + ")");
+    self.element.style.setProperty("background", "url(" + dmedia.att_url(id, 'thumbnail') + ")");
     self.element.style.setProperty("z-index", 10);
     self.sortcontainer = document.getElementById("sort-container");
     self.info = document.createElement("div");
     self.info.classList.add("info");
-    db.get(function(response){
-        self.doc = response.read();
-        var time = self.doc.meta.duration;
+    self.info.textContent = "no data";
+    self.doc = db.get_sync(self.id);
+    self.element.appendChild(self.info);
+    self.btn_edit = document.createElement("div");
+    self.btn_edit.classList.add("edit");
+    self.btn_edit.clicked = false;
+    self.btn_edit.onmousedown = function(){
+        self.view();
+    }
+    self.element.appendChild(self.btn_edit);
+    
+    self.oldpos = [0,0];
+    
+    self.posX = 0;
+    self.posY = 0;
+    
+    self.drawInfo = function(){
+        if (self.doc.meta){
+            var time = self.doc.meta.duration;
+            if (!time){
+                time = 0;
+            }
+        }
+        else if (self.doc.duration){
+            var time = Math.round(self.doc.duration.seconds);
+        }
+        else{
+            var time = 0;
+        }
         if (time > 3600){
             var h = (time - (time % 60))/60;
             time -= h * 3600;
@@ -55,22 +88,11 @@ function Clip(id){
         else{
             var s = time;
         }
-        self.info.textContent = "1 Slice " + h + ":" + m + ":" + s + "s";
-    }, id);
-    self.info.textContent = "1 Slice 00:00:00s";
-    self.element.appendChild(self.info);
-    self.btn_edit = document.createElement("div");
-    self.btn_edit.classList.add("edit");
-    self.btn_edit.clicked = false;
-    self.btn_edit.onmousedown = function(){
-        self.view();
+        var slices = db.view_sync("node", "src", {key: self.doc._id, reduce: false}).rows.length;
+        self.info.textContent = slices + " Slice " + h + ":" + m + ":" + s + "s";
     }
-    self.element.appendChild(self.btn_edit);
     
-    self.oldpos = [0,0];
-    
-    self.posX = 0;
-    self.posY = 0;
+    self.drawInfo();
     
     self.addTo = function(parent){
         parent.appendChild(self.element);
@@ -106,7 +128,9 @@ function Clip(id){
     }
     
     self.element.addEventListener("mousedown", function(event){
-        if (event.button == 2 || self.btn_edit.clicked == true){
+        self.view(event);
+        return;
+        /*if (event.button == 2 || self.btn_edit.clicked == true){
             self.btn_edit.clicked = false;
             return;
         }
@@ -194,27 +218,30 @@ function Clip(id){
                     }
                 }
             }
-        });
+        });*/
     });
     
     self.view = function(event){
         if (event){
             event.preventDefault();
         }
-        if (slices[self.id] !== undefined){
-            slices[self.id].forEach(function(s){
-                s.addTo(slicelist);
-            });
-        }
-        else{
+        if (!slices[self.id]){
             slices[self.id] = [];
         }
-        var rows = db.view_sync("node", "src", {reduce: false, key: self.id}).rows;
+        slicelist.textContent = "";
+        var rows = db.view_sync("node", "src", {reduce: false, key: self.id, include_docs: true}).rows;
         rows.forEach(function(row){
-            slices[self.id].push(new Slice(row.id));
-            setTimeout(function(){
-                slices[self.id][slices[self.id].length-1].addTo(slicelist);
-            },0);
+            var found = false;
+            slices[self.id].forEach(function(s){
+                if (s.id == row.id){
+                    found = true;
+                    s.addTo(slicelist);
+                }
+            });
+            if (found == false){
+                slices[self.id].push(new Slice(row.id));
+                slices[self.id][slices[self.id].length - 1].addTo(slicelist);
+            }
         });
         clipview.classList.add("show");
         preview_info.textContent = self.doc.name;
@@ -223,7 +250,6 @@ function Clip(id){
         preview_prog.style.setProperty("width", "0%");
         document.getElementsByClassName("slicecontrols")[0].classList.remove("show");
         preview.dataset.id = self.id;
-        slicelist.textContent = "";
         
     }
     
@@ -285,12 +311,12 @@ function Slice(id){
     
     self.startframe = document.createElement("div");
     self.startframe.classList.add("frame");
-    self.startframe.style.setProperty("background", "url(" + db.att_url(self.clipid, "thumbnail") + ")");
+    self.startframe.style.setProperty("background", "url(" + thumbnails.att_url(self.clipid, self.doc.node.start.frame) + ")");
     self.element.appendChild(self.startframe);
     
     self.stopframe = document.createElement("div");
     self.stopframe.classList.add("frame");
-    self.stopframe.style.setProperty("background", "url(" + db.att_url(self.clipid, "thumbnail") + ")");
+    self.stopframe.style.setProperty("background", "url(" + thumbnails.att_url(self.clipid, self.doc.node.stop.frame) + ")");
     self.element.appendChild(self.stopframe);
     
     self.btn_edit = document.createElement("div");
@@ -500,10 +526,10 @@ window.onload = function(){
         var id = data[1];
         var database = data[0];
         Hub.send('copy_docs', database, db.name, [id]);
-        clips.push(new Clip(id));
-        clips[clips.length-1].addTo(sortcontainer);
-        clips[clips.length-1].posX = event.clientX;
-        clips[clips.length-1].posY = event.clientY-24;
+        clips[id] = new Clip(id);
+        clips[id].addTo(sortcontainer);
+        clips[id].posX = event.clientX;
+        clips[id].posY = event.clientY-24;
     }
     
     preview = document.getElementById("sort-preview-video");
@@ -554,6 +580,7 @@ window.onload = function(){
         }
         slices[id][slices[id].length-1].stop = preview.getFrames();
         slices[id][slices[id].length-1].addTo(slicelist);
+        clips[id].drawInfo();
     }
     
     buckets = document.getElementById("buckets");
@@ -652,11 +679,11 @@ window.onload = function(){
         document.addEventListener("mouseup", mouseup);
     });
     
-    clips = [];
+    clips = {};
     bucketlist = [];
     slices = {};
     
-    document.getElementById("add-bucket").onclick = function(event){
+    /*document.getElementById("add-bucket").onclick = function(event){
         event.preventDefault();
         if (event.button == 0){
             bucketlist.push(new Bucket());
@@ -673,12 +700,22 @@ window.onload = function(){
                 }, i*50);
             }
         }
-    }
+    }*/
     
     document.onmousedown = function(e){e.preventDefault()}
     
     window.onresize = function(){
-        clips.forEach(function(clip){
+        var i = 0;
+        for (var id in clips){
+            var clip = clips[id];
+            
+            var width = sortcontainer.clientWidth;
+            var count = Math.floor(width/210);
+            var padding = Math.round((width - count*192)/(count+1));
+            
+            clip.moveTo((padding+192)*(i%count) + padding , 115*((i - i % count) / count) + 5);
+            i++;
+            /*var clip = clips[id];
             if (clip.posX > window.innerWidth - 192){
                 var x = window.innerWidth - 192;
                 var move = true;
@@ -700,13 +737,14 @@ window.onload = function(){
             if (previewresize.parentElement.clientWidth > window.innerWidth){
                 previewresize.parentElement.style.setProperty("width", window.innerWidth + "px");
                 slicelist.style.setProperty("left", window.innerWidth + "px")
-            }
-        });
+            }*/
+        }
     }
     
     loadSlice = function(self, doc){
         if (doc.node.type == "slice"){
             self.start = doc.node.start.frame;
+            self.stop = doc.node.stop.frame;
             preview.currentTime = self.start/30;
             preview.dataset.sliceid = self.id;
             document.getElementsByClassName("slicecontrols")[0].classList.add("show");
@@ -734,19 +772,47 @@ window.onload = function(){
         for (var i = 0; i < links.length; i++){
             var link = links[i];
             link.onmousedown = function(){
-                sortcontainer.textContent = "";
                 db = "novacut-0-" + this.dataset.id;
                 db = new couch.Database(db);
+                root_id = db.get_sync(this.dataset.id.toUpperCase()).root_id;
                 rows = db.view_sync("doc", "type", {key: 'dmedia/file', reduce: false}).rows;
-                rows.forEach(function(doc){
-                    clips.push(new Clip(doc.id));
-                    clips[clips.length-1].addTo(sortcontainer);
+                sortcontainer.textContent = "";
+                var width = sortcontainer.clientWidth;
+                var count = Math.floor(width/210);
+                var padding = Math.round((width - count*192)/(count+1));
+                rows.forEach(function(doc, i){
+                    setTimeout(function(){
+                        clips[doc.id] = new Clip(doc.id);
+                        clips[doc.id].addTo(sortcontainer);
+                        clips[doc.id].moveTo((padding+192)*(i%count) + padding , 115*((i - i % count) / count) + 5);
+                    }, 50*i);
+                });
+                setTimeout(function(){
+                    root_node = db.get_sync(root_id);
+                    root_node.node.src.forEach(function(src){
+                        var doc = db.get_sync(src);
+                        if (!slices[doc.node.src]){
+                            slices[doc.node.src] = [];
+                        }
+                        slices[doc.node.src].push(new Slice(doc._id));
+                        
+                }, 0);
                 });
             }
         }
         
     }, "project", "title");
     
+}
+
+getHashList = function(){return window.location.hash.slice(1).split("/")};
+setHashList = function(l){window.location.hash = l.join("/")};
+
+window.onhashchange = function(e){
+    var old_hash = e.oldURL.split("#").slice(1).join("#");
+    var new_hash = e.newURL.split("#").slice(1).join("#");
+    console.log(old_hash);
+    console.log(new_hash);
 }
 
 var canvas = document.createElement("canvas");
