@@ -152,6 +152,9 @@ class App(BaseApp):
             return
         self.Renderer.Render('(s)', job_id)
 
+    def on_thumbnail(self, hub, file_id, chunk):
+        self.Renderer.Thumbnail('(si)', file_id, chunk)
+
 
 app = App()
 app.run()

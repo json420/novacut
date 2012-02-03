@@ -1,0 +1,29 @@
+#sequence {
+
+}
+
+.slice {
+    margin: 8px 2px;
+    display: inline-block;
+    background-color: #333;
+    border: 1px solid #aaa;
+}
+
+.slice div {
+    width: 192px;
+    height: 108px;
+    padding: 2px 5px;
+    text-align: right;
+    font-family: "Ubuntu Mono";
+    font-weight: bold;
+    background-position: center center;
+    background-size: cover;
+    text-shadow: 0px 0px 10px black;
+
+}
+
+.slice div:first-child {
+    margin-bottom: 2px;
+}
+
+

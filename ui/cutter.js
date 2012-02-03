@@ -7,17 +7,42 @@ var db = new couch.Database(doc.db_name);
 var doc = db.get_sync(id);
 
 
+function css_url(url) {
+    return ['url(', JSON.stringify(url), ')'].join('');
+}
+
+//thumb.style.backgroundImage
+
+
 var UI = {
     init: function() {
         set_title('title', doc.title);
-        var root = db.get(
-        db.get(UI.on_rows, '_all_docs');
+        var seq = db.get_sync(doc.root_id);
+        console.log(seq);
+        db.post(UI.on_rows, {keys: seq.node.src}, '_all_docs', {include_docs: true});
+
     },
 
     on_rows: function(req) {
         var rows = req.read().rows;
+        var sequence = $('sequence');
         rows.forEach(function(row) {
-            console.log(row.id);
+            var slice = $el('div', {'class': 'slice', 'id': row.id});
+            var node = row.doc.node;
+
+            var start = $el('div', {textContent: (node.start.frame + 1)});
+            start.style.backgroundImage = css_url(
+                ['/thumbnails', node.src, node.start.frame].join('/')
+            );
+            slice.appendChild(start);
+
+            var stop = $el('div', {textContent: node.stop.frame});
+            stop.style.backgroundImage = css_url(
+                ['/thumbnails', node.src, (node.stop.frame - 1)].join('/')
+            );
+            slice.appendChild(stop);
+
+            sequence.appendChild(slice);
         });
     },
 }
