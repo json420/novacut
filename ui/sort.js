@@ -633,6 +633,11 @@ window.onload = function(){
     stophandle = document.getElementsByClassName("slicecontrols")[0].getElementsByClassName("stop")[0];
     starthandle.addEventListener("mousedown", function(event){
         var self = this;
+        if (preview.paused === false){
+            self.play = true;
+            preview.pause();
+            preview.setFrame(preview.selected.start);
+        }
         var move = function(event){
             var frames = Math.floor((event.clientX/preview.clientWidth)*preview.duration*30);
             if (frames > preview.selected.stop){
@@ -651,11 +656,22 @@ window.onload = function(){
             document.removeEventListener("mouseup", mouseup);
             preview.setFrame(preview.selected.start);
             prevprog();
+            if (self.play === true){
+                preview.play();
+            }
         }
         document.addEventListener("mouseup", mouseup);
     });
     stophandle.addEventListener("mousedown", function(event){
         var self = this;
+        if (preview.paused === false){
+            self.play = true;
+            preview.pause();
+        }
+        else{
+            self.play = false;
+        }
+        preview.setFrame(preview.selected.stop);
         var move = function(event){
             pos = event.clientX;
             var frames = Math.floor((event.clientX/preview.clientWidth)*preview.duration*30);
@@ -675,6 +691,10 @@ window.onload = function(){
             document.removeEventListener("mouseup", mouseup);
             preview.setFrame(preview.selected.stop);
             prevprog();
+            if (self.play === true){
+                preview.play();
+                self.play = false;
+            }
         }
         document.addEventListener("mouseup", mouseup);
     });
