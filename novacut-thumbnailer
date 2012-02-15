@@ -55,6 +55,19 @@ import gst
 import gobject
 from dc3lib.microfiber import Database, NotFound
 
+
+KEYFRAME = 5
+FLOAT_SECOND = float(gst.SECOND)
+
+
+def frame_to_ns(frame, num, denom):
+    return frame * gst.SECOND * denom / num
+
+
+def ns_to_frame(ns, num, denom):
+    return int(round(ns * num / denom / FLOAT_SECOND))
+
+
 gobject.threads_init()
 session = dbus.SessionBus()
 Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
@@ -69,6 +82,7 @@ class Thumbnailer(object):
         self.pipeline = gst.Pipeline()
         self.count = 0
         self.attachments = {}
+        self.framerate = None
 
         # Create bus and connect several handlers
         self.bus = self.pipeline.get_bus()
@@ -90,11 +104,11 @@ class Thumbnailer(object):
         self.scale.set_property('method', 10)
         self.enc.set_property('quality', 90)
         self.sink.set_property('signal-handoffs', True)
-        #self.sink.set_property('num-buffers', 15)
 
         # Signals
         self.dec.connect('pad-added', self.on_pad_added)
         self.sink.connect('handoff', self.on_handoff)
+        self.rate.get_pad('sink').connect('notify::caps', self.on_notify_caps)
 
         # Add elements to pipeline
         self.pipeline.add(self.src)
@@ -111,38 +125,39 @@ class Thumbnailer(object):
         self.scale.link(self.enc, gst.caps_from_string('video/x-raw-yuv, height=126'))
         self.enc.link(self.sink)
 
+    def seek_to_frame(self, frame):
+        self.pipeline.seek_simple(
+            gst.FORMAT_TIME,
+            gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_KEY_UNIT, #gst.SEEK_FLAG_ACCURATE,
+            frame_to_ns(frame, self.framerate.num, self.framerate.denom)
+        )
+
     def on_pad_added(self, element, pad):
         caps = pad.get_caps()[0]
         name = caps.get_name()
-        print(name)
+        print('on_pad_added', name)
         if name.startswith('video/'):
             pad.link(self.rate.get_pad('sink'))
+
+    def on_notify_caps(self, pad, args):
+        caps = pad.get_negotiated_caps()
+        if not caps:
             return
-            framerate = caps['framerate']
-            self.denom = framerate.denom
-            self.num = framerate.num
-            self.ns = self.frame * gst.SECOND * framerate.denom / framerate.num
-            self.pipeline.seek_simple(
-                gst.FORMAT_TIME,
-                gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_KEY_UNIT, #gst.SEEK_FLAG_ACCURATE,
-                self.ns
-            )
+        self.framerate = caps[0]['framerate']
+        print('on_notify_caps', self.framerate)
+        gobject.idle_add(self.seek_to_frame, self.frame)
 
     def on_handoff(self, element, buf, pad):
-        print('handoff', buf.timestamp)
-        self.count += 1
-        if self.count > 15:
-            print('skip', file=sys.stderr)
-            return
-        if self.count == 15:
-            gobject.idle_add(self.kill)
-        return
-        frame = int(round(buf.timestamp * self.num / self.denom / float(gst.SECOND)))
+        frame = ns_to_frame(buf.timestamp, self.framerate.num, self.framerate.denom)
+        print('handoff', frame)
         self.attachments[str(frame)] = {
             'content_type': 'image/jpeg',
             'data': b64encode(buf.data),
         }
-        print('handoff', frame, self.count, file=sys.stderr)
+        self.count += 1
+        if frame >= self.frame and self.count >= KEYFRAME:
+            print('done at count {}, frame {}'.format(self.count, frame))
+            gobject.idle_add(self.kill)
 
     def run(self):
         self.pipeline.set_state(gst.STATE_PLAYING)
