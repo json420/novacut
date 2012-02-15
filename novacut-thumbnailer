@@ -78,8 +78,7 @@ class Thumbnailer(object):
 
         # Create elements
         self.src = gst.element_factory_make('filesrc')
-        self.demux = gst.element_factory_make('qtdemux')
-        self.dec = gst.element_factory_make('ffdec_h264')
+        self.dec = gst.element_factory_make('decodebin2')
 
         self.rate = gst.element_factory_make('videorate')
         self.scale = gst.element_factory_make('ffvideoscale')
@@ -94,12 +93,11 @@ class Thumbnailer(object):
         #self.sink.set_property('num-buffers', 15)
 
         # Signals
-        self.demux.connect('pad-added', self.on_pad_added)
+        self.dec.connect('pad-added', self.on_pad_added)
         self.sink.connect('handoff', self.on_handoff)
 
         # Add elements to pipeline
         self.pipeline.add(self.src)
-        self.pipeline.add(self.demux)
         self.pipeline.add(self.dec)
 
         self.pipeline.add(self.rate)
@@ -108,19 +106,21 @@ class Thumbnailer(object):
         self.pipeline.add(self.sink)
 
         # Link elements
-        self.src.link(self.demux)
-        self.dec.link(self.rate)
+        self.src.link(self.dec)
         self.rate.link(self.scale)
         self.scale.link(self.enc, gst.caps_from_string('video/x-raw-yuv, height=126'))
         self.enc.link(self.sink)
 
     def on_pad_added(self, element, pad):
         caps = pad.get_caps()[0]
-        if caps.get_name() == 'video/x-h264':
+        name = caps.get_name()
+        print(name)
+        if name.startswith('video/'):
+            pad.link(self.rate.get_pad('sink'))
+            return
             framerate = caps['framerate']
             self.denom = framerate.denom
             self.num = framerate.num
-            pad.link(self.dec.get_pad('sink'))
             self.ns = self.frame * gst.SECOND * framerate.denom / framerate.num
             self.pipeline.seek_simple(
                 gst.FORMAT_TIME,
@@ -129,23 +129,20 @@ class Thumbnailer(object):
             )
 
     def on_handoff(self, element, buf, pad):
+        print('handoff', buf.timestamp)
         self.count += 1
         if self.count > 15:
             print('skip', file=sys.stderr)
             return
+        if self.count == 15:
+            gobject.idle_add(self.kill)
+        return
         frame = int(round(buf.timestamp * self.num / self.denom / float(gst.SECOND)))
         self.attachments[str(frame)] = {
             'content_type': 'image/jpeg',
             'data': b64encode(buf.data),
         }
         print('handoff', frame, self.count, file=sys.stderr)
-        if self.count == 15:
-            gobject.idle_add(self.kill)
-
-    def on_preroll_handoff(self, element, buf, pad):
-        print('preroll-handoff', self.ns, buf.timestamp, file=sys.stderr)
-        self.data = buf.data
-        gobject.idle_add(self.kill)
 
     def run(self):
         self.pipeline.set_state(gst.STATE_PLAYING)
