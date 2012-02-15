@@ -56,7 +56,7 @@ import gobject
 from dc3lib.microfiber import Database, NotFound
 
 
-KEYFRAME = 5
+KEYFRAME = 15
 FLOAT_SECOND = float(gst.SECOND)
 
 
@@ -126,6 +126,7 @@ class Thumbnailer(object):
         self.enc.link(self.sink)
 
     def seek_to_frame(self, frame):
+        print('seek_to_frame', frame, file=sys.stderr)
         self.pipeline.seek_simple(
             gst.FORMAT_TIME,
             gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_KEY_UNIT, #gst.SEEK_FLAG_ACCURATE,
@@ -135,7 +136,7 @@ class Thumbnailer(object):
     def on_pad_added(self, element, pad):
         caps = pad.get_caps()[0]
         name = caps.get_name()
-        print('on_pad_added', name)
+        print('on_pad_added', name, file=sys.stderr)
         if name.startswith('video/'):
             pad.link(self.rate.get_pad('sink'))
 
@@ -144,19 +145,19 @@ class Thumbnailer(object):
         if not caps:
             return
         self.framerate = caps[0]['framerate']
-        print('on_notify_caps', self.framerate)
+        print('on_notify_caps', self.framerate, file=sys.stderr)
         gobject.idle_add(self.seek_to_frame, self.frame)
 
     def on_handoff(self, element, buf, pad):
         frame = ns_to_frame(buf.timestamp, self.framerate.num, self.framerate.denom)
-        print('handoff', frame)
+        print('handoff', frame, file=sys.stderr)
         self.attachments[str(frame)] = {
             'content_type': 'image/jpeg',
             'data': b64encode(buf.data),
         }
         self.count += 1
         if frame >= self.frame and self.count >= KEYFRAME:
-            print('done at count {}, frame {}'.format(self.count, frame))
+            print('done', self.count, frame, file=sys.stderr)
             gobject.idle_add(self.kill)
 
     def run(self):
