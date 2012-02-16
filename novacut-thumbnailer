@@ -41,7 +41,7 @@ parser = optparse.OptionParser(
 
 
 if not args:
-    print('takes at least 1 argument FILE_ID', file=sys.stderr)
+    print('takes at least 1 argument FILE_ID')
     sys.exit(1)
 _id = args[0]
 
@@ -146,7 +146,7 @@ class Thumbnailer(object):
         self.enc.link(self.sink)
 
     def seek_to_frame(self, frame):
-        print('seek_to_frame', self.frame, file=sys.stderr)
+        print('seek_to_frame', self.frame)
         self.count = 0
         self.pipeline.seek_simple(
             gst.FORMAT_TIME,
@@ -155,7 +155,7 @@ class Thumbnailer(object):
         )
 
     def next(self):
-        print('next', file=sys.stderr)
+        print('next')
         while True:
             if self.i >= len(self.frames):
                 gobject.idle_add(self.kill)
@@ -163,7 +163,7 @@ class Thumbnailer(object):
             self.frame = self.frames[self.i]
             self.i += 1
             if str(self.frame) in self.attachments:
-                print('already have frame', self.frame, file=sys.stderr)
+                print('already have frame', self.frame)
                 continue
             else:
                 self.seek_to_frame(self.frame)
@@ -172,7 +172,7 @@ class Thumbnailer(object):
     def on_pad_added(self, element, pad):
         caps = pad.get_caps()[0]
         name = caps.get_name()
-        print('on_pad_added', name, file=sys.stderr)
+        print('on_pad_added', name)
         if name.startswith('video/'):
             pad.link(self.rate.get_pad('sink'))
 
@@ -181,12 +181,12 @@ class Thumbnailer(object):
         if not caps:
             return
         self.framerate = caps[0]['framerate']
-        print('on_notify_caps', self.framerate, file=sys.stderr)
+        print('on_notify_caps', self.framerate)
         gobject.idle_add(self.next)
 
     def on_handoff(self, element, buf, pad):
         frame = ns_to_frame(buf.timestamp, self.framerate.num, self.framerate.denom)
-        print('handoff', frame, file=sys.stderr)
+        print('handoff', frame)
         key = str(frame)
         if key not in self.attachments:
             self.changed = True
@@ -198,7 +198,7 @@ class Thumbnailer(object):
             print('got buffer for frame we arleady have', frame)
         self.count += 1
         if frame >= self.frame and self.count >= KEYFRAME:
-            print('done', self.count, frame, file=sys.stderr)
+            print('done', self.count, frame)
             gobject.idle_add(self.next)
 
     def run(self):
@@ -206,28 +206,28 @@ class Thumbnailer(object):
         self.mainloop.run()
 
     def kill(self):
-        print('kill', file=sys.stderr)
+        print('kill')
         self.pipeline.set_state(gst.STATE_NULL)
         self.pipeline.get_state()
         self.mainloop.quit()
 
     def on_eos(self, bus, msg):
-        print('eos', file=sys.stderr)
+        print('eos')
         self.kill()
 
     def on_error(self, bus, msg):
         error = msg.parse_error()[1]
-        print(error, file=sys.stderr)
+        print(error)
         self.kill()
         sys.exit(2)
 
 thumbnailer = Thumbnailer(_id, frames)
 thumbnailer.run()
 if thumbnailer.changed:
-    print('saving changes', file=sys.stderr)
+    print('saving changes')
     db.save(thumbnailer.doc)
 else:
-    print('no changes to save', file=sys.stderr)
+    print('no changes to save')
 
 
 
