@@ -76,14 +76,6 @@ db = Database('thumbnails', json.loads(Dmedia.GetEnv()))
 db.ensure()
 
 
-class Filter(object):
-    def __init__(self, frame_count):
-        self.frame_count = frame_count
-
-    def __call__(self, frame):
-        return 0 <= frame < self.frame_count
-
-
 class Thumbnailer(object):
     def __init__(self, _id, frames):
         filename = Dmedia.Resolve(_id)
@@ -142,7 +134,7 @@ class Thumbnailer(object):
         # Link elements
         self.src.link(self.dec)
         self.rate.link(self.scale)
-        self.scale.link(self.enc, gst.caps_from_string('video/x-raw-yuv, width=256, height=144'))
+        self.scale.link(self.enc, gst.caps_from_string('video/x-raw-yuv, width=224, height=126'))
         self.enc.link(self.sink)
 
     def seek_to_frame(self, frame):

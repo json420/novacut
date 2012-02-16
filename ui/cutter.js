@@ -38,16 +38,24 @@ var Thumbs = {
     },
 
     on_docs: function(req) {
-        var rows = req.read().rows;
-        rows.forEach(function(row) {
-            var id = row.key;
-            if (row.doc) {
-                Thumbs.docs[id] = row.doc;
-            }
-            else {
+        try {
+            var rows = req.read().rows;
+            rows.forEach(function(row) {
+                var id = row.key;
+                if (row.doc) {
+                    Thumbs.docs[id] = row.doc;
+                }
+                else {
+                    Thumbs.docs[id] = {'_id': id, '_attachments': {}};
+                }
+            });
+        }
+        catch (e) {
+            var ids = Object.keys(Thumbs.q);
+            ids.forEach(function(id) {
                 Thumbs.docs[id] = {'_id': id, '_attachments': {}};
-            }
-        });
+            });
+        }
         Thumbs.flush();
     },
 
