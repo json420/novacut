@@ -44,19 +44,70 @@ var Thumbs = {
     on_thumbnail_finished: function(file_id) {
         console.log(['finished', file_id].join(' '));
     },
+
+    has_frame: function(file_id, index) {
+        if (!Thumbs.docs[file_id]) {
+            try {
+                Thumbs.docs[file_id] = Thumbs.db.get_sync(file_id);
+            }
+            catch (e) {
+                return false;
+            }
+        }
+        if (Thumbs.docs[file_id]._attachments[index]) {
+            return true;
+        }
+        return false;
+    },
+
+    q: {},
+
+    enqueue: function(frame) {
+        if (!Thumbs.q[frame.file_id]) {
+            Thumbs.q[frame.file_id] = [];
+        }
+        Thumbs.q[frame.file_id].push(frame);
+    },
+
+    flush: function() {
+        var ids = Object.keys(Thumbs.q);
+        if (ids.length == 0) {
+            return;
+        }
+        ids.forEach(function(id) {
+            var frames = Thumbs.q[id];
+            var needed = [];
+            frames.forEach(function(frame) {
+                if (Thumbs.has_frame(id, frame.index)) {
+                    frame.request_thumbnail.call(frame);
+                }
+                else {
+                    needed.push(frame.index);
+                }
+            });
+            console.log(needed.join(', '));
+        }); 
+    },
 }
 
 Hub.connect('thumbnail_finished', Thumbs.on_thumbnail_finished);
 
 
-var Frame = function(index) {
+var Frame = function(file_id, index) {
+    this.file_id = file_id;
     this.element = $el('div');
     this.set_index(index);
 }
 Frame.prototype = {
     set_index: function(index) {
         this.index = index;
+        this.element.style.backgroundImage = null;
         this.element.textContent = index + 1;
+        Thumbs.enqueue(this);
+    },
+
+    request_thumbnail: function() {
+        this.element.style.backgroundImage = Thumbs.db.att_css_url(this.file_id, this.index);
     },
 
 }
@@ -78,14 +129,15 @@ var UI = {
             var slice = $el('div', {'class': 'slice', 'id': row.id});
             var node = row.doc.node;
 
-            var start = new Frame(node.start.frame);
+            var start = new Frame(node.src, node.start.frame);
             slice.appendChild(start.element);
 
-            var end = new Frame(node.stop.frame - 1);
+            var end = new Frame(node.src, node.stop.frame - 1);
             slice.appendChild(end.element);
 
             sequence.appendChild(slice);
         });
+        Thumbs.flush();
     },
 }
 
