@@ -86,13 +86,13 @@ class Filter(object):
 
 class Thumbnailer(object):
     def __init__(self, filename, frames):
+        self.i = 0
         self.frames = sorted(set(frames))
-        self.frame = frames[0]
+        self.framerate = None
         self.mainloop = gobject.MainLoop()
         self.pipeline = gst.Pipeline()
         self.count = 0
         self.attachments = {}
-        self.framerate = None
 
         # Create bus and connect several handlers
         self.bus = self.pipeline.get_bus()
@@ -136,12 +136,22 @@ class Thumbnailer(object):
         self.enc.link(self.sink)
 
     def seek_to_frame(self, frame):
-        print('seek_to_frame', frame, file=sys.stderr)
+        print('seek_to_frame', self.frame, file=sys.stderr)
         self.pipeline.seek_simple(
             gst.FORMAT_TIME,
             gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_KEY_UNIT, #gst.SEEK_FLAG_ACCURATE,
             frame_to_ns(frame, self.framerate.num, self.framerate.denom)
         )
+
+    def next(self):
+        print('next', file=sys.stderr)
+        if self.i >= len(self.frames):
+            gobject.idle_add(self.kill)
+            return
+        self.frame = self.frames[self.i]
+        self.i += 1
+        self.count = 0
+        self.seek_to_frame(self.frame)
 
     def on_pad_added(self, element, pad):
         caps = pad.get_caps()[0]
@@ -156,7 +166,7 @@ class Thumbnailer(object):
             return
         self.framerate = caps[0]['framerate']
         print('on_notify_caps', self.framerate, file=sys.stderr)
-        gobject.idle_add(self.seek_to_frame, self.frame)
+        gobject.idle_add(self.next)
 
     def on_handoff(self, element, buf, pad):
         frame = ns_to_frame(buf.timestamp, self.framerate.num, self.framerate.denom)
@@ -168,7 +178,7 @@ class Thumbnailer(object):
         self.count += 1
         if frame >= self.frame and self.count >= KEYFRAME:
             print('done', self.count, frame, file=sys.stderr)
-            gobject.idle_add(self.kill)
+            gobject.idle_add(self.next)
 
     def run(self):
         self.pipeline.set_state(gst.STATE_PLAYING)
