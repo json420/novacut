@@ -18,33 +18,6 @@ var Thumbs = {
 
     docs: {},
 
-    do_load: function(file_id, start, end) {
-        Hub.send('thumbnail', file_id, [start, end]);
-    },
-
-    set_thumbnail: function(slice, file_id, start, stop) {
-        var end = stop - 1;
-        if (!Thumbs.docs[file_id]) {
-            console.log('loading doc');
-            try {
-                Thumbs.docs[file_id] = Thumbs.db.get_sync(file_id);
-            }
-            catch (e) {
-                return Thumbs.do_load(file_id, start, end);
-            }
-        }
-        var doc = Thumbs.docs[file_id];
-        if (doc._attachments[start] && doc._attachments[end]) {
-            return;
-        }
-        Thumbs.do_load(file_id, start, end);
-        //div.style.backgroundImage = Thumbs.db.att_css_url(file_id, frame_index);
-    },
-
-    on_thumbnail_finished: function(file_id) {
-        console.log(['finished', file_id].join(' '));
-    },
-
     has_frame: function(file_id, index) {
         if (!Thumbs.docs[file_id]) {
             try {
@@ -85,8 +58,30 @@ var Thumbs = {
                     needed.push(frame.index);
                 }
             });
-            console.log(needed.join(', '));
+            if (needed.length == 0) {
+                delete Thumbs.q[id];
+            }
+            else {
+                Hub.send('thumbnail', id, needed);
+            }
         }); 
+    },
+
+    on_thumbnail_finished: function(file_id) {
+        console.log(['finished', file_id].join(' '));
+        if (!Thumbs.q[file_id]) {
+            return;
+        }
+        var frames = Thumbs.q[id];
+        delete Thumbs.q[id];
+        frames.forEach(function(frame) {
+            if (Thumbs.has_frame(id, frame.index)) {
+                frame.request_thumbnail.call(frame);
+            }
+            else {
+                needed.push(frame.index);
+            }
+        });  
     },
 }
 
