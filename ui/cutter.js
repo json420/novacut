@@ -35,6 +35,30 @@ var Thumbs = {
 
     q: {},
 
+    init: function() {
+        var ids = Object.keys(Thumbs.q);
+        if (ids.length == 0) {
+            return;
+        }
+        Thumbs.db.post(Thumbs.on_docs, {keys: ids}, '_all_docs', {include_docs: true});
+    },
+
+    on_docs: function(req) {
+        var rows = req.read().rows;
+        console.log('on_docs');
+        rows.forEach(function(row) {
+            var id = row.key;
+            if (row.doc) {
+                console.log(id);
+                Thumbs.docs[id] = row.doc;
+            }
+            else {
+                Thumbs.docs[id] = {'_id': id, '_attachments': {}};
+            }
+        });
+        Thumbs.flush();
+    },
+
     enqueue: function(frame) {
         if (!Thumbs.q[frame.file_id]) {
             Thumbs.q[frame.file_id] = [];
@@ -72,15 +96,10 @@ var Thumbs = {
         if (!Thumbs.q[file_id]) {
             return;
         }
-        var frames = Thumbs.q[id];
-        delete Thumbs.q[id];
+        var frames = Thumbs.q[file_id];
+        delete Thumbs.q[file_id];
         frames.forEach(function(frame) {
-            if (Thumbs.has_frame(id, frame.index)) {
-                frame.request_thumbnail.call(frame);
-            }
-            else {
-                needed.push(frame.index);
-            }
+            frame.request_thumbnail.call(frame);
         });  
     },
 }
@@ -132,7 +151,7 @@ var UI = {
 
             sequence.appendChild(slice);
         });
-        Thumbs.flush();
+        Thumbs.init();
     },
 }
 
