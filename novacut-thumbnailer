@@ -95,12 +95,13 @@ class Thumbnailer(object):
                 '_attachments': {},
             }
         self.attachments = self.doc['_attachments']
-        
+        self.changed = False
+
         self.count = 0
         self.i = 0
         self.frames = sorted(set(frames))
         self.framerate = None
-        
+
         self.mainloop = gobject.MainLoop()
         self.pipeline = gst.Pipeline()
 
@@ -113,7 +114,6 @@ class Thumbnailer(object):
         # Create elements
         self.src = gst.element_factory_make('filesrc')
         self.dec = gst.element_factory_make('decodebin2')
-
         self.rate = gst.element_factory_make('videorate')
         self.scale = gst.element_factory_make('ffvideoscale')
         self.enc = gst.element_factory_make('jpegenc')
@@ -147,6 +147,7 @@ class Thumbnailer(object):
 
     def seek_to_frame(self, frame):
         print('seek_to_frame', self.frame, file=sys.stderr)
+        self.count = 0
         self.pipeline.seek_simple(
             gst.FORMAT_TIME,
             gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_KEY_UNIT, #gst.SEEK_FLAG_ACCURATE,
@@ -155,13 +156,18 @@ class Thumbnailer(object):
 
     def next(self):
         print('next', file=sys.stderr)
-        if self.i >= len(self.frames):
-            gobject.idle_add(self.kill)
-            return
-        self.frame = self.frames[self.i]
-        self.i += 1
-        self.count = 0
-        self.seek_to_frame(self.frame)
+        while True:
+            if self.i >= len(self.frames):
+                gobject.idle_add(self.kill)
+                return
+            self.frame = self.frames[self.i]
+            self.i += 1
+            if str(self.frame) in self.attachments:
+                print('already have frame', self.frame, file=sys.stderr)
+                continue
+            else:
+                self.seek_to_frame(self.frame)
+                return
 
     def on_pad_added(self, element, pad):
         caps = pad.get_caps()[0]
@@ -181,10 +187,15 @@ class Thumbnailer(object):
     def on_handoff(self, element, buf, pad):
         frame = ns_to_frame(buf.timestamp, self.framerate.num, self.framerate.denom)
         print('handoff', frame, file=sys.stderr)
-        self.attachments[str(frame)] = {
-            'content_type': 'image/jpeg',
-            'data': b64encode(buf.data),
-        }
+        key = str(frame)
+        if key not in self.attachments:
+            self.changed = True
+            self.attachments[key] = {
+                'content_type': 'image/jpeg',
+                'data': b64encode(buf.data),
+            }
+        else:
+            print('got buffer for frame we arleady have', frame)
         self.count += 1
         if frame >= self.frame and self.count >= KEYFRAME:
             print('done', self.count, frame, file=sys.stderr)
@@ -212,7 +223,11 @@ class Thumbnailer(object):
 
 thumbnailer = Thumbnailer(_id, frames)
 thumbnailer.run()
-db.save(thumbnailer.doc)
+if thumbnailer.changed:
+    print('saving changes', file=sys.stderr)
+    db.save(thumbnailer.doc)
+else:
+    print('no changes to save', file=sys.stderr)
 
 
 
