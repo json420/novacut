@@ -87,10 +87,11 @@ class Service(dbus.service.Object):
         file_id = subprocess.check_output(cmd).decode('utf-8')
         GObject.idle_add(self.RenderFinished, job_id, file_id)
 
-    def thumbnail(self, file_id, chunk):
-        cmd = [thumbnailer, file_id, '--frame', str(chunk * 15)]
+    def thumbnail(self, file_id, frames):
+        cmd = [thumbnailer, file_id]
+        cmd.extend(str(f) for f in frames)
         subprocess.check_output(cmd)
-        GObject.idle_add(self.ThumbnailFinished, file_id, chunk)
+        GObject.idle_add(self.ThumbnailFinished, file_id)
 
     @dbus.service.method(IFACE, in_signature='', out_signature='s')
     def Version(self):
@@ -124,23 +125,21 @@ class Service(dbus.service.Object):
         log.info('Render job %s has finished', job_id)
         del self._workers[job_id]
 
-    @dbus.service.method(IFACE, in_signature='si', out_signature='b')
-    def Thumbnail(self, file_id, chunk):
+    @dbus.service.method(IFACE, in_signature='sai', out_signature='b')
+    def Thumbnail(self, file_id, frames):
         """
-        Render an edit.
+        Generate thumbnails.
         """
-        log.info('Requested thumbnails for chunk %r in file %r', chunk, file_id)
-        key = (file_id, chunk)
-        if key in self._thumbnailers:
+        log.info('Requested thumbnails file %r', file_id)
+        if file_id in self._thumbnailers:
             return False
-        self._thumbnailers[key] = _start_thread(self.thumbnail, file_id, chunk)
+        self._thumbnailers[file_id] = _start_thread(self.thumbnail, file_id, frames)
         return True
 
-    @dbus.service.signal(IFACE, signature='si')
-    def ThumbnailFinished(self, file_id, chunk):
-        log.info('Thumbnails finished for chunk %r in file %r', chunk, file_id)
-        key = (file_id, chunk)
-        del self._thumbnailers[key]
+    @dbus.service.signal(IFACE, signature='s')
+    def ThumbnailFinished(self, file_id):
+        log.info('Thumbnails finished for file %r', file_id)
+        del self._thumbnailers[file_id]
     
 
 parser = optparse.OptionParser(

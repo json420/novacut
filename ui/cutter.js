@@ -17,34 +17,49 @@ var Thumbs = {
     db: new couch.Database('thumbnails'), 
 
     docs: {},
-    
-    do_load: function(file_id, frame_index) {
-        var chunk = Math.floor(frame_index / 15);
-        Hub.send('thumbnail', file_id, chunk);
+
+    do_load: function(file_id, start, end) {
+        Hub.send('thumbnail', file_id, [start, end]);
     },
 
-    set_thumbnail: function(div, file_id, frame_index) {
+    set_thumbnail: function(slice, file_id, start, stop) {
+        var end = stop - 1;
         if (!Thumbs.docs[file_id]) {
             console.log('loading doc');
             try {
                 Thumbs.docs[file_id] = Thumbs.db.get_sync(file_id);
             }
             catch (e) {
-                return Thumbs.do_load(file_id, frame_index);
+                return Thumbs.do_load(file_id, start, end);
             }
         }
-        if (!Thumbs.docs[file_id]._attachments[frame_index]) {
-            return Thumbs.do_load(file_id, frame_index);
+        var doc = Thumbs.docs[file_id];
+        if (doc._attachments[start] && doc._attachments[end]) {
+            return;
         }
-        div.style.backgroundImage = Thumbs.db.att_css_url(file_id, frame_index);
+        Thumbs.do_load(file_id, start, end);
+        //div.style.backgroundImage = Thumbs.db.att_css_url(file_id, frame_index);
     },
 
-    on_thumbnail_finished: function(file_id, chunk) {
-        console.log(['finished', file_id, chunk].join(' '));
+    on_thumbnail_finished: function(file_id) {
+        console.log(['finished', file_id].join(' '));
     },
 }
 
 Hub.connect('thumbnail_finished', Thumbs.on_thumbnail_finished);
+
+
+var Frame = function(index) {
+    this.element = $el('div');
+    this.set_index(index);
+}
+Frame.prototype = {
+    set_index: function(index) {
+        this.index = index;
+        this.element.textContent = index + 1;
+    },
+
+}
 
 
 var UI = {
@@ -63,13 +78,11 @@ var UI = {
             var slice = $el('div', {'class': 'slice', 'id': row.id});
             var node = row.doc.node;
 
-            var start = $el('div', {textContent: (node.start.frame + 1)});
-            Thumbs.set_thumbnail(start, node.src, node.start.frame);
-            slice.appendChild(start);
+            var start = new Frame(node.start.frame);
+            slice.appendChild(start.element);
 
-            var stop = $el('div', {textContent: node.stop.frame});
-            Thumbs.set_thumbnail(stop, node.src, (node.stop.frame - 1));
-            slice.appendChild(stop);
+            var end = new Frame(node.stop.frame - 1);
+            slice.appendChild(end.element);
 
             sequence.appendChild(slice);
         });

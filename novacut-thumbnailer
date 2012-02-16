@@ -142,7 +142,7 @@ class Thumbnailer(object):
         # Link elements
         self.src.link(self.dec)
         self.rate.link(self.scale)
-        self.scale.link(self.enc, gst.caps_from_string('video/x-raw-yuv, height=144'))
+        self.scale.link(self.enc, gst.caps_from_string('video/x-raw-yuv, width=288, height=162'))
         self.enc.link(self.sink)
 
     def seek_to_frame(self, frame):
