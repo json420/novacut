@@ -7,12 +7,6 @@ var db = new couch.Database(doc.db_name);
 var doc = db.get_sync(id);
 
 
-function css_url(url) {
-    return ['url(', JSON.stringify(url), ')'].join('');
-}
-
-//thumb.style.backgroundImage
-
 var Thumbs = {
     db: new couch.Database('thumbnails'), 
 
@@ -45,11 +39,9 @@ var Thumbs = {
 
     on_docs: function(req) {
         var rows = req.read().rows;
-        console.log('on_docs');
         rows.forEach(function(row) {
             var id = row.key;
             if (row.doc) {
-                console.log(id);
                 Thumbs.docs[id] = row.doc;
             }
             else {
@@ -92,7 +84,6 @@ var Thumbs = {
     },
 
     on_thumbnail_finished: function(file_id) {
-        console.log(['finished', file_id].join(' '));
         if (!Thumbs.q[file_id]) {
             return;
         }
@@ -138,7 +129,6 @@ var UI = {
     init: function() {
         set_title('title', doc.title);
         var seq = db.get_sync(doc.root_id);
-        console.log(seq);
         db.post(UI.on_rows, {keys: seq.node.src}, '_all_docs', {include_docs: true});
 
     },

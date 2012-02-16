@@ -5,12 +5,12 @@
 .slice {
     margin: 4px 2px;
     display: inline-block;
-    background-color: #aaa;
+    background-color: #ddd;
 }
 
 .slice div {
-    width: 256px;
-    height: 144px;
+    width: 224px;
+    height: 126px;
     text-align: right;
     padding: 2px 6px;
     box-sizing: border-box !important;
