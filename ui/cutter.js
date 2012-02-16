@@ -98,9 +98,16 @@ var Thumbs = {
         }
         var frames = Thumbs.q[file_id];
         delete Thumbs.q[file_id];
+        Thumbs.docs[file_id] = Thumbs.db.get_sync(file_id);
         frames.forEach(function(frame) {
-            frame.request_thumbnail.call(frame);
-        });  
+            if (Thumbs.has_frame(file_id, frame.index)) {
+                frame.request_thumbnail.call(frame);
+            }
+            else {
+                Thumbs.enqueue(frame);
+            }
+        });
+        Thumbs.flush();
     },
 }
 
