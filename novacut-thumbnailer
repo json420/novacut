@@ -34,20 +34,21 @@ from base64 import b64encode
 import optparse
 
 
-parser = optparse.OptionParser()
-parser.add_option('--frame',
-    type='int',
-    help='thumbnail specific frame number, starting from zero; default=0',
-    metavar='N',
-    default=0,
+parser = optparse.OptionParser(
+    usage='%prog FILE_ID [FRAME1...]',
 )
 (options, args) = parser.parse_args()
 
 
-if len(args) != 1:
-    print('takes exacly 1 argument FILE_ID', file=sys.stderr)
+if not args:
+    print('takes at least 1 argument FILE_ID', file=sys.stderr)
     sys.exit(1)
 _id = args[0]
+
+if len(args) == 1:
+    frames = [0]
+else:
+    frames = [int(f) for f in args[1:]]
 
 
 import dbus
@@ -75,9 +76,18 @@ db = Database('thumbnails', json.loads(Dmedia.GetEnv()))
 db.ensure()
 
 
+class Filter(object):
+    def __init__(self, frame_count):
+        self.frame_count = frame_count
+
+    def __call__(self, frame):
+        return 0 <= frame < self.frame_count
+
+
 class Thumbnailer(object):
-    def __init__(self, filename, frame):
-        self.frame = frame
+    def __init__(self, filename, frames):
+        self.frames = sorted(set(frames))
+        self.frame = frames[0]
         self.mainloop = gobject.MainLoop()
         self.pipeline = gst.Pipeline()
         self.count = 0
@@ -182,7 +192,7 @@ class Thumbnailer(object):
 
 
 filename = Dmedia.Resolve(_id)
-thumbnailer = Thumbnailer(filename, options.frame)
+thumbnailer = Thumbnailer(filename, frames)
 thumbnailer.run()
 
 try:
