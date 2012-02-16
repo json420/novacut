@@ -7,51 +7,136 @@ var db = new couch.Database(doc.db_name);
 var doc = db.get_sync(id);
 
 
-function css_url(url) {
-    return ['url(', JSON.stringify(url), ')'].join('');
-}
-
-//thumb.style.backgroundImage
-
 var Thumbs = {
     db: new couch.Database('thumbnails'), 
 
     docs: {},
-    
-    do_load: function(file_id, frame_index) {
-        var chunk = Math.floor(frame_index / 15);
-        Hub.send('thumbnail', file_id, chunk);
-    },
 
-    set_thumbnail: function(div, file_id, frame_index) {
+    has_frame: function(file_id, index) {
         if (!Thumbs.docs[file_id]) {
-            console.log('loading doc');
             try {
                 Thumbs.docs[file_id] = Thumbs.db.get_sync(file_id);
             }
             catch (e) {
-                return Thumbs.do_load(file_id, frame_index);
+                return false;
             }
         }
-        if (!Thumbs.docs[file_id]._attachments[frame_index]) {
-            return Thumbs.do_load(file_id, frame_index);
+        if (Thumbs.docs[file_id]._attachments[index]) {
+            return true;
         }
-        div.style.backgroundImage = Thumbs.db.att_css_url(file_id, frame_index);
+        return false;
     },
 
-    on_thumbnail_finished: function(file_id, chunk) {
-        console.log(['finished', file_id, chunk].join(' '));
+    q: {},
+
+    init: function() {
+        var ids = Object.keys(Thumbs.q);
+        if (ids.length == 0) {
+            return;
+        }
+        Thumbs.db.post(Thumbs.on_docs, {keys: ids}, '_all_docs', {include_docs: true});
+    },
+
+    on_docs: function(req) {
+        try {
+            var rows = req.read().rows;
+            rows.forEach(function(row) {
+                var id = row.key;
+                if (row.doc) {
+                    Thumbs.docs[id] = row.doc;
+                }
+                else {
+                    Thumbs.docs[id] = {'_id': id, '_attachments': {}};
+                }
+            });
+        }
+        catch (e) {
+            var ids = Object.keys(Thumbs.q);
+            ids.forEach(function(id) {
+                Thumbs.docs[id] = {'_id': id, '_attachments': {}};
+            });
+        }
+        Thumbs.flush();
+    },
+
+    enqueue: function(frame) {
+        if (!Thumbs.q[frame.file_id]) {
+            Thumbs.q[frame.file_id] = [];
+        }
+        Thumbs.q[frame.file_id].push(frame);
+    },
+
+    flush: function() {
+        var ids = Object.keys(Thumbs.q);
+        if (ids.length == 0) {
+            return;
+        }
+        ids.forEach(function(id) {
+            var frames = Thumbs.q[id];
+            var needed = [];
+            frames.forEach(function(frame) {
+                if (Thumbs.has_frame(id, frame.index)) {
+                    frame.request_thumbnail.call(frame);
+                }
+                else {
+                    needed.push(frame.index);
+                }
+            });
+            if (needed.length == 0) {
+                delete Thumbs.q[id];
+            }
+            else {
+                Hub.send('thumbnail', id, needed);
+            }
+        }); 
+    },
+
+    on_thumbnail_finished: function(file_id) {
+        if (!Thumbs.q[file_id]) {
+            return;
+        }
+        var frames = Thumbs.q[file_id];
+        delete Thumbs.q[file_id];
+        Thumbs.docs[file_id] = Thumbs.db.get_sync(file_id);
+        frames.forEach(function(frame) {
+            if (Thumbs.has_frame(file_id, frame.index)) {
+                frame.request_thumbnail.call(frame);
+            }
+            else {
+                Thumbs.enqueue(frame);
+            }
+        });
+        Thumbs.flush();
     },
 }
 
 Hub.connect('thumbnail_finished', Thumbs.on_thumbnail_finished);
 
 
+var Frame = function(file_id, index) {
+    this.file_id = file_id;
+    this.element = $el('div');
+    this.set_index(index);
+}
+Frame.prototype = {
+    set_index: function(index) {
+        this.index = index;
+        this.element.style.backgroundImage = null;
+        this.element.textContent = index + 1;
+        Thumbs.enqueue(this);
+    },
+
+    request_thumbnail: function() {
+        this.element.style.backgroundImage = Thumbs.db.att_css_url(this.file_id, this.index);
+    },
+
+}
+
+
 var UI = {
     init: function() {
         set_title('title', doc.title);
         var seq = db.get_sync(doc.root_id);
-        console.log(seq);
         db.post(UI.on_rows, {keys: seq.node.src}, '_all_docs', {include_docs: true});
 
     },
@@ -63,16 +148,15 @@ var UI = {
             var slice = $el('div', {'class': 'slice', 'id': row.id});
             var node = row.doc.node;
 
-            var start = $el('div', {textContent: (node.start.frame + 1)});
-            Thumbs.set_thumbnail(start, node.src, node.start.frame);
-            slice.appendChild(start);
+            var start = new Frame(node.src, node.start.frame);
+            slice.appendChild(start.element);
 
-            var stop = $el('div', {textContent: node.stop.frame});
-            Thumbs.set_thumbnail(stop, node.src, (node.stop.frame - 1));
-            slice.appendChild(stop);
+            var end = new Frame(node.src, node.stop.frame - 1);
+            slice.appendChild(end.element);
 
             sequence.appendChild(slice);
         });
+        Thumbs.init();
     },
 }
 

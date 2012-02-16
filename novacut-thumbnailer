@@ -34,26 +34,40 @@ from base64 import b64encode
 import optparse
 
 
-parser = optparse.OptionParser()
-parser.add_option('--frame',
-    type='int',
-    help='thumbnail specific frame number, starting from zero; default=0',
-    metavar='N',
-    default=0,
+parser = optparse.OptionParser(
+    usage='%prog FILE_ID [FRAME1...]',
 )
 (options, args) = parser.parse_args()
 
 
-if len(args) != 1:
-    print('takes exacly 1 argument FILE_ID', file=sys.stderr)
+if not args:
+    print('takes at least 1 argument FILE_ID')
     sys.exit(1)
 _id = args[0]
+
+if len(args) == 1:
+    frames = [0]
+else:
+    frames = [int(f) for f in args[1:]]
 
 
 import dbus
 import gst
 import gobject
 from dc3lib.microfiber import Database, NotFound
+
+
+KEYFRAME = 15
+FLOAT_SECOND = float(gst.SECOND)
+
+
+def frame_to_ns(frame, num, denom):
+    return frame * gst.SECOND * denom / num
+
+
+def ns_to_frame(ns, num, denom):
+    return int(round(ns * num / denom / FLOAT_SECOND))
+
 
 gobject.threads_init()
 session = dbus.SessionBus()
@@ -63,12 +77,25 @@ db.ensure()
 
 
 class Thumbnailer(object):
-    def __init__(self, filename, frame):
-        self.frame = frame
+    def __init__(self, _id, frames):
+        filename = Dmedia.Resolve(_id)
+        try:
+            self.doc = db.get(_id)
+        except NotFound:
+            self.doc = {
+                '_id': _id,
+                '_attachments': {},
+            }
+        self.attachments = self.doc['_attachments']
+        self.changed = False
+
+        self.count = 0
+        self.i = 0
+        self.frames = sorted(set(frames))
+        self.framerate = None
+
         self.mainloop = gobject.MainLoop()
         self.pipeline = gst.Pipeline()
-        self.count = 0
-        self.attachments = {}
 
         # Create bus and connect several handlers
         self.bus = self.pipeline.get_bus()
@@ -78,9 +105,7 @@ class Thumbnailer(object):
 
         # Create elements
         self.src = gst.element_factory_make('filesrc')
-        self.demux = gst.element_factory_make('qtdemux')
-        self.dec = gst.element_factory_make('ffdec_h264')
-
+        self.dec = gst.element_factory_make('decodebin2')
         self.rate = gst.element_factory_make('videorate')
         self.scale = gst.element_factory_make('ffvideoscale')
         self.enc = gst.element_factory_make('jpegenc')
@@ -91,15 +116,14 @@ class Thumbnailer(object):
         self.scale.set_property('method', 10)
         self.enc.set_property('quality', 90)
         self.sink.set_property('signal-handoffs', True)
-        #self.sink.set_property('num-buffers', 15)
 
         # Signals
-        self.demux.connect('pad-added', self.on_pad_added)
+        self.dec.connect('pad-added', self.on_pad_added)
         self.sink.connect('handoff', self.on_handoff)
+        self.rate.get_pad('sink').connect('notify::caps', self.on_notify_caps)
 
         # Add elements to pipeline
         self.pipeline.add(self.src)
-        self.pipeline.add(self.demux)
         self.pipeline.add(self.dec)
 
         self.pipeline.add(self.rate)
@@ -108,79 +132,94 @@ class Thumbnailer(object):
         self.pipeline.add(self.sink)
 
         # Link elements
-        self.src.link(self.demux)
-        self.dec.link(self.rate)
+        self.src.link(self.dec)
         self.rate.link(self.scale)
-        self.scale.link(self.enc, gst.caps_from_string('video/x-raw-yuv, height=126'))
+        self.scale.link(self.enc, gst.caps_from_string('video/x-raw-yuv, width=224, height=126'))
         self.enc.link(self.sink)
+
+    def seek_to_frame(self, frame):
+        print('seek_to_frame', self.frame)
+        self.count = 0
+        self.pipeline.seek_simple(
+            gst.FORMAT_TIME,
+            gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_KEY_UNIT, #gst.SEEK_FLAG_ACCURATE,
+            frame_to_ns(frame, self.framerate.num, self.framerate.denom)
+        )
+
+    def next(self):
+        print('next')
+        while True:
+            if self.i >= len(self.frames):
+                gobject.idle_add(self.kill)
+                return
+            self.frame = self.frames[self.i]
+            self.i += 1
+            if str(self.frame) in self.attachments:
+                print('already have frame', self.frame)
+                continue
+            else:
+                self.seek_to_frame(self.frame)
+                return
 
     def on_pad_added(self, element, pad):
         caps = pad.get_caps()[0]
-        if caps.get_name() == 'video/x-h264':
-            framerate = caps['framerate']
-            self.denom = framerate.denom
-            self.num = framerate.num
-            pad.link(self.dec.get_pad('sink'))
-            self.ns = self.frame * gst.SECOND * framerate.denom / framerate.num
-            self.pipeline.seek_simple(
-                gst.FORMAT_TIME,
-                gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_KEY_UNIT, #gst.SEEK_FLAG_ACCURATE,
-                self.ns
-            )
+        name = caps.get_name()
+        print('on_pad_added', name)
+        if name.startswith('video/'):
+            pad.link(self.rate.get_pad('sink'))
+
+    def on_notify_caps(self, pad, args):
+        caps = pad.get_negotiated_caps()
+        if not caps:
+            return
+        self.framerate = caps[0]['framerate']
+        print('on_notify_caps', self.framerate)
+        gobject.idle_add(self.next)
 
     def on_handoff(self, element, buf, pad):
+        frame = ns_to_frame(buf.timestamp, self.framerate.num, self.framerate.denom)
+        print('handoff', frame)
+        key = str(frame)
+        if key not in self.attachments:
+            self.changed = True
+            self.attachments[key] = {
+                'content_type': 'image/jpeg',
+                'data': b64encode(buf.data),
+            }
+        else:
+            print('got buffer for frame we arleady have', frame)
         self.count += 1
-        if self.count > 15:
-            print('skip', file=sys.stderr)
-            return
-        frame = int(round(buf.timestamp * self.num / self.denom / float(gst.SECOND)))
-        self.attachments[str(frame)] = {
-            'content_type': 'image/jpeg',
-            'data': b64encode(buf.data),
-        }
-        print('handoff', frame, self.count, file=sys.stderr)
-        if self.count == 15:
-            gobject.idle_add(self.kill)
-
-    def on_preroll_handoff(self, element, buf, pad):
-        print('preroll-handoff', self.ns, buf.timestamp, file=sys.stderr)
-        self.data = buf.data
-        gobject.idle_add(self.kill)
+        if frame >= self.frame and self.count >= KEYFRAME:
+            print('done', self.count, frame)
+            gobject.idle_add(self.next)
 
     def run(self):
         self.pipeline.set_state(gst.STATE_PLAYING)
         self.mainloop.run()
 
     def kill(self):
-        print('kill', file=sys.stderr)
+        print('kill')
         self.pipeline.set_state(gst.STATE_NULL)
         self.pipeline.get_state()
         self.mainloop.quit()
 
     def on_eos(self, bus, msg):
-        print('eos', file=sys.stderr)
+        print('eos')
         self.kill()
 
     def on_error(self, bus, msg):
         error = msg.parse_error()[1]
-        print(error, file=sys.stderr)
+        print(error)
         self.kill()
         sys.exit(2)
 
-
-filename = Dmedia.Resolve(_id)
-thumbnailer = Thumbnailer(filename, options.frame)
+thumbnailer = Thumbnailer(_id, frames)
 thumbnailer.run()
-
-try:
-    doc = db.get(_id)
-except NotFound:
-    doc = {
-        '_id': _id,
-        '_attachments': {},
-    }
-doc['_attachments'].update(thumbnailer.attachments)
-db.save(doc)
+if thumbnailer.changed:
+    print('saving changes')
+    db.save(thumbnailer.doc)
+else:
+    print('no changes to save')
 
 
 

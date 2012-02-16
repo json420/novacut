@@ -74,11 +74,10 @@ for doc in list(docs):
     assert 1 <= (stop - start) <= options.frames
     frames.append((stop - start))
 
-    _id = doc['_id']
-    for frame in (start, stop - 1): 
-        cmd = ['./novacut-thumbnailer', _id, '--frame', str(frame)]
-        print(cmd)
-        check_call(cmd)
+    _id = doc['_id'] 
+    cmd = ['./novacut-thumbnailer', _id, str(start), str(stop - 1)]
+    print(cmd)
+    check_call(cmd)
 
 
 seq = schema.create_sequence(slices)

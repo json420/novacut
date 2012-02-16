@@ -3,27 +3,25 @@
 }
 
 .slice {
-    margin: 8px 2px;
+    margin: 4px 2px;
     display: inline-block;
-    background-color: #333;
-    border: 1px solid #aaa;
+    background-color: #ddd;
 }
 
 .slice div {
-    width: 160px;
-    height: 90px;
-    padding: 2px 5px;
+    width: 192px;
+    height: 108px;
     text-align: right;
+    padding: 2px 6px;
+    box-sizing: border-box !important;
     font-family: "Ubuntu Mono";
     font-weight: bold;
+    background-color: #333;
     background-position: center center;
     background-size: cover;
     text-shadow: 0px 0px 10px black;
-
+    margin: 1px;
 }
 
-.slice div:first-child {
-    margin-bottom: 2px;
-}
 
 

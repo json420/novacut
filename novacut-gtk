@@ -70,8 +70,8 @@ class App(BaseApp):
         'copy_docs': ['src_db_name', 'dst_db_name', 'doc_ids'],
         'render': ['project_id', 'root_id', 'settings_id'],
         'render_finished': ['job_id', 'file_id'],
-        'thumbnail': ['file_id', 'chunk'],
-        'thumbnail_finished': ['file_id', 'chunk'],
+        'thumbnail': ['file_id', 'frames'],
+        'thumbnail_finished': ['file_id'],
     }
 
     __Renderer = None
@@ -88,8 +88,8 @@ class App(BaseApp):
             (job_id, file_id) = params.unpack()
             self.hub.send('render_finished', job_id, file_id)
         elif signal == 'ThumbnailFinished':
-            (file_id, chunk) = params.unpack()
-            self.hub.send('thumbnail_finished', file_id, chunk)
+            (file_id,) = params.unpack()
+            self.hub.send('thumbnail_finished', file_id)
 
     def connect_hub_signals(self, hub):
         hub.connect('create_project', self.on_create_project)
@@ -152,8 +152,8 @@ class App(BaseApp):
             return
         self.Renderer.Render('(s)', job_id)
 
-    def on_thumbnail(self, hub, file_id, chunk):
-        self.Renderer.Thumbnail('(si)', file_id, chunk)
+    def on_thumbnail(self, hub, file_id, frames):
+        self.Renderer.Thumbnail('(sai)', file_id, frames)
 
 
 app = App()
