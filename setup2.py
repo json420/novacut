@@ -134,7 +134,7 @@ setup(
     packages=['novacut2'],
     data_files=[
         ('lib/novacut',
-            ['novacut-renderer'],
+            ['novacut-renderer', 'novacut-thumbnailer'],
         ),
     ],
 )
