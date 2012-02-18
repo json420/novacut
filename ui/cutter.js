@@ -113,10 +113,9 @@ var Thumbs = {
 Hub.connect('thumbnail_finished', Thumbs.on_thumbnail_finished);
 
 
-var Frame = function(file_id, index) {
+var Frame = function(file_id) {
     this.file_id = file_id;
     this.element = $el('div');
-    this.set_index(index);
 }
 Frame.prototype = {
     set_index: function(index) {
@@ -133,6 +132,78 @@ Frame.prototype = {
 }
 
 
+var Slice = function(doc) {
+    this.element = $el('div', {'class': 'slice', 'id': doc._id});
+    var node = doc.node;
+
+    this.start = new Frame(node.src, node.start.frame);
+    this.element.appendChild(this.start.element);
+
+    this.end = new Frame(node.src, node.stop.frame - 1);
+    this.element.appendChild(this.end.element);
+
+    this._sync(node);
+
+    this.start.onmousewheel = function(event) {
+        self.on_mousewheel_start(event);
+    }
+    this.end.onmousewheel = function(event) {
+        self.on_mousewheel_end(event);
+    }
+}
+Slice.prototype = {
+    on_mousewheel_start: function(event) {
+        event.preventDefault();
+        var delta = wheel_delta(event);
+        var start = this.doc.node.start.frame;
+        var stop = this.doc.node.stop.frame;
+        var proposed = Math.max(0, Math.min(start + delta, stop - 1));
+        if (start != proposed) {
+            this.doc.node.start.frame = proposed;
+            this.save();
+        }   
+    },
+
+    on_mousewheel_end: function(event) {
+        event.preventDefault();
+        var delta = wheel_delta(event);
+        var start = this.doc.node.start.frame;
+        var stop = this.doc.node.stop.frame;
+        var proposed = Math.max(start + 1, Math.min(stop + delta, this.count));
+        if (stop != proposed) {
+            this.doc.node.stop.frame = proposed;
+            this.save();
+        }   
+    },
+
+    append_to: function(parent) {
+        parent.appendChild(this.element);
+    },
+
+    save: function() {
+        this._sync(this.doc.node);
+        this.session.mark(this.doc);
+        this.session.commit();
+    },
+
+    sync: function(doc) {
+        this.doc = doc;
+        var node = doc.node;
+        this.count = this.session.docs[node.src].duration.frames;
+        this._sync(node);
+    },
+
+    _sync: function(node) {
+        this.start.set_index(node.start.frame);
+        this.end.set_index(node.stop.frame - 1);
+    },
+    
+    
+}
+
+
+
+
 var UI = {
     init: function() {
         set_title('title', doc.title);
@@ -145,16 +216,8 @@ var UI = {
         var rows = req.read().rows;
         var sequence = $('sequence');
         rows.forEach(function(row) {
-            var slice = $el('div', {'class': 'slice', 'id': row.id});
-            var node = row.doc.node;
-
-            var start = new Frame(node.src, node.start.frame);
-            slice.appendChild(start.element);
-
-            var end = new Frame(node.src, node.stop.frame - 1);
-            slice.appendChild(end.element);
-
-            sequence.appendChild(slice);
+            var slice = new Slice(row.doc);
+            sequence.appendChild(slice.element);
         });
         Thumbs.init();
     },
