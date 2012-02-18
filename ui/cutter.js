@@ -1,12 +1,5 @@
 "use strict";
 
-var id = window.location.hash.slice(1);
-
-var doc = novacut.get_sync(id);
-var db = new couch.Database(doc.db_name);
-var doc = db.get_sync(id);
-
-
 var Thumbs = {
     db: new couch.Database('thumbnails'), 
 
@@ -115,13 +108,17 @@ Hub.connect('thumbnail_finished', Thumbs.on_thumbnail_finished);
 
 var Frame = function(file_id) {
     this.file_id = file_id;
+    this.index = null;
     this.element = $el('div');
 }
 Frame.prototype = {
     set_index: function(index) {
+        if (index === this.index) {
+            return;
+        }
         this.index = index;
         this.element.style.backgroundImage = null;
-        this.element.textContent = index + 1;
+        //this.element.textContent = index + 1;
         Thumbs.enqueue(this);
     },
 
@@ -132,22 +129,37 @@ Frame.prototype = {
 }
 
 
-var Slice = function(doc) {
-    this.element = $el('div', {'class': 'slice', 'id': doc._id});
-    var node = doc.node;
+function wheel_delta(event) {
+    var delta = event.wheelDeltaY;
+    if (delta == 0) {
+        return 0;
+    }
+    var scale = (event.shiftKey) ? -10 : -1;
+    return scale * (delta / Math.abs(delta));
+}
 
-    this.start = new Frame(node.src, node.start.frame);
+
+var Slice = function(session, doc) {
+    session.subscribe(doc._id, this.on_change, this);
+    this.session = session;
+    this.element = $el('div', {'class': 'slice', 'id': doc._id});
+
+    this.count = session.get_doc(doc.node.src).duration.frames;
+
+    var src = doc.node.src;
+    this.start = new Frame(src);
     this.element.appendChild(this.start.element);
 
-    this.end = new Frame(node.src, node.stop.frame - 1);
+    this.end = new Frame(src);
     this.element.appendChild(this.end.element);
 
-    this._sync(node);
+    this.on_change(doc, true);
 
-    this.start.onmousewheel = function(event) {
+    var self = this;
+    this.start.element.onmousewheel = function(event) {
         self.on_mousewheel_start(event);
     }
-    this.end.onmousewheel = function(event) {
+    this.end.element.onmousewheel = function(event) {
         self.on_mousewheel_end(event);
     }
 }
@@ -160,7 +172,8 @@ Slice.prototype = {
         var proposed = Math.max(0, Math.min(start + delta, stop - 1));
         if (start != proposed) {
             this.doc.node.start.frame = proposed;
-            this.save();
+            this.session.save(this.doc);
+            this.session.commit();
         }   
     },
 
@@ -172,54 +185,60 @@ Slice.prototype = {
         var proposed = Math.max(start + 1, Math.min(stop + delta, this.count));
         if (stop != proposed) {
             this.doc.node.stop.frame = proposed;
-            this.save();
+            this.session.save(this.doc);
+            this.session.commit();
         }   
     },
 
-    append_to: function(parent) {
-        parent.appendChild(this.element);
-    },
-
-    save: function() {
-        this._sync(this.doc.node);
-        this.session.mark(this.doc);
-        this.session.commit();
-    },
-
-    sync: function(doc) {
+    on_change: function(doc, no_flush) {
         this.doc = doc;
         var node = doc.node;
-        this.count = this.session.docs[node.src].duration.frames;
-        this._sync(node);
-    },
-
-    _sync: function(node) {
         this.start.set_index(node.start.frame);
         this.end.set_index(node.stop.frame - 1);
+        if (!no_flush) {
+            Thumbs.flush();
+        }
     },
-    
-    
 }
 
 
+var Sequence = function(session, doc) {
+    this.element = $el('div', {'class': 'sequence', 'id': doc._id});
+    session.subscribe(doc._id, this.on_change, this);
+    this.session = session;
+    this.on_change(doc);
+}
+Sequence.prototype = {
+    on_change: function(doc) {
+        this.doc = doc;
+        doc.node.src.forEach(function(_id) {
+            console.log(_id);
+            var slice = new Slice(this.session, this.session.get_doc(_id));
+            this.element.appendChild(slice.element);
+        }, this);
+        Thumbs.flush();
+    },
+}
 
 
 var UI = {
     init: function() {
-        set_title('title', doc.title);
-        var seq = db.get_sync(doc.root_id);
-        db.post(UI.on_rows, {keys: seq.node.src}, '_all_docs', {include_docs: true});
+        var id = window.location.hash.slice(1);
+        var doc = novacut.get_sync(id);
+        UI.db = new couch.Database(doc.db_name);
+        UI.project = UI.db.get_sync(id);
+
+        set_title('title', UI.project.title);
+        UI.session = new couch.Session(UI.db, UI.on_new_doc);
+        UI.session.start();
 
     },
 
-    on_rows: function(req) {
-        var rows = req.read().rows;
-        var sequence = $('sequence');
-        rows.forEach(function(row) {
-            var slice = new Slice(row.doc);
-            sequence.appendChild(slice.element);
-        });
-        Thumbs.init();
+    on_new_doc: function(doc) {
+        if (doc._id == UI.project.root_id) {
+            UI.sequence = new Sequence(UI.session, doc);
+            document.body.appendChild(UI.sequence.element);
+        }
     },
 }
 
