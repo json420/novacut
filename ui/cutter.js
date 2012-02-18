@@ -109,7 +109,11 @@ Hub.connect('thumbnail_finished', Thumbs.on_thumbnail_finished);
 var Frame = function(file_id) {
     this.file_id = file_id;
     this.index = null;
-    this.element = $el('div');
+    this.element = $el('div', {'class': 'frame'});
+    this.img = $el('img');
+    this.element.appendChild(this.img);
+    this.info = $el('div');
+    this.element.appendChild(this.info);
 }
 Frame.prototype = {
     set_index: function(index) {
@@ -117,13 +121,12 @@ Frame.prototype = {
             return;
         }
         this.index = index;
-        this.element.style.backgroundImage = null;
-        this.element.textContent = index + 1;
+        this.info.textContent = index + 1;
         Thumbs.enqueue(this);
     },
 
     request_thumbnail: function() {
-        this.element.style.backgroundImage = Thumbs.db.att_css_url(this.file_id, this.index.toString());
+        this.img.src = Thumbs.db.att_url(this.file_id, this.index.toString());
     },
 
 }
@@ -139,6 +142,21 @@ function wheel_delta(event) {
 }
 
 
+function SliceIndicator() {
+    this.element = $el('div', {'class': 'indicator'});
+    this.bar = $el('div');
+    this.element.appendChild(this.bar);
+}
+SliceIndicator.prototype = {
+    update: function(start, stop, count) {
+        var left = 100 * start / count;
+        var right = 100 - (100 * stop / count);
+        this.bar.style.left = left.toFixed(1) + '%';
+        this.bar.style.right = right.toFixed(1) + '%';  
+    },
+}
+
+
 var Slice = function(session, doc) {
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
@@ -149,6 +167,9 @@ var Slice = function(session, doc) {
     var src = doc.node.src;
     this.start = new Frame(src);
     this.element.appendChild(this.start.element);
+
+    this.indicator = new SliceIndicator();
+    this.element.appendChild(this.indicator.element);
 
     this.end = new Frame(src);
     this.element.appendChild(this.end.element);
@@ -193,6 +214,7 @@ Slice.prototype = {
     on_change: function(doc, no_flush) {
         this.doc = doc;
         var node = doc.node;
+        this.indicator.update(node.start.frame, node.stop.frame, this.count);
         this.start.set_index(node.start.frame);
         this.end.set_index(node.stop.frame - 1);
         if (!no_flush) {
@@ -212,7 +234,6 @@ Sequence.prototype = {
     on_change: function(doc) {
         this.doc = doc;
         doc.node.src.forEach(function(_id) {
-            console.log(_id);
             var slice = new Slice(this.session, this.session.get_doc(_id));
             this.element.appendChild(slice.element);
         }, this);
