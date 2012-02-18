@@ -118,7 +118,7 @@ Frame.prototype = {
         }
         this.index = index;
         this.element.style.backgroundImage = null;
-        //this.element.textContent = index + 1;
+        this.element.textContent = index + 1;
         Thumbs.enqueue(this);
     },
 
