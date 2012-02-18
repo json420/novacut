@@ -123,7 +123,7 @@ Frame.prototype = {
     },
 
     request_thumbnail: function() {
-        this.element.style.backgroundImage = Thumbs.db.att_css_url(this.file_id, this.index);
+        this.element.style.backgroundImage = Thumbs.db.att_css_url(this.file_id, this.index.toString());
     },
 
 }
