@@ -33,26 +33,23 @@ body {
     line-height: 1.6em;
     text-align: center;
     left: 0px;
-    -webkit-transition: all 200ms;
+    -webkit-transition: left 150ms ease-in-out;
 }
 
 .right {
     left: 130px;
-    position: relative;
-    -webkit-transition: left 200ms;
+    -webkit-transition: left 150ms ease-in-out;
     background-color: #c9c;
 }
 
 .left {
     left: -130px;
-    position: relative;
-    -webkit-transition: left 200ms;
+    -webkit-transition: left 150ms ease-in-out;
     background-color: #9cc;
 }
 
 .grabbed {
     -webkit-transition-property: none;
-    position: relative;
     z-index: 10;
     background-color: #ccc;
 }

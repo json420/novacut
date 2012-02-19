@@ -38,7 +38,12 @@ Box.prototype = {
     },
 
     set y(value) {
-        this.element.style.top = value + 'px';
+        if (value === null) {
+            this.element.style.top = null;
+        }
+        else {
+            this.element.style.top = value + 'px';
+        }
     },
 
     grab: function() {
@@ -86,11 +91,9 @@ Box.prototype = {
             var rdx = dx - (130 * this.pos);
             if (rdx < -75) {
                 this.shift_right();
-                console.log(this.pos);
             }
             else if (rdx > 75) {
                 this.shift_left();
-                console.log(this.pos);
             }
         }
     },
