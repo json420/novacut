@@ -213,7 +213,7 @@ var Slice = function(session, doc) {
     this.element.onmousedown = function(e) {
         return self.on_mousedown(e);
     }
-    this.size = 192;
+    this.size = 192 + 6;
     this.threshold = this.size * 0.6;
 }
 Slice.prototype = {
@@ -290,8 +290,10 @@ Slice.prototype = {
         console.log('ungrab');
         this.grabbed = false;
         this.x = null;
+        this.y = null;
         this.element.classList.add('home');
         this.element.classList.remove('grabbed');
+        this.element.classList.remove('free');
         var children = Array.prototype.slice.call(this.element.parentNode.children);
         children.forEach(function(child) {
             child.classList.remove('right');
@@ -314,7 +316,10 @@ Slice.prototype = {
         }
         window.addEventListener('mousemove', tmp.on_mousemove);
         window.addEventListener('mouseup', tmp.on_mouseup);
-        this.orig_x = event.screenX;
+        this.offsetX = event.offsetX;
+        this.offsetY = event.offsetY;
+        this.origX = event.screenX;
+        this.origY = event.screenY;
         this.grab();
     },
 
@@ -327,7 +332,22 @@ Slice.prototype = {
 
     on_mousemove: function(event) {
         $halt(event);
-        var dx = event.screenX - this.orig_x;
+        if (this.element.classList.contains('grabbed')) {
+            this.do_grabbed(event);
+        }
+        else if (this.element.classList.contains('free')) {
+            this.do_free(event);
+        }
+    },
+
+    do_grabbed: function(event) {
+        var dy = event.screenY - this.origY;
+        if (dy < -60) {
+            this.element.classList.remove('grabbed');
+            this.element.classList.add('free');
+            return this.do_free(event);
+        }
+        var dx = event.screenX - this.origX;
         this.x = dx;
         var rdx = dx - (this.size * this.pos);
         if (rdx < -this.threshold) {
@@ -336,6 +356,11 @@ Slice.prototype = {
         else if (rdx > this.threshold) {
             this.shift_left();
         }
+    },
+
+    do_free: function(event) {
+        this.x = event.clientX - this.offsetX;
+        this.y = event.clientY - this.offsetY;
     },
 
     shift_right: function() {

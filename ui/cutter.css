@@ -5,7 +5,7 @@
     left: 0;
     right: 0;
 
-    background-color: #444;
+    background-color: #333;
     font-size: 0;
     line-height: 0;
     white-space: nowrap;
@@ -15,29 +15,37 @@
 
 .slice {
     display: inline-block;
+    border: 1px solid #ccc;
+    background-color: #555;
+    margin: 2px;
+}
+
+
+.right, .left, .neutral {
+    position: relative;
+    -webkit-transition: left 125ms ease-in-out;
 }
 
 .right {
-    left: 192px;
-    position: relative;
-    -webkit-transition: left 150ms ease-in-out;
+    left: 198px;
 }
 
 .left {
-    left: -192px;
-    position: relative;
-    -webkit-transition: left 150ms ease-in-out;
+    left: -198px;
 }
 
 .neutral {
     left: 0px;
-    position: relative;
-    -webkit-transition: left 150ms ease-in-out;
 }
 
 .grabbed {
     position: relative;
     -webkit-transition-property: none;
+    z-index: 10;
+}
+
+.free {
+    position: fixed;
     z-index: 10;
 }
 
@@ -51,18 +59,20 @@
 
 .frame {
     position: relative;
-    background-color: black;
-    
+}
+
+.frame:first-child {
+    border-bottom: 1px solid #ccc;
 }
 
 .frame img {
     margin: 0;
     padding: 0;
+    border-width: 0;
     display: block;
     width: 192px;
     height: 108px;
     pointer-events: none;
-    margin: 2px;
 }
 
 
