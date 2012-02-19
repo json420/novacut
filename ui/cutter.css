@@ -1,14 +1,19 @@
-#sequence {
+.sequence {
     font-size: 0;
+    white-space: nowrap;
+    overflow: auto;
+    width: auto;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
 }
 
 .slice {
-    margin: 4px;
+    margin: 0px;
     display: inline-block;
-    background-color: #ccc;
-    border: 1px solid white;
+    border: 1px solid #ccc;
 }
-
 
 .frame {
     position: relative;
@@ -19,8 +24,8 @@
     margin: 0;
     padding: 0;
     display: block;
-    width: 224px;
-    height: 126px;
+    width: 192px;
+    height: 108px;
 }
 
 
@@ -40,7 +45,7 @@
 }
 
 .indicator {
-    height: 4px;
+    height: 2px;
     background-color: black;
     position: relative;
 }
