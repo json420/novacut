@@ -1,3 +1,7 @@
+body {
+    background-color: black;
+}
+
 #sequence {
     overflow: hidden;
     position: fixed;
@@ -10,41 +14,44 @@
     line-height: 0;
     white-space: nowrap;
 
-    padding: 15px;
+    padding: 10px 5px;
     
     -webkit-user-select: none;
 }
 
 .slice {
     display: inline-block;
-    box-sizing: border-box !important;
+    position: relative;
     width: 120px;
     height: 120px;
+    margin: 5px;
+
     background-color: white;
     color: black;
-    margin: 5px;
     font-family: 'Ubuntu Mono';
     font-size: 18px;
     line-height: 1.6em;
     text-align: center;
+    left: 0px;
+    -webkit-transition: all 200ms;
 }
 
-.dummy {
-    display: inline-block;
-    box-sizing: border-box !important;
-    width: 120px;
-    height: 120px;
-    background-color: #ddd;
-    color: black;
-    margin: 5px;
-    font-family: 'Ubuntu Mono';
-    font-size: 18px;
-    line-height: 1.6em;
-    text-align: center;
+.right {
+    left: 130px;
+    position: relative;
+    -webkit-transition: left 200ms;
+    background-color: #c9c;
 }
 
+.left {
+    left: -130px;
+    position: relative;
+    -webkit-transition: left 200ms;
+    background-color: #9cc;
+}
 
 .grabbed {
+    -webkit-transition-property: none;
     position: relative;
     z-index: 10;
     background-color: #ccc;
