@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<style>
+body {
+    font-family: Ubuntu;
+    font-size: 15px;
+}
+
+#source, #target {
+    display: inline-block;
+    width: 150px;
+    height: 150px;
+    background-color: #eee;
+    text-align: center;
+    margin: 10px;
+}
+
+</style>
+
+<script>
+
+
+window.onload = function() {
+    var source = document.getElementById('source');
+    
+    source.ondragstart = function(event) {
+        console.log('source_dragstart');
+        console.log(event.dataTransfer);
+        event.dataTransfer.setData('text/plain', 'foobar');
+        event.dataTransfer.effectAllowed = 'move';
+
+    }
+
+    var target = document.getElementById('target');
+
+    target.ondragenter = function(event) {
+        console.log('target_dragenter');
+        event.preventDefault();   
+    }
+
+    target.ondragover = function(event) {
+        console.log('target_dragover');
+        event.preventDefault();   
+    }
+
+    target.ondrop = function(event) {
+        console.log('target_drop');
+        console.log(event.dataTransfer);
+        var data = event.dataTransfer.getData('text/plain');
+        target.textContent = data;
+    } 
+
+}
+</script>
+
+</head>
+<body>
+<div id="source" draggable="true">Drag This</div>
+<div id="target">Drop Here</div>
+</body>
+</html>

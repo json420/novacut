@@ -157,10 +157,25 @@ SliceIndicator.prototype = {
 }
 
 
+function $halt(event) {
+    event.preventDefault();
+    event.stopPropagation();
+}
+
+
+function $unparent(id) {
+    var child = $(id);
+    if (child && child.parentNode) {
+        child.parentNode.removeChild(child);
+    }
+    return child;
+}
+
+
 var Slice = function(session, doc) {
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
-    this.element = $el('div', {'class': 'slice', 'id': doc._id});
+    this.element = $el('div', {'class': 'slice', 'id': doc._id, 'draggable': true});
 
     this.count = session.get_doc(doc.node.src).duration.frames;
 
@@ -183,10 +198,24 @@ var Slice = function(session, doc) {
     this.end.element.onmousewheel = function(event) {
         self.on_mousewheel_end(event);
     }
+
+    this.element.addEventListener('dragstart', $bind(this.on_dragstart, this));
+    this.element.addEventListener('dblclick', $bind(this.on_dblclick, this));
 }
 Slice.prototype = {
+    on_dragstart: function(event) {
+        console.log(['dragstart', this.doc._id].join(' '));
+        event.dataTransfer.setData('text/plain', this.doc._id);
+        event.dataTransfer.effectAllowed = 'move';
+    },
+
+    on_dblclick: function(event) {
+        console.log('dblclick');
+    },
+
     on_mousewheel_start: function(event) {
         event.preventDefault();
+        event.stopPropagation();
         var delta = wheel_delta(event);
         var start = this.doc.node.start.frame;
         var stop = this.doc.node.stop.frame;
@@ -200,6 +229,7 @@ Slice.prototype = {
 
     on_mousewheel_end: function(event) {
         event.preventDefault();
+        event.stopPropagation();
         var delta = wheel_delta(event);
         var start = this.doc.node.start.frame;
         var stop = this.doc.node.stop.frame;
@@ -226,19 +256,52 @@ Slice.prototype = {
 
 var Sequence = function(session, doc) {
     this.element = $el('div', {'class': 'sequence', 'id': doc._id});
+    //this.items = new Items(this.element);
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
     this.on_change(doc);
+    this.element.onmousewheel = $bind(this.on_mousewheel, this);
+
+    this.element.ondragenter = $bind(this.on_dragenter, this);
+    this.element.ondragover = $bind(this.on_dragover, this);
+    this.element.ondrop = $bind(this.on_drop, this);
 }
 Sequence.prototype = {
     on_change: function(doc) {
         this.doc = doc;
+        var self = this;
         doc.node.src.forEach(function(_id) {
             var slice = new Slice(this.session, this.session.get_doc(_id));
-            this.element.appendChild(slice.element);
+//            slice.element.onclick = function() {
+//                self.items.select(_id);
+//            }
+            this.append(slice);
         }, this);
         Thumbs.flush();
     },
+
+    append: function(child) {
+        this.element.appendChild(child.element);
+    },
+
+    on_mousewheel: function(event) {
+        $halt(event);
+        var delta = wheel_delta(event) * 194;  // 192px width + 1px border
+        this.element.scrollLeft += delta;
+    },
+
+    on_dragenter: function(event) {
+        event.preventDefault();
+    },
+
+    on_dragover: function(event) {
+        event.preventDefault();
+    },
+
+    on_drop: function(event) {
+        var _id = event.dataTransfer.getData('text/plain');
+        console.log(['drop', _id].join(' '));
+    } 
 }
 
 

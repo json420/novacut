@@ -1,18 +1,29 @@
 .sequence {
-    font-size: 0;
-    white-space: nowrap;
-    overflow: auto;
-    width: auto;
+    overflow: hidden;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
+
+    background-color: #444;
+    font-size: 0;
+    line-height: 0;
+    white-space: nowrap;
+
+    padding: 15px;
+    
+    -webkit-user-select: none;
 }
 
 .slice {
-    margin: 0px;
     display: inline-block;
-    border: 1px solid #ccc;
+    border: 1px solid #ddd;
+    margin: 1px;
+}
+
+.slice.selected {
+    /*box-shadow: 0 0 10px #e81f3b;*/
+    border-color: #e81f3b; 
 }
 
 .frame {
@@ -26,6 +37,7 @@
     display: block;
     width: 192px;
     height: 108px;
+    -webkit-user-drag: none;
 }
 
 
@@ -42,6 +54,7 @@
     font-size: 15px;
     color: white;
     text-shadow: 0px 0px 10px black;
+    cursor: default;
 }
 
 .indicator {
