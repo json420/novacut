@@ -21,6 +21,10 @@
     margin: 1px;
 }
 
+.dummy {
+    display: inline-block;
+}
+
 .slice.selected {
     /*box-shadow: 0 0 10px #e81f3b;*/
     border-color: #e81f3b; 

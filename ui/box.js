@@ -1,12 +1,8 @@
 "use strict";
 
-var Box = function(db, doc) {
-    this.db = db;
-    this.element = document.createElement("div");
-    this.element.classList.add("thumb");
-    this.clicked = false;
-    this.sync(doc);
-
+var Box = function(id) {
+    this.element = $el('div', {'class': 'slice', 'id': id, 'textContent': id});
+    this.grabbed = false;
     var self = this;
     this.element.onmousedown = function(e) {
         return self.on_mousedown(e);
@@ -22,99 +18,62 @@ var Box = function(db, doc) {
     }
 }
 Box.prototype = {
-    sync: function(doc) {
-        this.doc = doc;
-        if (this.clicked) {
-            return;
-        }
-        this.x = doc.x;
-        this.y = doc.y;
-        this.element.textContent = this._x + ', ' + this._y;
-    },
-
     set x(value) {
-        this._x = value;
         this.element.style.left = value + 'px';
     },
 
     set y(value) {
-        this._y = value;
         this.element.style.top = value + 'px';
     },
 
-    finish: function(e) {
-        this.clicked = false;
-        this.element.textContent = this._x + ', ' + this._y;
-        if (this.doc.x == this._x && this.doc.y == this._y) {
-            return;
-        }
-        this.doc.x = this._x;
-        this.doc.y = this._y;
-        this.db.dirty(this.doc);
-        this.db.commit();
+    grab: function() {
+        this.grabbed = true;
+        this.element.classList.add('grabbed');
     },
 
-    on_mousedown: function(e) {
-        e.preventDefault();
-        this.clicked  = true;
-        this.offsetX = e.offsetX;
-        this.offsetY = e.offsetY;
+    ungrab: function() {
+        this.grabbed = false;
+        this.element.classList.remove('grabbed');
+    },
+
+    on_mousedown: function(event) {
+        event.preventDefault();
+        this.orig_x = event.screenX;
+        this.orig_y = event.screenY;
+        this.x = 0;
+        this.y = 0;
+        this.grab();
     },
 
     on_mouseup: function(e) {
-        if (this.clicked === true) {
-            this.finish();
+        if (this.grabbed === true) {
+            this.ungrab();
         }
     },
 
     on_mouseout: function(e) {
-        if (this.clicked === true) {
-            this.finish();
+        if (this.grabbed === true) {
+            this.ungrab();
         }
     },
 
-    on_mousemove: function(e) {
-        if (this.clicked === true) {
-            this.x = e.clientX - this.offsetX;
-            this.y = e.clientY - this.offsetY;
+    on_mousemove: function(event) {
+        if (this.grabbed === true) {
+            event.preventDefault();
+            var dx = event.screenX - this.orig_x;
+            this.x = dx;
         }
     },  
 }
 
-
-var db = new couch.Database('box');
 var boxes = {};
 
-function init_box(_id) {
-    try {
-        var doc = db.get(_id);
-    }
-    catch (e) {
-        var doc = {_id: _id, x: 20, y: 20};
-        db.save(doc);
-    }
-    var box = new Box(db, doc);
-    boxes[_id] = box;
-    document.body.appendChild(box.element);
-}
-
-
-function on_changes(r) {
-    r.results.forEach(function(row) {
-        var doc = row.doc;
-        if (boxes[doc._id]) {
-            boxes[doc._id].sync(doc);
-        }
-    });
-}
-
-
 function boxit() {
-    var r = db.get('_all_docs');
-    r.rows.forEach(function(row) {
-        init_box(row.id);
-    });
-    var since = db.get().update_seq;
-    var m = db.monitor_changes(on_changes, since);
+    var sequence = $('sequence');
+    ['A', 'B', 'C'].forEach(function(id) {
+        var box = new Box(id);
+        boxes[id] = box;
+        sequence.appendChild(box.element); 
+    });    
 }
 

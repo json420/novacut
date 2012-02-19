@@ -172,10 +172,20 @@ function $unparent(id) {
 }
 
 
+function $swap(a, b) {
+    var a_dummy = document.createElement('div');
+    var b_dummy = document.createElement('div');
+    var a = $replace(a, a_dummy);
+    var b = $replace(b, b_dummy);
+    $replace(a_dummy, b);
+    $replace(b_dummy, a);
+}
+
+
 var Slice = function(session, doc) {
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
-    this.element = $el('div', {'class': 'slice', 'id': doc._id, 'draggable': true});
+    this.element = $el('div', {'class': 'slice', 'id': doc._id});
 
     this.count = session.get_doc(doc.node.src).duration.frames;
 
@@ -199,20 +209,8 @@ var Slice = function(session, doc) {
         self.on_mousewheel_end(event);
     }
 
-    this.element.addEventListener('dragstart', $bind(this.on_dragstart, this));
-    this.element.addEventListener('dblclick', $bind(this.on_dblclick, this));
 }
 Slice.prototype = {
-    on_dragstart: function(event) {
-        console.log(['dragstart', this.doc._id].join(' '));
-        event.dataTransfer.setData('text/plain', this.doc._id);
-        event.dataTransfer.effectAllowed = 'move';
-    },
-
-    on_dblclick: function(event) {
-        console.log('dblclick');
-    },
-
     on_mousewheel_start: function(event) {
         event.preventDefault();
         event.stopPropagation();
