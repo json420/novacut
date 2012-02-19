@@ -193,8 +193,8 @@ var Slice = function(session, doc) {
     this.start = new Frame(src);
     this.element.appendChild(this.start.element);
 
-    this.indicator = new SliceIndicator();
-    this.element.appendChild(this.indicator.element);
+    //this.indicator = new SliceIndicator();
+    //this.element.appendChild(this.indicator.element);
 
     this.end = new Frame(src);
     this.element.appendChild(this.end.element);
@@ -209,6 +209,12 @@ var Slice = function(session, doc) {
         self.on_mousewheel_end(event);
     }
 
+    this.grabbed = false;
+    this.element.onmousedown = function(e) {
+        return self.on_mousedown(e);
+    }
+    this.size = 192;
+    this.threshold = this.size * 0.6;
 }
 Slice.prototype = {
     on_mousewheel_start: function(event) {
@@ -242,13 +248,129 @@ Slice.prototype = {
     on_change: function(doc, no_flush) {
         this.doc = doc;
         var node = doc.node;
-        this.indicator.update(node.start.frame, node.stop.frame, this.count);
+        //this.indicator.update(node.start.frame, node.stop.frame, this.count);
         this.start.set_index(node.start.frame);
         this.end.set_index(node.stop.frame - 1);
         if (!no_flush) {
             Thumbs.flush();
         }
     },
+    
+    set x(value) {
+        if (value === null) {
+            this.element.style.left = null;
+        }
+        else {
+            this.element.style.left = value + 'px';
+        }
+    },
+
+    set y(value) {
+        if (value === null) {
+            this.element.style.top = null;
+        }
+        else {
+            this.element.style.top = value + 'px';
+        }
+    },
+
+    grab: function() {
+        this.grabbed = true;
+        this.target = this.element;
+        this.pos = 0;
+        this.x = 0;
+        var children = Array.prototype.slice.call(this.element.parentNode.children);
+        children.forEach(function(child) {
+            child.classList.remove('home');
+        });
+        this.element.classList.add('grabbed');
+    },
+
+    ungrab: function() {
+        console.log('ungrab');
+        this.grabbed = false;
+        this.x = null;
+        this.element.classList.add('home');
+        this.element.classList.remove('grabbed');
+        var children = Array.prototype.slice.call(this.element.parentNode.children);
+        children.forEach(function(child) {
+            child.classList.remove('right');
+            child.classList.remove('left');
+            child.classList.remove('neutral');
+        });
+    },
+
+    on_mousedown: function(event) {
+        $halt(event);
+        var self = this;
+        var tmp = {};
+        tmp.on_mousemove = function(event) {
+            self.on_mousemove(event);
+        }
+        tmp.on_mouseup = function(event) {
+            self.ungrab();
+            window.removeEventListener('mousemove', tmp.on_mousemove);
+            window.removeEventListener('mouseup', tmp.on_mouseup);
+        }
+        window.addEventListener('mousemove', tmp.on_mousemove);
+        window.addEventListener('mouseup', tmp.on_mouseup);
+        this.orig_x = event.screenX;
+        this.grab();
+    },
+
+    on_mouseout: function(e) {
+        console.log('mouseout');
+        if (this.grabbed === true) {
+            this.ungrab();
+        }
+    },
+
+    on_mousemove: function(event) {
+        $halt(event);
+        var dx = event.screenX - this.orig_x;
+        this.x = dx;
+        var rdx = dx - (this.size * this.pos);
+        if (rdx < -this.threshold) {
+            this.shift_right();
+        }
+        else if (rdx > this.threshold) {
+            this.shift_left();
+        }
+    },
+
+    shift_right: function() {
+        if (!this.target.previousSibling) {
+            return;
+        }
+        this.pos -= 1;
+        if (this.target.classList.contains('left')) {
+            this.target.classList.add('neutral');
+            this.target.classList.remove('left');
+        }
+        else {
+            this.target.previousSibling.classList.add('right');
+            this.target.previousSibling.classList.remove('neutral');
+        }
+        this.target = this.target.previousSibling;
+    },
+
+    shift_left: function() {
+        if (!this.target.nextSibling) {
+            return;
+        }
+        this.pos += 1;
+        if (this.target.classList.contains('right')) {
+            this.target.classList.add('neutral');
+            this.target.classList.remove('right');
+        }
+        else {
+            this.target.nextSibling.classList.add('left');
+            this.target.nextSibling.classList.remove('neutral');
+        }
+        this.target = this.target.nextSibling;
+
+    },
+    
 }
 
 

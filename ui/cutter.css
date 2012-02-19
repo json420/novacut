@@ -11,30 +11,48 @@
     white-space: nowrap;
 
     padding: 15px;
-
-    -webkit-user-select: none;
 }
 
 .slice {
     display: inline-block;
-    border: 1px solid #ddd;
-    margin: 1px;
 }
 
-.dummy {
-    display: inline-block;
+.right {
+    left: 192px;
+    position: relative;
+    -webkit-transition: left 150ms ease-in-out;
 }
 
-.slice.selected {
-    /*box-shadow: 0 0 10px #e81f3b;*/
-    border-color: #e81f3b; 
+.left {
+    left: -192px;
+    position: relative;
+    -webkit-transition: left 150ms ease-in-out;
 }
 
+.neutral {
+    left: 0px;
+    position: relative;
+    -webkit-transition: left 150ms ease-in-out;
+}
+
+.grabbed {
+    position: relative;
+    -webkit-transition-property: none;
+    z-index: 10;
+}
+
+.home {
+    left: 0px;
+    z-index: 5;
+    position: relative;
+    -webkit-transition: left 500ms ease-in-out;
+}
 
 
 .frame {
     position: relative;
-    background-color: #333;
+    background-color: black;
+    
 }
 
 .frame img {
@@ -43,7 +61,8 @@
     display: block;
     width: 192px;
     height: 108px;
-    -webkit-user-drag: none;
+    pointer-events: none;
+    margin: 2px;
 }
 
 
@@ -61,22 +80,26 @@
     color: white;
     text-shadow: 0px 0px 10px black;
     cursor: default;
+    
+    pointer-events: none;
 }
 
 .indicator {
     height: 2px;
     background-color: black;
     position: relative;
+    pointer-events: none;
 }
 
 .indicator div {
     position: absolute;
-    z-index: 10;
+    z-index: 5;
     top: 0;
     bottom: 0;
     left: 0%;
     right: 0%;
     background-color: #e81f3b;
+    pointer-events: none;
 }
 
 
