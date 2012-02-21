@@ -215,6 +215,8 @@ var Slice = function(session, doc) {
     }
     this.size = 192 + 6;
     this.threshold = this.size * 0.6;
+    
+    this.onreorder = null;
 }
 Slice.prototype = {
     on_mousewheel_start: function(event) {
@@ -288,19 +290,40 @@ Slice.prototype = {
     },
 
     ungrab: function() {
-        console.log('ungrab');
         this.grabbed = false;
         this.x = null;
         this.y = null;
-        this.element.classList.add('home');
         this.element.classList.remove('grabbed');
         this.element.classList.remove('free');
-        var children = Array.prototype.slice.call(this.element.parentNode.children);
-        children.forEach(function(child) {
+        var i, me, child;
+        var parent = this.element.parentNode;
+        for (i=0; i<parent.children.length; i++) {
+            child = parent.children[i];
+            if (child == this.element) {
+                me = i;
+            }
             child.classList.remove('right');
             child.classList.remove('left');
             child.classList.remove('neutral');
-        });
+        }
+        if (this.pos != 0) {
+            console.log(this.pos);
+            var target = parent.children[me + this.pos];
+            parent.removeChild(this.element);
+            if (this.pos < 0) {
+                parent.insertBefore(this.element, target);
+            }
+            else {
+                parent.insertBefore(this.element, target.nextSibling);
+            }
+            if (this.onreorder) {
+                this.onreorder();
+            }
+        }
+        else {
+            this.element.classList.add('home');  
+        }
+
     },
 
     on_mousedown: function(event) {
@@ -401,6 +424,20 @@ Slice.prototype = {
 }
 
 
+Array.prototype.compare = function(other) {
+    if (this.length != other.length) {
+        return false;
+    }
+    var i;
+    for (i in this) {
+        if (this[i] != other[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+
 var Sequence = function(session, doc) {
     this.element = $el('div', {'class': 'sequence', 'id': doc._id});
     //this.items = new Items(this.element);
@@ -415,16 +452,30 @@ var Sequence = function(session, doc) {
 }
 Sequence.prototype = {
     on_change: function(doc) {
+        console.log('onchange');
         this.doc = doc;
-        var self = this;
+        if (this.doc.node.src.compare(this.get_src())) {
+            console.log('  no change');
+            return;
+        }
+        this.element.innerHTML = null;
+        var on_reorder = $bind(this.on_reorder, this);
         doc.node.src.forEach(function(_id) {
             var slice = new Slice(this.session, this.session.get_doc(_id));
-//            slice.element.onclick = function() {
-//                self.items.select(_id);
-//            }
+            slice.onreorder = on_reorder;
             this.append(slice);
         }, this);
         Thumbs.flush();
+    },
+
+    get_src: function() {
+        var i, child;
+        var src = [];
+        for (i=0; i<this.element.children.length; i++) {
+            child = this.element.children[i];
+            src.push(child.id);
+        }
+        return src;
     },
 
     append: function(child) {
@@ -437,18 +488,12 @@ Sequence.prototype = {
         this.element.scrollLeft += delta;
     },
 
-    on_dragenter: function(event) {
-        event.preventDefault();
+    on_reorder: function() {
+        console.log('reorder');
+        this.doc.node.src = this.get_src();
+        this.session.save(this.doc);
+        this.session.commit();
     },
-
-    on_dragover: function(event) {
-        event.preventDefault();
-    },
-
-    on_drop: function(event) {
-        var _id = event.dataTransfer.getData('text/plain');
-        console.log(['drop', _id].join(' '));
-    } 
 }
 
 

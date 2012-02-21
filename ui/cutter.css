@@ -56,6 +56,10 @@
     -webkit-transition: left 500ms ease-in-out;
 }
 
+.done {
+    border-color: #e81f3b;
+}
+
 
 .frame {
     position: relative;
