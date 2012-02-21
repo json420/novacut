@@ -209,7 +209,6 @@ var Slice = function(session, doc) {
         self.on_mousewheel_end(event);
     }
 
-    this.grabbed = false;
     this.element.onmousedown = function(e) {
         return self.on_mousedown(e);
     }
@@ -277,7 +276,6 @@ Slice.prototype = {
     },
 
     grab: function() {
-        this.grabbed = true;
         this.target = this.element;
         this.pos = 0;
         this.x = 0;
@@ -290,7 +288,6 @@ Slice.prototype = {
     },
 
     ungrab: function() {
-        this.grabbed = false;
         this.x = null;
         this.y = null;
         this.element.classList.remove('grabbed');
@@ -323,7 +320,6 @@ Slice.prototype = {
         else {
             this.element.classList.add('home');  
         }
-
     },
 
     on_mousedown: function(event) {
@@ -347,16 +343,9 @@ Slice.prototype = {
         this.grab();
     },
 
-    on_mouseout: function(e) {
-        console.log('mouseout');
-        if (this.grabbed === true) {
-            this.ungrab();
-        }
-    },
-
     on_mousemove: function(event) {
         $halt(event);
-        return this.do_grabbed(event);
+        //return this.do_grabbed(event);
         if (this.element.classList.contains('grabbed')) {
             this.do_grabbed(event);
         }
@@ -367,11 +356,11 @@ Slice.prototype = {
 
     do_grabbed: function(event) {
         var dy = event.screenY - this.origY;
-//        if (dy < -108) {
-//            this.element.classList.remove('grabbed');
-//            this.element.classList.add('free');
-//            return this.do_free(event);
-//        }
+        if (dy < -108) {
+            this.element.classList.remove('grabbed');
+            this.element.classList.add('free');
+            return this.do_free(event);
+        }
         var dx = event.screenX - this.origX;
         this.x = dx;
         var rdx = dx - (this.size * this.pos);
@@ -439,7 +428,7 @@ Array.prototype.compare = function(other) {
 
 
 var Sequence = function(session, doc) {
-    this.element = $el('div', {'class': 'sequence', 'id': doc._id});
+    this.element = $('sequence');  //$el('div', {'class': 'sequence', 'id': doc._id});
     //this.items = new Items(this.element);
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
@@ -497,6 +486,7 @@ Sequence.prototype = {
 
 var UI = {
     init: function() {
+        UI.bucket = $('bucket');
         var id = window.location.hash.slice(1);
         var doc = novacut.get_sync(id);
         UI.db = new couch.Database(doc.db_name);
@@ -511,7 +501,7 @@ var UI = {
     on_new_doc: function(doc) {
         if (doc._id == UI.project.root_id) {
             UI.sequence = new Sequence(UI.session, doc);
-            document.body.appendChild(UI.sequence.element);
+            //document.body.appendChild(UI.sequence.element);
             UI.scrubber = $('scrubber');
             UI.scrubber.onmousewheel = UI.on_mousewheel;
         }
