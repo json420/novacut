@@ -279,6 +279,7 @@ Slice.prototype = {
         this.target = this.element;
         this.pos = 0;
         this.x = 0;
+        this.y = -10;
         var children = Array.prototype.slice.call(this.element.parentNode.children);
         children.forEach(function(child) {
             child.classList.remove('home');
@@ -332,6 +333,7 @@ Slice.prototype = {
 
     on_mousemove: function(event) {
         $halt(event);
+        return this.do_grabbed(event);
         if (this.element.classList.contains('grabbed')) {
             this.do_grabbed(event);
         }
@@ -342,11 +344,11 @@ Slice.prototype = {
 
     do_grabbed: function(event) {
         var dy = event.screenY - this.origY;
-        if (dy < -60) {
-            this.element.classList.remove('grabbed');
-            this.element.classList.add('free');
-            return this.do_free(event);
-        }
+//        if (dy < -108) {
+//            this.element.classList.remove('grabbed');
+//            this.element.classList.add('free');
+//            return this.do_free(event);
+//        }
         var dx = event.screenX - this.origX;
         this.x = dx;
         var rdx = dx - (this.size * this.pos);

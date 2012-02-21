@@ -23,7 +23,7 @@
 
 .right, .left, .neutral {
     position: relative;
-    -webkit-transition: left 125ms ease-in-out;
+    -webkit-transition: left 150ms ease-in-out;
 }
 
 .right {
