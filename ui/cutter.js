@@ -193,8 +193,8 @@ var Slice = function(session, doc) {
     this.start = new Frame(src);
     this.element.appendChild(this.start.element);
 
-    //this.indicator = new SliceIndicator();
-    //this.element.appendChild(this.indicator.element);
+    this.indicator = new SliceIndicator();
+    this.element.appendChild(this.indicator.element);
 
     this.end = new Frame(src);
     this.element.appendChild(this.end.element);
@@ -250,7 +250,7 @@ Slice.prototype = {
     on_change: function(doc, no_flush) {
         this.doc = doc;
         var node = doc.node;
-        //this.indicator.update(node.start.frame, node.stop.frame, this.count);
+        this.indicator.update(node.start.frame, node.stop.frame, this.count);
         this.start.set_index(node.start.frame);
         this.end.set_index(node.stop.frame - 1);
         if (!no_flush) {
@@ -444,8 +444,6 @@ var Sequence = function(session, doc) {
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
     this.on_change(doc);
-    this.element.onmousewheel = $bind(this.on_mousewheel, this);
-
     this.element.ondragenter = $bind(this.on_dragenter, this);
     this.element.ondragover = $bind(this.on_dragover, this);
     this.element.ondrop = $bind(this.on_drop, this);
@@ -484,7 +482,7 @@ Sequence.prototype = {
 
     on_mousewheel: function(event) {
         $halt(event);
-        var delta = wheel_delta(event) * 194;  // 192px width + 1px border
+        var delta = wheel_delta(event) * (192 + 6);
         this.element.scrollLeft += delta;
     },
 
@@ -514,7 +512,15 @@ var UI = {
         if (doc._id == UI.project.root_id) {
             UI.sequence = new Sequence(UI.session, doc);
             document.body.appendChild(UI.sequence.element);
+            UI.scrubber = $('scrubber');
+            UI.scrubber.onmousewheel = UI.on_mousewheel;
         }
+    },
+
+    on_mousewheel: function(event) {
+        $halt(event);
+        var delta = wheel_delta(event) * (192 + 6);
+        UI.sequence.element.scrollLeft += delta;
     },
 }
 
