@@ -55,6 +55,14 @@
     left: -198px;
 }
 
+.marginright {
+    margin-right: 200px;
+}
+
+.marginleft {
+    margin-left: 200px;
+}
+
 .neutral {
     left: 0px;
 }
@@ -68,6 +76,7 @@
 .free {
     position: fixed;
     z-index: 10;
+    -webkit-transform: scale(0.90);
 }
 
 .home {

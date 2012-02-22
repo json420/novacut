@@ -299,9 +299,7 @@ Slice.prototype = {
             if (child == this.element) {
                 me = i;
             }
-            child.classList.remove('right');
-            child.classList.remove('left');
-            child.classList.remove('neutral');
+            child.setAttribute('class', 'slice');
         }
         if (this.pos != 0) {
             console.log(this.pos);
@@ -359,6 +357,12 @@ Slice.prototype = {
         if (dy < -108) {
             this.element.classList.remove('grabbed');
             this.element.classList.add('free');
+            if (this.element.previousSibling) {
+                this.element.previousSibling.classList.add('marginright');
+            }
+            else if (this.element.nextSibling) {
+                this.element.nextSibling.classList.add('marginleft');
+            }
             return this.do_free(event);
         }
         var dx = event.screenX - this.origX;
