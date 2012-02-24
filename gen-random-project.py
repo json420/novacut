@@ -47,9 +47,6 @@ for row in dmedia_0.view('user', 'video', limit=options.slices)['rows']:
     src = Dmedia.Resolve(_id)
     cmd = ['dmedia-extract', src]
     doc = json.loads(check_output(cmd).decode('utf-8'))
-    if doc['framerate'] != {'num': 30000, 'denom': 1001}:
-        print('skipping', _id)
-        continue
     doc.update(
         _id=_id,
         time=time.time(),
