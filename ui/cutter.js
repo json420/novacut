@@ -490,16 +490,29 @@ Sequence.prototype = {
 
 var UI = {
     init: function() {
+        UI.player = $('player');
+        Hub.connect('render_finished', UI.on_render_finished);
+
         UI.bucket = $('bucket');
         var id = window.location.hash.slice(1);
         var doc = novacut.get_sync(id);
         UI.db = new couch.Database(doc.db_name);
         UI.project = UI.db.get_sync(id);
+        UI.project_id = id;
 
         set_title('title', UI.project.title);
         UI.session = new couch.Session(UI.db, UI.on_new_doc);
         UI.session.start();
+    },
 
+    render: function() {
+        console.log('render');
+        Hub.send('render', UI.project._id, UI.project.root_id, null);
+    },
+
+    on_render_finished: function(job_id, file_id) {
+        UI.player.src = 'dmedia:' + file_id;
+        UI.player.play();
     },
 
     on_new_doc: function(doc) {
