@@ -1,6 +1,6 @@
 include COPYING HACKING.txt demo.py
 include novacut/tests/*.py
 include concept_image/*.jpg
-include setup2.py novacut-renderer 
+include setup2.py novacut-renderer novacut-thumbnailer
 include novacut2/*.py
 include novacut2/tests/*.py
