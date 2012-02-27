@@ -615,6 +615,22 @@ var UI = {
         UI.db = new couch.Database(doc.db_name);
         UI.project = UI.db.get_sync(id);
         UI.project_id = id;
+        
+        console.log(UI.project);
+        
+        if (!UI.project.root_id){
+            var node = {
+                "_id": couch.random_id(), 
+                "node": {
+                    "src": [], 
+                    "type": "sequence"
+                }, 
+                "type": "novacut/node"
+            };
+            UI.db.save(node);
+            UI.project.root_id = node._id;
+            UI.db.save(UI.project);
+        }
 
         UI.clips = {};
         UI.clips.length = 0;
