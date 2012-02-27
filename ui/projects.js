@@ -30,6 +30,14 @@ var UI = {
         console.log(rows.length);
         UI.items.replace(rows,
             function(row, items) {
+                var pdb = new couch.Database("novacut-0-" + row.id.toLowerCase());
+                try{
+                    var filecount = pdb.view_sync('doc', 'type', {key: 'dmedia/file'}).rows[0].value;
+                }
+                catch(e){
+                    var filecount = 0;
+                }
+            
                 var li = $el('li', {'class': 'project', 'id': row.id});
 
                 var thumb = $el('div', {'class': 'thumbnail'});
@@ -45,7 +53,7 @@ var UI = {
                 );
 
                 info.appendChild(
-                    $el('p', {'textContent': '38 files, 971 MB'})
+                    $el('p', {'textContent': filecount + ' files'})
                 );
 
                 li.appendChild(thumb);

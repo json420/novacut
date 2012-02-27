@@ -1,25 +1,41 @@
 <!DOCTYPE html>
 <html>
-<head>
-<link rel="stylesheet" href="/_apps/dmedia/grid.css"></link>
-<link rel="stylesheet" href="novacut.css" />
-<link rel="stylesheet" href="cutter.css" />
-<script src="/_apps/userwebkit/couch.js"></script>
-<script src="/_apps/userwebkit/base.js"></script>
-<script src="/_apps/dmedia/common.js"></script>
-<script src="novacut.js"></script>
-<script src="cutter.js"></script>
-</head>
-<body>
-<div id="bucket">
-    <div class="grid_row">
-        <button class="grid_2" onclick="window.history.back()">Back</button>
-        <strong class="grid_4" id="title"></strong>
-        <button class="grid_2" onclick="UI.render()">Render</button>
-    </div>
-    <video id="player" controls="true"></video>
-</div>
-<div id="sequence" class="sequence"></div>
-<div id="scrubber"></div>
-</body>
+    <head>
+        <link rel="stylesheet" href="/_apps/dmedia/grid.css"></link>
+        <link rel="stylesheet" href="/_apps/dmedia/common.css" />
+        <link rel="stylesheet" href="novacut.css" />
+        <link rel="stylesheet" href="cutter.css" />
+        <script src="/_apps/userwebkit/couch.js"></script>
+        <script src="/_apps/userwebkit/base.js"></script>
+        <script src="/_apps/dmedia/common.js"></script>
+        <script src="novacut.js"></script>
+        <script src="cutter.js"></script>
+    </head>
+    <body>
+        <div id="menu">
+            <div class="grid_row">
+                <button class="grid_2" onclick="window.history.back()">Back</button>
+                <strong class="grid_4" id="title"></strong>
+                <button class="grid_2" id="render" onclick="UI.view_render()">Render</button>
+                <button class="grid_2" onclick="UI.view_clips()">Clips</button>
+                <button class="grid_2" onclick="UI.view_bucket()">Bucket</button>
+            </div>
+        </div>
+        <div id="render-view" class="view show">
+            <video id="player"></video>
+            <div id="render-video-controls" class="grid_row">
+                <button class="grid_2" onclick="UI.player.play()">Play</button>
+                <button class="grid_2" onclick="UI.player.pause()">Pause</button>
+                <button class="grid_2" onclick="UI.player.currentTime = 0;">Restart</button>
+            </div>
+        </div>
+        <div id="clips" class="view">
+        
+        </div>
+        <div id="bucket" class="view">
+            Buck. Et?
+        </div>
+        <div id="sequence" class="sequence"></div>
+        <div id="scrubber"></div>
+    </body>
 </html>

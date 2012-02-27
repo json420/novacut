@@ -1,10 +1,11 @@
-#bucket {
+#menu {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 284px;
-    background-color: black;;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    height: 39px;
+    background: -webkit-linear-gradient(top, #301438, #200428);
+    border-bottom:1px solid #222;
 }
 
 #scrubber {
@@ -13,17 +14,62 @@
     left: 0;
     right: 0;
     height: 30px;
-    background-color: #666;
+    background:-webkit-linear-gradient(top, #555, #444);
+    border-top:1px solid #666;
+}
+
+#player {
+    position:absolute;
+    top:0px;
+    left:0px;
+    right:0px;
+    bottom:24px;
+    width:100%;
+    height:100%;
+}
+
+#clips{
+    overflow:auto;
+}
+
+#render-video-controls{
+    position:absolute;
+    bottom:0px;
+    left:0px;
+    right:0px;
+    height:40px;
+    background:-webkit-linear-gradient(top, #444, #333);
+    opacity:0;
+    -webkit-transition: opacity 150ms ease-in-out 50ms;
+}
+
+#render-view:hover #render-video-controls{
+    opacity:1;
+}
+
+.view{
+    position:absolute;
+    top:40px;
+    bottom:297px;
+    left:0px;
+    right:0px;
+    visibility:hidden;
+}
+
+.view.show{
+    visibility:visible;
 }
 
 .sequence {
     overflow: hidden;
     position: fixed;
-    bottom: 40px;
+    bottom: 30px;
+    height: 246px;
     left: 0;
     right: 0;
 
-    background-color: #333;
+    background: -webkit-linear-gradient(top, #222, #333);
+    border-top:1px solid #444;
     font-size: 0;
     line-height: 0;
     white-space: nowrap;
@@ -36,31 +82,64 @@
 
 .slice {
     display: inline-block;
-    border: 1px solid #ccc;
-    background-color: #555;
-    margin: 2px;
+    border-top:1px solid #666;
+    border-left:1px solid #666;
+    border-right:1px solid #222;
+    border-bottom:1px solid #222;
+    padding: 3px;
+    background:-webkit-linear-gradient(top, #555, #444);
+    box-shadow:0px 2px 5px 1px rgba(0,0,0,0.5);
+    top:0px;
+    left:0px;
 }
 
+.clip {
+    position:absolute;
+    width:192px;
+    height:108px;
+    box-shadow:0px 2px 5px 1px rgba(0,0,0,0.3);
+}
+
+.clip:hover{
+    -webkit-transform:scale(1.02);
+    -webkit-transition:-webkit-transform 100ms ease-in-out;
+}
+
+.clip.moving{
+    -webkit-transform:scale(0.99);
+    -webkit-animation:shrink 100ms ease-in-out 1;
+    opacity:0.7;
+    cursor:move;
+}
+
+.clip .frame div{
+    visibility:hidden;
+}
+
+.clip img{
+    width:192px;
+    height:108px;
+}
 
 .right, .left, .neutral {
     position: relative;
-    -webkit-transition: left 150ms ease-in-out;
+    -webkit-transition: left 100ms ease-in-out;
 }
 
 .right {
-    left: 198px;
+    left: 200px;
 }
 
 .left {
-    left: -198px;
+    left: -200px;
 }
 
 .marginright {
-    margin-right: 200px;
+    -webkit-animation: margin-right-shrink 200ms ease-in-out 1;
 }
 
 .marginleft {
-    margin-left: 200px;
+    -webkit-animation: margin-left-shrink 200ms ease-in-out 1;
 }
 
 .neutral {
@@ -69,21 +148,30 @@
 
 .grabbed {
     position: relative;
-    -webkit-transition-property: none;
+    /*-webkit-transition-property: none;*/
+    box-shadow:0px 3px 15px rgba(0,0,0,0.3);
+    opacity:0.7;
     z-index: 10;
+    -webkit-animation:shrink 10ms ease-in-out 1;
+    -webkit-transform: scale(0.99);
+    top:-5px;
 }
 
 .free {
     position: fixed;
     z-index: 10;
-    -webkit-transform: scale(0.90);
+    box-shadow:0px 3px 15px rgba(0,0,0,0.3);
+    opacity:0.7;
+    -webkit-transform: scale(0.99);
+    
 }
 
 .home {
     left: 0px;
     z-index: 5;
     position: relative;
-    -webkit-transition: left 500ms ease-in-out;
+    -webkit-animation:grow 30ms ease-in-out 1;
+    /*-webkit-transition: left 100ms ease-in-out;*/
 }
 
 .done {
@@ -147,5 +235,48 @@
 }
 
 
+@-webkit-keyframes shrink{
+    0%{
+        -webkit-transform:scale(1.00);
+        opacity:1;
+        top:0px;
+    }
+    100%{
+        -webkit-transform:scale(0.99);
+        opacity:0.7;
+        top:-5px;
+    }
+}
+
+@-webkit-keyframes grow{
+    0%{
+        -webkit-transform:scale(0.99);
+        opacity:0.7;
+        top:-5px;
+    }
+    100%{
+        -webkit-transform:scale(1.0);
+        opacity:1;
+        top:0px;
+    }
+}
+
+@-webkit-keyframes margin-right-shrink{
+    0%{
+        margin-right:200px;
+    }
+    100%{
+        margin-right:0px;
+    }
+}
+
+@-webkit-keyframes margin-left-shrink{
+    0%{
+        margin-left:200px;
+    }
+    100%{
+        margin-left:0px;
+    }
+}
 
 

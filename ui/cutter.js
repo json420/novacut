@@ -187,7 +187,14 @@ var Slice = function(session, doc) {
     this.session = session;
     this.element = $el('div', {'class': 'slice', 'id': doc._id});
 
-    this.count = session.get_doc(doc.node.src).duration.frames;
+    var src = session.get_doc(doc.node.src);
+    
+    if (src.duration){
+        this.count = src.duration.frames
+    }
+    else{
+        this.count = src.meta.duration.frames;
+    }
 
     var src = doc.node.src;
     this.start = new Frame(src);
@@ -275,11 +282,18 @@ Slice.prototype = {
         }
     },
 
+    get x() {
+        return parseInt(this.element.style.left);
+    },
+    
+    get y() {
+        return parseInt(this.element.style.top);
+    },
+
     grab: function() {
         this.target = this.element;
         this.pos = 0;
         this.x = 0;
-        this.y = -10;
         var children = Array.prototype.slice.call(this.element.parentNode.children);
         children.forEach(function(child) {
             child.classList.remove('home');
@@ -291,6 +305,9 @@ Slice.prototype = {
         this.x = null;
         this.y = null;
         this.element.classList.remove('grabbed');
+        if (this.element.classList.contains("free") == true){
+            console.log("floating trees");
+        }
         this.element.classList.remove('free');
         var i, me, child;
         var parent = this.element.parentNode;
@@ -487,25 +504,162 @@ Sequence.prototype = {
     },
 }
 
+var Clip = function(session, doc) {
+    var self = this;
+    session.subscribe(doc._id, this.on_change, this);
+    this.session = session;
+    this.element = $el('div', {'class': 'clip', 'id': doc._id});
+
+    this.posX = 0;
+    this.posY = 0;
+    
+    self.moveTo = function(x,y){
+        self.stepTo(x, y);
+        if (self.posX != x || self.posY != y){
+            setTimeout(function(){
+                self.moveTo(x, y);
+            }, 30);
+        }
+    }
+
+    if (doc.duration){
+        this.count = doc.duration.frames;
+    }
+    else{
+        this.count = doc.meta.duration.frames;
+    }
+    
+    this.time = doc.ctime;
+    
+    this.frame = new Frame(doc._id);
+    this.element.appendChild(this.frame.element);
+
+    this.on_change(doc, true);
+    
+    this.element.ondblclick = $bind(this.on_dblclick, this);
+}
+Clip.prototype = {
+    on_change: function(doc) {
+        this.frame.set_index(0);
+    },
+    
+    get posX(){
+        return parseInt(this.element.style.getPropertyValue("left"));
+    },
+    
+    set posX(value){
+        this.element.style.setProperty("left", value + "px");
+    },
+    
+    get posY(){
+        return parseInt(this.element.style.getPropertyValue("top"));
+    },
+    
+    set posY(value){
+        this.element.style.setProperty("top", value + "px");
+    },
+    
+    stepTo: function(x,y){
+        var dx = (x - this.posX)/2;
+        var dy = (y - this.posY)/2;
+        
+        if (dx > 0){
+            this.posX += Math.ceil(dx);
+        }
+        else{
+            this.posX += Math.floor(dx);
+        }
+        
+        
+        if (dy > 0){
+            this.posY += Math.ceil(dy);
+        }
+        else{
+            this.posY += Math.floor(dy);
+        }
+    },
+    
+    on_dblclick: function(event){
+        $halt(event);
+        var id = this.element.id;
+        var slice = {
+            "_id": couch.random_id(), 
+            "node": {
+                "src": id, 
+                "start": {
+                    "frame": 0
+                }, 
+                "stop": {
+                    "frame": this.count-1
+                }, 
+                "stream": "video", 
+                "type": "slice"
+            }, 
+            "type": "novacut/node"
+        };
+        UI.session.save(slice);
+        UI.sequence.doc.node.src.push(slice._id);
+        UI.session.save(UI.sequence.doc);
+        UI.session.commit();
+    },
+}
+
 
 var UI = {
     init: function() {
         UI.player = $('player');
         Hub.connect('render_finished', UI.on_render_finished);
 
-        UI.bucket = $('bucket');
         var id = window.location.hash.slice(1);
         var doc = novacut.get_sync(id);
         UI.db = new couch.Database(doc.db_name);
         UI.project = UI.db.get_sync(id);
         UI.project_id = id;
 
+        UI.clips = {};
+        UI.clips.length = 0;
+
+        UI.views = {};
+        UI.views.render = $("render-view");
+        
+        UI.views.clips = $("clips");
+        UI.views.clips.flow = function(list){
+            var width = UI.views.clips.clientWidth;
+            var count = Math.floor(width/210);
+            var padding = Math.round((width - count*192)/(count+1));
+            if (list && list.forEach){
+                list.forEach(function(id, i){
+                    UI.clips[id].moveTo((padding+192)*(i%count) + padding , 115*((i - i % count) / count) + 5);
+                });
+            }
+            else {
+                var i = 0;
+                for (var c in UI.clips){
+                    var clip = UI.clips[c];
+                    if (c !== "length"){
+                        clip.moveTo((padding+192)*(i%count) + padding , 115*((i - i % count) / count) + 5);
+                        i++;
+                    }
+                }
+            }
+        }
+        
+        UI.views.bucket = $("bucket");
+        
+        UI.views.clips.ondragover = UI.on_dragover;
+        UI.views.clips.ondrop = UI.on_drop;
+        
         set_title('title', UI.project.title);
         UI.session = new couch.Session(UI.db, UI.on_new_doc);
         UI.session.start();
+        
+        window.addEventListener("resize", function(){
+            UI.views.clips.flow(UI.views.clips.by_time);
+        });
     },
 
     render: function() {
+        $("render").disabled = true;
         console.log('render');
         Hub.send('render', UI.project._id, UI.project.root_id, null);
     },
@@ -513,6 +667,7 @@ var UI = {
     on_render_finished: function(job_id, file_id) {
         UI.player.src = 'dmedia:' + file_id;
         UI.player.play();
+        $("render").disabled = false;
     },
 
     on_new_doc: function(doc) {
@@ -521,14 +676,132 @@ var UI = {
             //document.body.appendChild(UI.sequence.element);
             UI.scrubber = $('scrubber');
             UI.scrubber.onmousewheel = UI.on_mousewheel;
+            UI.scrubber.onmousedown = UI.on_mousedown;
         }
+        else if (doc.type == "dmedia/file"){
+            var clip = new Clip(UI.session, doc);
+            UI.clips[doc._id] = clip;
+            UI.clips.length += 1;
+            clip.posX = Math.floor(UI.views.clips.clientWidth/2);
+            clip.posY = Math.floor(UI.views.clips.clientHeight/2);
+            UI.views.clips.appendChild(clip.element);
+            Thumbs.flush();
+        }
+    },
+    
+    view: function(view){
+        for (var v in UI.views){
+            UI.views[v].classList.remove("show");
+            if (view == v){
+                UI.views[view].classList.add("show");
+            }
+        }
+    },
+    
+    view_clips: function(){
+        Thumbs.flush();
+        var list = [];
+        for (var id in UI.clips){
+            if (id !== "length"){
+                list.push({
+                    time: UI.clips[id].time,
+                    count: UI.clips[id].count,
+                    id: id,
+                });
+            }
+        };
+        list.sort(function(a, b){
+            if(a.time > b.time){
+                return 1;
+            }
+            return -1;
+        });
+        list = list.map(function(o){
+            return o.id
+        });
+        UI.views.clips.by_time = list;
+        UI.views.clips.flow(list);
+        UI.view("clips");
+    },
+    
+    view_bucket: function(){
+        console.log("BUCKET");
+        UI.view("bucket");
+    },
+    
+    view_render: function(){
+        UI.view("render");
+        UI.render();
     },
 
     on_mousewheel: function(event) {
         $halt(event);
-        var delta = wheel_delta(event) * (192 + 6);
+        var delta = wheel_delta(event) * (192 + 8);
         UI.sequence.element.scrollLeft += delta;
     },
+    
+    on_mousedown: function(event) {
+        $halt(event);
+        UI.scrubber.offsetX = event.offsetX;
+        var tmp = {};
+        tmp.on_mousemove = function(event) {
+            UI.on_mousemove(event);
+        }
+        tmp.on_mouseup = function(event) {
+            window.removeEventListener('mousemove', tmp.on_mousemove);
+            window.removeEventListener('mouseup', tmp.on_mouseup);
+        }
+        window.addEventListener('mousemove', tmp.on_mousemove);
+        window.addEventListener('mouseup', tmp.on_mouseup);
+    },
+    
+    on_mousemove: function(event) {
+        $halt(event);
+        var dist = (event.offsetX - UI.scrubber.offsetX)*3;
+        if (event.shiftKey == true){
+            dist *= 10;
+        }
+        UI.sequence.element.scrollLeft -= dist;
+        UI.scrubber.offsetX = event.offsetX;
+    },
+    
+    on_dragover: function(event){
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+    },
+    
+    on_drop:  function(event){
+        var data = event.dataTransfer.getData("Text").split("/");
+        var id = data[1];
+        var database = data[0];
+        var tmp_db = new couch.Database(database);
+        if (tmp_db.get_sync(id).type == "dmedia/file"){
+            Hub.send('copy_docs', database, UI.project.db_name, [id]);
+            setTimeout(function(){
+                var list = [];
+                for (var id in UI.clips){
+                    if (id !== "length"){
+                        list.push({
+                            time: UI.clips[id].time,
+                            count: UI.clips[id].count,
+                            id: id,
+                        });
+                    }
+                };
+                list.sort(function(a, b){
+                    if(a.time > b.time){
+                        return 1;
+                    }
+                    return -1;
+                });
+                list = list.map(function(o){
+                    return o.id
+                });
+                UI.views.clips.by_time = list;
+                UI.views.clips.flow(UI.views.clips.by_time);
+            }, 10);
+        }
+    }
 }
 
 window.addEventListener('load', UI.init);

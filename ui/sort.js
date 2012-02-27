@@ -3,6 +3,8 @@
  -- Copy media into the project database -- 
 Hub.send('copy_docs', src_db, dst_db, docs_ids);
 
+Hub.send('render', projectid, nodeid, null);
+
 novacut-0 lists projects
 
 novacut-0-ID is a project database
@@ -28,7 +30,7 @@ function Clip(id){
     self.element.classList.add("sorting-clip");
     self.element.dataset.id = id;
     self.id = id;
-    self.element.style.setProperty("background", "url(" + dmedia.att_url(id, 'thumbnail') + ")");
+    self.element.style.setProperty("background", "url(" + db.att_url(id, 'thumbnail') + ")");
     self.element.style.setProperty("z-index", 10);
     self.sortcontainer = document.getElementById("sort-container");
     self.info = document.createElement("div");
