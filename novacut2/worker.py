@@ -40,6 +40,7 @@ session = dbus.SessionBus()
 
 class LiveBuilder(Builder):
     def __init__(self, Dmedia, db):
+        super(LiveBuilder, self).__init__()
         self.Dmedia = Dmedia
         self.db = db
         self._cache = {}

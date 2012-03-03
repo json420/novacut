@@ -294,7 +294,7 @@ class TestFunctions(TestCase):
         self.assertEqual(el.get_property('start'), 0)
         self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
         self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw-rgb')
-        self.assertEqual(el.get_property('uri'), resolve(clip1))
+        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
         # Video stream, offset=3s
         self.assertEqual(
@@ -309,7 +309,7 @@ class TestFunctions(TestCase):
         self.assertEqual(el.get_property('start'), 3 * gst.SECOND)
         self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
         self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw-rgb')
-        self.assertEqual(el.get_property('uri'), resolve(clip1))
+        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
         # Audio stream, offset=0
         doc['node']['stream'] = 'audio'
@@ -325,7 +325,7 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'audio/x-raw-int; audio/x-raw-float'
         )
-        self.assertEqual(el.get_property('uri'), resolve(clip1))
+        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
         # Audio stream, offset=3s
         self.assertEqual(
@@ -343,7 +343,7 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'audio/x-raw-int; audio/x-raw-float'
         )
-        self.assertEqual(el.get_property('uri'), resolve(clip1))
+        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
         # Audio stream specified in samples, offset=0
         doc = {
@@ -367,7 +367,7 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'audio/x-raw-int; audio/x-raw-float'
         )
-        self.assertEqual(el.get_property('uri'), resolve(clip1))
+        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
         # Audio stream specified in samples, offset=3s
         self.assertEqual(
@@ -385,7 +385,7 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'audio/x-raw-int; audio/x-raw-float'
         )
-        self.assertEqual(el.get_property('uri'), resolve(clip1))
+        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
     def test_build_sequence(self):
         b = DummyBuilder(docs)

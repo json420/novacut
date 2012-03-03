@@ -142,7 +142,7 @@ def build_slice(builder, doc, offset=0):
 
     # Create the element, set the URI, and select the stream
     element = gst.element_factory_make('gnlurisource')
-    element.set_property('uri', builder.resolve_file(clip['_id']))
+    element.set_property('uri', 'file://' + builder.resolve_file(clip['_id']))
     element.set_property('caps', stream_caps(node['stream']))
 
     # These properties are about the slice itself
