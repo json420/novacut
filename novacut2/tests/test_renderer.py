@@ -391,29 +391,42 @@ class TestFunctions(TestCase):
         )
         self.assertEqual(el.get_property('uri'), resolve(clip1))
 
-        return
-
         # Audio stream specified in samples, offset=0
         doc = {
             'node': {
                 'src': clip1,
                 'type': 'slice',
-                'stream': 'video',
+                'stream': 'audio',
                 'start': {'sample': 8 * 48000},
                 'stop': {'sample': 12 * 48000},
             },
         }
-        el = renderer.build_slice2(doc, b)
+        el = renderer.build_slice2(b, 0, doc)
         self.assertIsInstance(el, gst.Element)
-        self.assertEqual(el.get_factory().get_name(), 'gnlfilesource')
+        self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
         self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
         self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('start'), 0)
         self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
         self.assertEqual(
             el.get_property('caps').to_string(),
-            'video/x-raw-rgb'
+            'audio/x-raw-int; audio/x-raw-float'
         )
-        self.assertEqual(el.get_property('location'), resolve(clip1))
+        self.assertEqual(el.get_property('uri'), resolve(clip1))
+
+        # Audio stream specified in samples, offset=3s
+        el = renderer.build_slice2(b, 3 * gst.SECOND, doc)
+        self.assertIsInstance(el, gst.Element)
+        self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
+        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('start'), 3 * gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
+        self.assertEqual(
+            el.get_property('caps').to_string(),
+            'audio/x-raw-int; audio/x-raw-float'
+        )
+        self.assertEqual(el.get_property('uri'), resolve(clip1))
 
     def test_build_sequence(self):
         b = DummyBuilder(docs)
