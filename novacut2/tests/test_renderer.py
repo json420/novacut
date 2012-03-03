@@ -405,18 +405,38 @@ class TestBuilder(TestCase):
 
     def test_init(self):
         builder = renderer.Builder()
-        self.assertIsInstance(builder.gnlcomposition, gst.Element)
-        self.assertEqual(
-            builder.gnlcomposition.get_factory().get_name(),
-            'gnlcomposition'
-        )
+        self.assertIsNone(builder.video)
+        self.assertIsNone(builder.audio)
         self.assertIsNone(builder.last)
 
     def test_add(self):
         builder = renderer.Builder()
-        child = gst.element_factory_make('gnlurisource')
-        self.assertIsNone(builder.add(child))
-        self.assertIs(builder.last, child)
+        self.assertIsNone(builder.video)
+        self.assertIsNone(builder.audio)
+
+        child1 = gst.element_factory_make('gnlurisource')
+        self.assertIsNone(builder.add(child1, 'video'))
+        self.assertIs(child1.get_parent(), builder.video)
+        self.assertIs(builder.last, child1)
+        self.assertIsInstance(builder.video, gst.Element)
+        self.assertEqual(
+            builder.video.get_factory().get_name(), 'gnlcomposition'
+        )
+        self.assertIsNone(builder.audio)
+
+        child2 = gst.element_factory_make('gnlurisource')
+        self.assertIsNone(builder.add(child2, 'audio'))
+        self.assertIs(child2.get_parent(), builder.audio)
+        self.assertIs(builder.last, child2)
+        self.assertIsInstance(builder.audio, gst.Element)
+        self.assertEqual(
+            builder.audio.get_factory().get_name(), 'gnlcomposition'
+        )
+
+        self.assertIs(child1.get_parent(), builder.video)
+        self.assertEqual(
+            builder.video.get_factory().get_name(), 'gnlcomposition'
+        )
 
 
 class TestEncodeBin(TestCase):
@@ -619,9 +639,11 @@ class TestRenderer(TestCase):
         self.assertIs(inst.settings, settings)
         self.assertIs(inst.builder, builder)
 
-        self.assertIsInstance(inst.src, gst.Element)
-        self.assertIs(inst.src.get_parent(), inst.pipeline)
-        self.assertEqual(inst.src.get_factory().get_name(), 'gnlcomposition')
+        self.assertIsInstance(inst.sources, tuple)
+        self.assertEqual(len(inst.sources), 1)
+        src = inst.sources[0]
+        self.assertIs(src.get_parent(), inst.pipeline)
+        self.assertEqual(src.get_factory().get_name(), 'gnlcomposition')
 
         self.assertIsInstance(inst.mux, gst.Element)
         self.assertIs(inst.mux.get_parent(), inst.pipeline)

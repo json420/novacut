@@ -36,7 +36,7 @@ import gobject
 log = logging.getLogger()
 
 stream_map = {
-    'video': 'video/x-raw-rgb; video/x-raw-yuv',
+    'video': 'video/x-raw-rgb',
     'audio': 'audio/x-raw-int; audio/x-raw-float',
 }
 
@@ -140,23 +140,20 @@ def build_slice(builder, doc, offset=0):
     stop = to_gst_time(node['stop'], clip)
     duration = stop - start
 
-    stream = node['stream']
+    # Create the element, set the URI, and select the stream
+    element = gst.element_factory_make('gnlurisource')
+    element.set_property('uri', 'file://' + builder.resolve_file(clip['_id']))
+    element.set_property('caps', stream_caps(node['stream']))
 
-    for stream in ('video', 'audio'):
-        # Create the element, set the URI, and select the stream
-        element = gst.element_factory_make('gnlurisource')
-        element.set_property('uri', 'file://' + builder.resolve_file(clip['_id']))
-        element.set_property('caps', stream_caps(stream))
+    # These properties are about the slice itself
+    element.set_property('media-start', start)
+    element.set_property('media-duration', duration)
 
-        # These properties are about the slice itself
-        element.set_property('media-start', start)
-        element.set_property('media-duration', duration)
+    # These properties are about the position of the slice in the composition
+    element.set_property('start', offset)
+    element.set_property('duration', duration)
 
-        # These properties are about the position of the slice in the composition
-        element.set_property('start', offset)
-        element.set_property('duration', duration)
-
-        builder.add(element, stream)
+    builder.add(element, node['stream'])
     return duration
 
 
