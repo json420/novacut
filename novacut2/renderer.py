@@ -41,6 +41,10 @@ stream_map = {
 }
 
 
+def stream_caps(stream):
+    return gst.caps_from_string(stream_map[stream])
+
+
 def make_element(desc):
     """
     Create a GStreamer element and set its properties.
@@ -142,6 +146,29 @@ def build_slice(doc, builder):
     el.set_property('caps', gst.caps_from_string(stream_map[stream]))
     el.set_property('location', builder.resolve_file(src['_id']))
     return el
+
+
+def build_slice2(builder, offset, doc):
+    node = doc['node']
+    clip = builder.get_doc(node['src'])
+    start = to_gst_time(node['start'], clip)
+    stop = to_gst_time(node['stop'], clip)
+    duration = stop - start
+
+    # Create the element, set the URI, and select the stream
+    element = gst.element_factory_make('gnlurisource')
+    element.set_property('uri', builder.resolve_file(clip['_id']))
+    element.set_property('caps', stream_caps(node['stream']))
+
+    # These properties are about the slice itself
+    element.set_property('media-start', start)
+    element.set_property('media-duration', duration)
+
+    # These properties are about the position of the slice in the composition
+    element.set_property('start', offset)
+    element.set_property('duration', duration)
+
+    return element
 
 
 def build_sequence(doc, builder):
