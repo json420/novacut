@@ -341,7 +341,7 @@ class TestFunctions(TestCase):
         }
 
         # Video stream, offset=0
-        el = renderer.build_slice2(b, 0, doc)
+        el = renderer.build_slice2(b, doc, 0)
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
         self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
@@ -352,7 +352,7 @@ class TestFunctions(TestCase):
         self.assertEqual(el.get_property('uri'), resolve(clip1))
 
         # Video stream, offset=3s
-        el = renderer.build_slice2(b, 3 * gst.SECOND, doc)
+        el = renderer.build_slice2(b, doc, 3 * gst.SECOND)
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
         self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
@@ -364,7 +364,7 @@ class TestFunctions(TestCase):
 
         # Audio stream, offset=0
         doc['node']['stream'] = 'audio'
-        el = renderer.build_slice2(b, 0, doc)
+        el = renderer.build_slice2(b, doc, 0)
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
         self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
@@ -378,7 +378,7 @@ class TestFunctions(TestCase):
         self.assertEqual(el.get_property('uri'), resolve(clip1))
 
         # Audio stream, offset=3s
-        el = renderer.build_slice2(b, 3 * gst.SECOND, doc)
+        el = renderer.build_slice2(b, doc, 3 * gst.SECOND)
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
         self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
@@ -401,7 +401,7 @@ class TestFunctions(TestCase):
                 'stop': {'sample': 12 * 48000},
             },
         }
-        el = renderer.build_slice2(b, 0, doc)
+        el = renderer.build_slice2(b, doc, 0)
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
         self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
@@ -415,7 +415,7 @@ class TestFunctions(TestCase):
         self.assertEqual(el.get_property('uri'), resolve(clip1))
 
         # Audio stream specified in samples, offset=3s
-        el = renderer.build_slice2(b, 3 * gst.SECOND, doc)
+        el = renderer.build_slice2(b, doc, 3 * gst.SECOND)
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
         self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
@@ -445,6 +445,24 @@ class TestFunctions(TestCase):
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
         self.assertEqual(el.get_property('duration'), 9 * gst.SECOND)
+
+
+class TestBuilder(TestCase):
+
+    def test_init(self):
+        builder = renderer.Builder()
+        self.assertIsInstance(builder.gnlcomposition, gst.Element)
+        self.assertEqual(
+            builder.gnlcomposition.get_factory().get_name(),
+            'gnlcomposition'
+        )
+        self.assertIsNone(builder.last)
+
+    def test_add(self):
+        builder = renderer.Builder()
+        child = gst.element_factory_make('gnlurisource')
+        self.assertIsNone(builder.add(child))
+        self.assertIs(builder.last, child)
 
 
 class TestEncodeBin(TestCase):

@@ -148,7 +148,7 @@ def build_slice(doc, builder):
     return el
 
 
-def build_slice2(builder, offset, doc):
+def build_slice2(builder, doc, offset=0):
     node = doc['node']
     clip = builder.get_doc(node['src'])
     start = to_gst_time(node['start'], clip)
@@ -183,6 +183,15 @@ def build_sequence(doc, builder):
     return el
 
 
+def build_sequence2(builder, doc, offset=0):
+    sequence_duration = 0
+    for src in doc['node']['src']:
+        duration = builder.build(offset, src)
+        sequence_duration += duration
+        offset += duration
+    return sequence_duration
+
+
 _builders = {
     'slice': build_slice,
     'sequence': build_sequence,
@@ -190,6 +199,14 @@ _builders = {
 
 
 class Builder(object):
+    def __init__(self):
+        self.gnlcomposition = gst.element_factory_make('gnlcomposition')
+        self.last = None
+
+    def add(self, element):
+        self.gnlcomposition.add(element)
+        self.last = element
+
     def build(self, _id):
         doc = self.get_doc(_id)
         func = _builders[doc['node']['type']]
