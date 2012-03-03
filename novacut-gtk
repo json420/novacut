@@ -47,6 +47,11 @@ def default_settings():
                 },
             },
         },
+        'audio': {
+            'encoder': {
+                'name': 'vorbisenc',
+            },
+        },
     }
     return schema.create_settings(node)
 
