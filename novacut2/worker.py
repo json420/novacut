@@ -82,6 +82,7 @@ class Worker(object):
             'time': doc['time'],
         }
         self.novacut.save(job)
+        return _id
         return self.Dmedia.Resolve(_id)
         
         

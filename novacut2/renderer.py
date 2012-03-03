@@ -139,21 +139,28 @@ def build_slice(builder, doc, offset=0):
     start = to_gst_time(node['start'], clip)
     stop = to_gst_time(node['stop'], clip)
     duration = stop - start
+    
+    if node['stream'] == 'both':
+        streams = ['video', 'audio']
+    else:
+        streams = [node['stream']]
+        
+    for stream in streams:
+        # Create the element, set the URI, and select the stream
+        element = gst.element_factory_make('gnlurisource')
+        element.set_property('uri', 'file://' + builder.resolve_file(clip['_id']))
+        element.set_property('caps', stream_caps(stream))
 
-    # Create the element, set the URI, and select the stream
-    element = gst.element_factory_make('gnlurisource')
-    element.set_property('uri', 'file://' + builder.resolve_file(clip['_id']))
-    element.set_property('caps', stream_caps(node['stream']))
+        # These properties are about the slice itself
+        element.set_property('media-start', start)
+        element.set_property('media-duration', duration)
 
-    # These properties are about the slice itself
-    element.set_property('media-start', start)
-    element.set_property('media-duration', duration)
+        # These properties are about the position of the slice in the composition
+        element.set_property('start', offset)
+        element.set_property('duration', duration)
 
-    # These properties are about the position of the slice in the composition
-    element.set_property('start', offset)
-    element.set_property('duration', duration)
-
-    builder.add(element, node['stream'])
+        builder.add(element, stream)
+        
     return duration
 
 
