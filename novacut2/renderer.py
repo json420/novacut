@@ -41,6 +41,10 @@ stream_map = {
 }
 
 
+def stream_caps(stream):
+    return gst.caps_from_string(stream_map[stream])
+
+
 def make_element(desc):
     """
     Create a GStreamer element and set its properties.
@@ -129,31 +133,44 @@ def to_gst_time(spec, doc):
     raise ValueError('invalid time spec: {!r}'.format(spec))
 
 
-def build_slice(doc, builder):
-    src = builder.get_doc(doc['node']['src'])
-    el = gst.element_factory_make('gnlfilesource')
-    start = to_gst_time(doc['node']['start'], src)
-    stop = to_gst_time(doc['node']['stop'], src)
+def build_slice(builder, doc, offset=0):
+    node = doc['node']
+    clip = builder.get_doc(node['src'])
+    start = to_gst_time(node['start'], clip)
+    stop = to_gst_time(node['stop'], clip)
     duration = stop - start
-    el.set_property('media-start', start)
-    el.set_property('media-duration', duration)
-    el.set_property('duration', duration)
-    stream = doc['node']['stream']
-    el.set_property('caps', gst.caps_from_string(stream_map[stream]))
-    el.set_property('location', builder.resolve_file(src['_id']))
-    return el
+    
+    if node['stream'] == 'both':
+        streams = ['video', 'audio']
+    else:
+        streams = [node['stream']]
+        
+    for stream in streams:
+        # Create the element, set the URI, and select the stream
+        element = gst.element_factory_make('gnlurisource')
+        element.set_property('uri', 'file://' + builder.resolve_file(clip['_id']))
+        element.set_property('caps', stream_caps(stream))
+
+        # These properties are about the slice itself
+        element.set_property('media-start', start)
+        element.set_property('media-duration', duration)
+
+        # These properties are about the position of the slice in the composition
+        element.set_property('start', offset)
+        element.set_property('duration', duration)
+
+        builder.add(element, stream)
+        
+    return duration
 
 
-def build_sequence(doc, builder):
-    el = gst.element_factory_make('gnlcomposition')
-    start = 0
+def build_sequence(builder, doc, offset=0):
+    sequence_duration = 0
     for src in doc['node']['src']:
-        child = builder.build(src)
-        el.add(child)
-        child.set_property('start', start)
-        start += child.get_property('duration')
-    el.set_property('duration', start)
-    return el
+        duration = builder.build(src, offset)
+        offset += duration
+        sequence_duration += duration
+    return sequence_duration
 
 
 _builders = {
@@ -163,10 +180,41 @@ _builders = {
 
 
 class Builder(object):
-    def build(self, _id):
+    def __init__(self):
+        self.last = None
+        self.audio = None
+        self.video = None
+
+    def get_audio(self):
+        if self.audio is None:
+            self.audio = gst.element_factory_make('gnlcomposition')
+        return self.audio
+
+    def get_video(self):
+        if self.video is None:
+            self.video = gst.element_factory_make('gnlcomposition')
+        return self.video
+
+    def add(self, element, stream):
+        assert stream in ('video', 'audio')
+        if stream == 'video':
+            target = self.get_video()
+        else:
+            target = self.get_audio()
+        target.add(element)
+        self.last = element
+
+    def build(self, _id, offset=0):
         doc = self.get_doc(_id)
         func = _builders[doc['node']['type']]
-        return func(doc, self)
+        return func(self, doc, offset)
+
+    def build_root(self, _id):
+        duration = self.build(_id, 0)
+        sources = filter(lambda s: s is not None, (self.video, self.audio))
+        for src in sources:
+            src.set_property('duration', duration)
+        return sources
 
     def resolve_file(self, _id):
         pass
@@ -271,18 +319,18 @@ class Renderer(object):
         self.bus.connect('message::error', self.on_error)
 
         # Create elements
-        self.src = builder.build(root)
+        self.sources = builder.build_root(root)
         self.mux = make_element(settings['muxer'])
         self.sink = gst.element_factory_make('filesink')
 
         # Add elements to pipeline
-        self.pipeline.add(self.src, self.mux, self.sink)
+        for src in self.sources:
+            self.pipeline.add(src)
+            src.connect('pad-added', self.on_pad_added)
+        self.pipeline.add(self.mux, self.sink)
 
         # Set properties
         self.sink.set_property('location', dst)
-
-        # Connect handler for 'new-decoded-pad' signal
-        self.src.connect('pad-added', self.on_pad_added)
 
         # Link *some* elements
         # This is completed in self.on_pad_added()

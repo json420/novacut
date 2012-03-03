@@ -34,6 +34,7 @@ parser.add_option('--frames',
 session = dbus.SessionBus()
 Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
 env = json.loads(Dmedia.GetEnv())
+#dmedia_0 = Database('dmedia-0-ahgokhnaabgo4dhwtuh6d4p4', env)
 dmedia_0 = Database('dmedia-0', env)
 dmedia_0.ensure()
 novacut_0 = Database('novacut-0', env)
@@ -42,7 +43,7 @@ novacut_0.ensure()
 docs = []
 slices = []
 
-for row in dmedia_0.view('user', 'video', limit=options.slices)['rows']:
+for row in dmedia_0.view('user', 'video', limit=options.slices, descending=True)['rows']:
     _id = row['id']
     src = Dmedia.Resolve(_id)
     cmd = ['dmedia-extract', src]
@@ -52,6 +53,7 @@ for row in dmedia_0.view('user', 'video', limit=options.slices)['rows']:
         time=time.time(),
         type='dmedia/file',
         ver=0,
+        origin='user',
     )
     docs.append(doc)
 
@@ -63,7 +65,7 @@ for doc in list(docs):
     start = random.randint(0, count - 1)
     end = min(count, start + options.frames)
     stop = random.randint(start + 1, end)
-    s = schema.create_slice(doc['_id'], {'frame': start}, {'frame': stop})
+    s = schema.create_slice(doc['_id'], {'frame': start}, {'frame': stop}, 'both')
     slices.append(s['_id'])
     docs.append(s)
 

@@ -26,53 +26,9 @@ Defines the Novacut CouchDB views.
 import logging
 
 from microfiber import NotFound
-
+from dmedia.views import _count, _sum, doc_design, media_design, camera_design
 
 log = logging.getLogger()
-
-_count = '_count'
-_sum = '_sum'
-
-# Reduce function to both count and sum in a single view (thanks manveru!)
-_both = """
-function(key, values, rereduce) {
-    var count = 0;
-    var sum = 0;
-    var i;
-    for (i in values) {
-        count += values[i][0];
-        sum += values[i][1];
-    }
-    return [count, sum];
-}
-"""
-
-
-
-# The generic 'doc' design, quite helpful for developers:
-doc_ver = """
-function(doc) {
-    emit(doc.ver, null);
-}
-"""
-
-doc_type = """
-function(doc) {
-    emit(doc.type, null);
-}
-"""
-
-doc_time = """
-function(doc) {
-    emit(doc.time, null);
-}
-"""
-
-doc_design = ('doc', (
-    ('ver', doc_ver, _count),
-    ('type', doc_type, _count),
-    ('time', doc_time, None),
-))
 
 
 # For novacut/node docs:
@@ -120,16 +76,6 @@ function(doc) {
 """
 
 
-# For dmedia/file docs:
-clip_framerate = """
-function(doc) {
-    if (doc.type == 'dmedia/file' && doc.framerate) {
-        emit(doc.framerate, null);   
-    }
-}
-"""
-
-
 # Design docs for main novacut-VER database
 novacut_main = (
     doc_design, 
@@ -143,14 +89,12 @@ novacut_main = (
 
 novacut_projects = (
     doc_design,
-    
+    media_design,
+    camera_design,
+
     ('node', (
         ('type', node_type, _count),
         ('src', node_src, _count),
-    )),
-
-    ('clip', (
-        ('framerate', clip_framerate, _count),
     )),
 )
 

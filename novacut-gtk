@@ -35,16 +35,18 @@ def default_settings():
         'video': {
             'encoder': {
                 'name': 'theoraenc',
-                'props': {
-                    'quality': 52,
-                },
             },
             'filter': {
                 'mime': 'video/x-raw-yuv',
                 'caps': {
-                    'width': 640,
-                    'height': 360,
+                    'width': 960,
+                    'height': 540,
                 },
+            },
+        },
+        'audio': {
+            'encoder': {
+                'name': 'vorbisenc',
             },
         },
     }
