@@ -283,66 +283,9 @@ class TestFunctions(TestCase):
                 'stop': {'frame': 12 * 24},
             },
         }
-        el = renderer.build_slice(doc, b)
-        self.assertIsInstance(el, gst.Element)
-        self.assertEqual(el.get_factory().get_name(), 'gnlfilesource')
-        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
-        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
-        self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw-rgb')
-        self.assertEqual(el.get_property('location'), resolve(clip1))
-
-        # Now with audio stream:
-        doc['node']['stream'] = 'audio'
-        el = renderer.build_slice(doc, b)
-        self.assertIsInstance(el, gst.Element)
-        self.assertEqual(el.get_factory().get_name(), 'gnlfilesource')
-        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
-        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
-        self.assertEqual(
-            el.get_property('caps').to_string(),
-            'audio/x-raw-int; audio/x-raw-float'
-        )
-        self.assertEqual(el.get_property('location'), resolve(clip1))
-
-        # When specified by sample instead:
-        doc = {
-            'node': {
-                'src': clip1,
-                'type': 'slice',
-                'stream': 'video',
-                'start': {'sample': 8 * 48000},
-                'stop': {'sample': 12 * 48000},
-            },
-        }
-        el = renderer.build_slice(doc, b)
-        self.assertIsInstance(el, gst.Element)
-        self.assertEqual(el.get_factory().get_name(), 'gnlfilesource')
-        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
-        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
-        self.assertEqual(
-            el.get_property('caps').to_string(),
-            'video/x-raw-rgb'
-        )
-        self.assertEqual(el.get_property('location'), resolve(clip1))
-
-    def test_build_slice2(self):
-        b = DummyBuilder(docs)
-
-        doc = {
-            'node': {
-                'src': clip1,
-                'type': 'slice',
-                'stream': 'video',
-                'start': {'frame': 8 * 24},
-                'stop': {'frame': 12 * 24},
-            },
-        }
 
         # Video stream, offset=0
-        self.assertEqual(renderer.build_slice2(b, doc, 0), 4 * gst.SECOND)
+        self.assertEqual(renderer.build_slice(b, doc, 0), 4 * gst.SECOND)
         el = b.last
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
@@ -355,7 +298,7 @@ class TestFunctions(TestCase):
 
         # Video stream, offset=3s
         self.assertEqual(
-            renderer.build_slice2(b, doc, 3 * gst.SECOND),
+            renderer.build_slice(b, doc, 3 * gst.SECOND),
             4 * gst.SECOND
         )
         el = b.last
@@ -370,7 +313,7 @@ class TestFunctions(TestCase):
 
         # Audio stream, offset=0
         doc['node']['stream'] = 'audio'
-        self.assertEqual(renderer.build_slice2(b, doc, 0), 4 * gst.SECOND)
+        self.assertEqual(renderer.build_slice(b, doc, 0), 4 * gst.SECOND)
         el = b.last
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
@@ -386,7 +329,7 @@ class TestFunctions(TestCase):
 
         # Audio stream, offset=3s
         self.assertEqual(
-            renderer.build_slice2(b, doc, 3 * gst.SECOND),
+            renderer.build_slice(b, doc, 3 * gst.SECOND),
             4 * gst.SECOND
         )
         el = b.last
@@ -412,7 +355,7 @@ class TestFunctions(TestCase):
                 'stop': {'sample': 12 * 48000},
             },
         }
-        self.assertEqual(renderer.build_slice2(b, doc, 0), 4 * gst.SECOND)
+        self.assertEqual(renderer.build_slice(b, doc, 0), 4 * gst.SECOND)
         el = b.last
         self.assertIsInstance(el, gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
@@ -428,7 +371,7 @@ class TestFunctions(TestCase):
 
         # Audio stream specified in samples, offset=3s
         self.assertEqual(
-            renderer.build_slice2(b, doc, 3 * gst.SECOND),
+            renderer.build_slice(b, doc, 3 * gst.SECOND),
             4 * gst.SECOND
         )
         el = b.last
@@ -446,21 +389,16 @@ class TestFunctions(TestCase):
 
     def test_build_sequence(self):
         b = DummyBuilder(docs)
+        self.assertEqual(
+            renderer.build_sequence(b, b.get_doc(sequence1), 0),
+            7 * gst.SECOND
+        )
 
-        el = renderer.build_sequence(b.get_doc(sequence1), b)
-        self.assertIsInstance(el, gst.Element)
-        self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
-        self.assertEqual(el.get_property('duration'), 7 * gst.SECOND)
-
-        el = b.build(sequence1)
-        self.assertIsInstance(el, gst.Element)
-        self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
-        self.assertEqual(el.get_property('duration'), 7 * gst.SECOND)
-
-        el = b.build(sequence2)
-        self.assertIsInstance(el, gst.Element)
-        self.assertEqual(el.get_factory().get_name(), 'gnlcomposition')
-        self.assertEqual(el.get_property('duration'), 9 * gst.SECOND)
+        b = DummyBuilder(docs)
+        self.assertEqual(
+            renderer.build_sequence(b, b.get_doc(sequence2), 0),
+            9 * gst.SECOND
+        )
 
 
 class TestBuilder(TestCase):

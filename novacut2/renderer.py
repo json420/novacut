@@ -133,22 +133,7 @@ def to_gst_time(spec, doc):
     raise ValueError('invalid time spec: {!r}'.format(spec))
 
 
-def build_slice(doc, builder):
-    src = builder.get_doc(doc['node']['src'])
-    el = gst.element_factory_make('gnlfilesource')
-    start = to_gst_time(doc['node']['start'], src)
-    stop = to_gst_time(doc['node']['stop'], src)
-    duration = stop - start
-    el.set_property('media-start', start)
-    el.set_property('media-duration', duration)
-    el.set_property('duration', duration)
-    stream = doc['node']['stream']
-    el.set_property('caps', gst.caps_from_string(stream_map[stream]))
-    el.set_property('location', builder.resolve_file(src['_id']))
-    return el
-
-
-def build_slice2(builder, doc, offset=0):
+def build_slice(builder, doc, offset=0):
     node = doc['node']
     clip = builder.get_doc(node['src'])
     start = to_gst_time(node['start'], clip)
@@ -172,19 +157,7 @@ def build_slice2(builder, doc, offset=0):
     return duration
 
 
-def build_sequence(doc, builder):
-    el = gst.element_factory_make('gnlcomposition')
-    start = 0
-    for src in doc['node']['src']:
-        child = builder.build(src)
-        el.add(child)
-        child.set_property('start', start)
-        start += child.get_property('duration')
-    el.set_property('duration', start)
-    return el
-
-
-def build_sequence2(builder, doc, offset=0):
+def build_sequence(builder, doc, offset=0):
     sequence_duration = 0
     for src in doc['node']['src']:
         duration = builder.build(src, offset)
@@ -208,10 +181,15 @@ class Builder(object):
         self.gnlcomposition.add(element)
         self.last = element
 
-    def build(self, _id):
+    def build(self, _id, offset=0):
         doc = self.get_doc(_id)
         func = _builders[doc['node']['type']]
-        return func(doc, self)
+        return func(self, doc, offset)
+
+    def build_root(self, _id):
+        duration = self.build(_id, 0)
+        self.gnlcomposition.set_property('duration', duration)
+        return self.gnlcomposition
 
     def resolve_file(self, _id):
         pass
@@ -316,7 +294,7 @@ class Renderer(object):
         self.bus.connect('message::error', self.on_error)
 
         # Create elements
-        self.src = builder.build(root)
+        self.src = builder.build_root(root)
         self.mux = make_element(settings['muxer'])
         self.sink = gst.element_factory_make('filesink')
 
