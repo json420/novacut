@@ -36,7 +36,7 @@ import gobject
 log = logging.getLogger()
 
 stream_map = {
-    'video': 'video/x-raw-rgb',
+    'video': 'video/x-raw-rgb; video/x-raw-yuv',
     'audio': 'audio/x-raw-int; audio/x-raw-float',
 }
 
@@ -140,20 +140,23 @@ def build_slice(builder, doc, offset=0):
     stop = to_gst_time(node['stop'], clip)
     duration = stop - start
 
-    # Create the element, set the URI, and select the stream
-    element = gst.element_factory_make('gnlurisource')
-    element.set_property('uri', 'file://' + builder.resolve_file(clip['_id']))
-    element.set_property('caps', stream_caps(node['stream']))
+    stream = node['stream']
 
-    # These properties are about the slice itself
-    element.set_property('media-start', start)
-    element.set_property('media-duration', duration)
+    for stream in ('video', 'audio'):
+        # Create the element, set the URI, and select the stream
+        element = gst.element_factory_make('gnlurisource')
+        element.set_property('uri', 'file://' + builder.resolve_file(clip['_id']))
+        element.set_property('caps', stream_caps(stream))
 
-    # These properties are about the position of the slice in the composition
-    element.set_property('start', offset)
-    element.set_property('duration', duration)
+        # These properties are about the slice itself
+        element.set_property('media-start', start)
+        element.set_property('media-duration', duration)
 
-    builder.add(element)
+        # These properties are about the position of the slice in the composition
+        element.set_property('start', offset)
+        element.set_property('duration', duration)
+
+        builder.add(element, stream)
     return duration
 
 
@@ -174,11 +177,27 @@ _builders = {
 
 class Builder(object):
     def __init__(self):
-        self.gnlcomposition = gst.element_factory_make('gnlcomposition')
         self.last = None
+        self.audio = None
+        self.video = None
 
-    def add(self, element):
-        self.gnlcomposition.add(element)
+    def get_audio(self):
+        if self.audio is None:
+            self.audio = gst.element_factory_make('gnlcomposition')
+        return self.audio
+
+    def get_video(self):
+        if self.video is None:
+            self.video = gst.element_factory_make('gnlcomposition')
+        return self.video
+
+    def add(self, element, stream):
+        assert stream in ('video', 'audio')
+        if stream == 'video':
+            target = self.get_video()
+        else:
+            target = self.get_audio()
+        target.add(element)
         self.last = element
 
     def build(self, _id, offset=0):
@@ -188,8 +207,10 @@ class Builder(object):
 
     def build_root(self, _id):
         duration = self.build(_id, 0)
-        self.gnlcomposition.set_property('duration', duration)
-        return self.gnlcomposition
+        sources = filter(lambda s: s is not None, (self.video, self.audio))
+        for src in sources:
+            src.set_property('duration', duration)
+        return sources
 
     def resolve_file(self, _id):
         pass
@@ -294,18 +315,18 @@ class Renderer(object):
         self.bus.connect('message::error', self.on_error)
 
         # Create elements
-        self.src = builder.build_root(root)
+        self.sources = builder.build_root(root)
         self.mux = make_element(settings['muxer'])
         self.sink = gst.element_factory_make('filesink')
 
         # Add elements to pipeline
-        self.pipeline.add(self.src, self.mux, self.sink)
+        for src in self.sources:
+            self.pipeline.add(src)
+            src.connect('pad-added', self.on_pad_added)
+        self.pipeline.add(self.mux, self.sink)
 
         # Set properties
         self.sink.set_property('location', dst)
-
-        # Connect handler for 'new-decoded-pad' signal
-        self.src.connect('pad-added', self.on_pad_added)
 
         # Link *some* elements
         # This is completed in self.on_pad_added()
