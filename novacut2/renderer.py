@@ -168,7 +168,8 @@ def build_slice2(builder, doc, offset=0):
     element.set_property('start', offset)
     element.set_property('duration', duration)
 
-    return element
+    builder.add(element)
+    return duration
 
 
 def build_sequence(doc, builder):
@@ -186,9 +187,9 @@ def build_sequence(doc, builder):
 def build_sequence2(builder, doc, offset=0):
     sequence_duration = 0
     for src in doc['node']['src']:
-        duration = builder.build(offset, src)
-        sequence_duration += duration
+        duration = builder.build(src, offset)
         offset += duration
+        sequence_duration += duration
     return sequence_duration
 
 
