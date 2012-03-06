@@ -301,12 +301,13 @@ Slice.prototype = {
         this.element.classList.add('grabbed');
     },
 
-    ungrab: function() {
+    ungrab: function(event) {
         this.x = null;
         this.y = null;
         this.element.classList.remove('grabbed');
         if (this.element.classList.contains("free") == true){
-            console.log("floating trees");
+            this.bucket = true;
+            
         }
         this.element.classList.remove('free');
         var i, me, child;
@@ -316,13 +317,15 @@ Slice.prototype = {
             if (child == this.element) {
                 me = i;
             }
-            child.setAttribute('class', 'slice');
+            child.classList.remove('home');
         }
-        if (this.pos != 0) {
-            console.log(this.pos);
+        if (this.pos !== 0) {
             var target = parent.children[me + this.pos];
             parent.removeChild(this.element);
-            if (this.pos < 0) {
+            if (this.bucket && UI.bucket){
+                UI.bucket.add(event, this.doc._id);
+            }
+            else if (this.pos < 0) {
                 parent.insertBefore(this.element, target);
             }
             else {
@@ -345,7 +348,7 @@ Slice.prototype = {
             self.on_mousemove(event);
         }
         tmp.on_mouseup = function(event) {
-            self.ungrab();
+            self.ungrab(event);
             window.removeEventListener('mousemove', tmp.on_mousemove);
             window.removeEventListener('mouseup', tmp.on_mouseup);
         }
@@ -396,6 +399,7 @@ Slice.prototype = {
     do_free: function(event) {
         this.x = event.clientX - this.offsetX;
         this.y = event.clientY - this.offsetY;
+        this.pos = false;
     },
 
     shift_right: function() {
@@ -504,6 +508,82 @@ Sequence.prototype = {
     },
 }
 
+var Bucket = function(session, doc){
+    this.element = $('bucket');
+    session.subscribe(doc._id, this.on_change, this);
+    this.session = session;
+    this.on_change(doc);
+    
+    this.element.addEventListener("mousedown", $bind(this.on_mousedown, this));
+}
+Bucket.prototype = {
+    on_change: function(doc){
+        var self = this;
+        self.doc = doc;
+        var start = Date.now();
+        self.element.innerHTML = "";
+        self.doc.nodes.forEach(function(node){
+            var node_doc = self.session.get_doc(node.id);
+            if (node_doc.type == "dmedia/file"){
+                //add a clip
+            }
+            else if (node_doc.type == "novacut/node"){
+                switch(node_doc.node.type){
+                    case "slice":
+                        var node_obj = new Slice(self.session, node_doc);
+                        node_obj.element.classList.add("bucket");
+                        node_obj.x = node.pos.x
+                        node_obj.y = node.pos.y
+                        self.element.appendChild(node_obj.element);
+                }
+            };
+        });
+        Thumbs.flush();
+        console.log(Date.now() - start);
+    },
+    
+    add: function(event, id){
+        var node = {};
+        node.id = id;
+        node.pos = {};
+        console.log(event);
+        node.pos.x = event.clientX;
+        node.pos.y = event.clientY;
+        if (this.doc.nodes.map(function(n){return n.id}).indexOf(id) == -1){
+            this.doc.nodes.push(node);
+            this.session.save(this.doc);
+            this.session.commit();
+        };
+    },
+    
+    on_mousedown: function(event){
+        $halt(event);
+        this.startX = event.clientX;
+        this.startY = event.clientY;
+        document.body.style.cursor = "move";
+        var tmp = {};
+        tmp.on_mousemove = $bind(function(event){
+            this.on_mousemove(event)
+        }, this);
+        tmp.on_mouseup = function(event){
+            window.removeEventListener("mousemove", tmp.on_mousemove);
+            window.removeEventListener("mouseup", tmp.on_mousemove);
+            document.body.style.cursor = "auto";
+        };
+        window.addEventListener("mousemove", tmp.on_mousemove);
+        window.addEventListener("mouseup", tmp.on_mouseup);
+    },
+    
+    on_mousemove: function(event){
+        var offsetX = event.clientX - this.startX;
+        var offsetY = event.clientY - this.startY;
+        this.element.scrollLeft -= offsetX;
+        this.element.scrollTop -= offsetY;
+        this.startX = event.clientX;
+        this.startY = event.clientY
+    },
+}
+
 var Clip = function(session, doc) {
     var self = this;
     session.subscribe(doc._id, this.on_change, this);
@@ -531,16 +611,20 @@ var Clip = function(session, doc) {
     
     this.time = doc.ctime;
     
-    this.frame = new Frame(doc._id);
-    this.element.appendChild(this.frame.element);
+    this.frame_widget = new Frame(doc._id);
+    this.element.appendChild(this.frame_widget.element);
 
     this.on_change(doc, true);
     
     this.element.ondblclick = $bind(this.on_dblclick, this);
+    this.element.onmousedown = $bind(this.on_mousedown, this);
+    this.element.onmousemove = $bind(this.on_mousemove, this);
+    this.frame_widget.element.onmousewheel = $bind(this.on_mousewheel, this);
 }
 Clip.prototype = {
     on_change: function(doc) {
-        this.frame.set_index(0);
+        this.doc = doc;
+        this.frame_widget.set_index(0);
     },
     
     get posX(){
@@ -579,6 +663,68 @@ Clip.prototype = {
         }
     },
     
+    on_mousedown: function(event){
+        $halt(event);
+        if (event.button === 1){
+            return false;
+        }
+        var self = this;
+        var id = this.element.id;
+        var el = this.element;
+        var offsetX = event.offsetX;
+        var offsetY = event.offsetY;
+        var startX = event.clientX;
+        var startY = event.clientY;
+        var free = false;
+        var parentElement = el.parentElement;
+        var tmp_move = function(event){
+            self.posX = (event.clientX - offsetX);
+            if (!free){
+                self.posY = (event.clientY - offsetY - parentElement.offsetTop + parentElement.scrollTop);
+            }
+            else{
+                self.posY = (event.clientY - offsetY);
+                if (UI.mouse_over_id !== event.target.id){
+                    UI.mouse_over_id = event.target.id;
+                    console.log("Drag over: " + UI.mouse_over_id);
+                }
+            }
+            document.body.style.setProperty("cursor", "move")
+        };
+        var tmp_up = function(event){
+            clearTimeout(t);
+            window.removeEventListener("mousemove", tmp_move);
+            window.removeEventListener("mouseup", tmp_up);
+            document.body.style.setProperty("cursor", "auto")
+            el.classList.remove("moving");
+            
+            if (el.parentElement !== parentElement){
+                el.parentElement.removeChild(el);
+                parentElement.appendChild(el);
+            }
+            if (UI.mouse_over_id && UI.mouse_over_id == "sequence" || UI.mouse_over_id == "slice"){
+                console.log(UI.mouse_over_id);
+                self.on_dblclick(event);
+                UI.views.clips.flow();
+            }
+            if (free){
+                self.posY += parentElement.scrollTop - parentElement.offsetTop;
+            }
+            UI.views.clips.flow(UI.views.clips.by_time);
+        };
+        var timeout = function(){
+            el.classList.add("moving");
+            free = true;
+            el.parentElement.removeChild(el);
+            self.posY += parentElement.offsetTop - parentElement.scrollTop;
+            document.body.appendChild(el);
+        };
+        
+        var t = setTimeout(timeout, 150);
+        window.addEventListener("mouseup", tmp_up);
+        window.addEventListener("mousemove", tmp_move);
+    },
+    
     on_dblclick: function(event){
         $halt(event);
         var id = this.element.id;
@@ -602,8 +748,45 @@ Clip.prototype = {
         UI.session.save(UI.sequence.doc);
         UI.session.commit();
     },
+    
+    on_mousewheel: function(event) {
+        if(event.altKey){
+            $halt(event);
+            thingy = this;
+        }
+        else{
+            return;
+        }
+        var delta = wheel_delta(event);
+        var start = this.frame;
+        var stop = this.doc.duration.frames;
+        var proposed = Math.max(0, Math.min(start + delta, stop - 1));
+        if (start != proposed) {
+            this.frame = proposed;
+        }
+    },
+    
+    on_mousemove: function(event){
+        if(event.button != 1){
+            return;
+        }
+        var frames = this.doc.duration.frames - 1;
+        var pos = event.offsetX/event.target.clientWidth;
+        var frame = Math.floor(pos*frames);
+        this.frame = frame;
+    },
+    
+    set frame(val){
+        this.frame_widget.set_index(val);
+        Thumbs.flush();
+    },
+    
+    get frame(){
+        return this.frame_widget.index;
+    },
 }
 
+var thingy;
 
 var UI = {
     init: function() {
@@ -619,11 +802,13 @@ var UI = {
         console.log(UI.project);
         
         if (!UI.project.root_id){
+            setTimeout(UI.view_clips, 30);
+            alert("Hey, this looks like a new project; if you're new to novacut ping JamesMR on IRC and bug him about the lack of tutorials.");
             var node = {
                 "_id": couch.random_id(), 
                 "node": {
                     "src": [], 
-                    "type": "sequence"
+                    "type": "sequence",
                 }, 
                 "type": "novacut/node"
             };
@@ -631,21 +816,59 @@ var UI = {
             UI.project.root_id = node._id;
             UI.db.save(UI.project);
         }
+        if (!UI.project.main_bucket){
+            var doc = {};
+            doc._id = couch.random_id();
+            doc.nodes = [];
+            doc.type = "novacut/bucket";
+            UI.db.save(doc);
+            UI.project.main_bucket = doc._id;
+            UI.db.save(UI.project);
+        }
 
         UI.clips = {};
         UI.clips.length = 0;
 
         UI.views = {};
-        UI.views.render = $("render-view");
+        UI.views.render = $("render");
         
         UI.views.clips = $("clips");
-        UI.views.clips.flow = function(list){
+        UI.views.clips.flow = function(list, instant){
+            if (!list){
+                list = [];
+                for (var id in UI.clips){
+                    if (id !== "length"){
+                        list.push({
+                            time: UI.clips[id].time,
+                            count: UI.clips[id].count,
+                            id: id,
+                        });
+                    }
+                };
+                list.sort(function(a, b){
+                    if(a.time > b.time){
+                        return 1;
+                    }
+                    return -1;
+                });
+                list = list.map(function(o){
+                    return o.id
+                });
+                UI.views.clips.by_time = list;
+                instant = true;
+            }
             var width = UI.views.clips.clientWidth;
             var count = Math.floor(width/210);
             var padding = Math.round((width - count*192)/(count+1));
             if (list && list.forEach){
                 list.forEach(function(id, i){
-                    UI.clips[id].moveTo((padding+192)*(i%count) + padding , 115*((i - i % count) / count) + 5);
+                    if (!instant){
+                        UI.clips[id].moveTo((padding+192)*(i%count) + padding , 115*((i - i % count) / count) + 5);
+                    }
+                    else{
+                        UI.clips[id].posX = (padding+192)*(i%count) + padding;
+                        UI.clips[id].posY = 115*((i - i % count) / count) + 5;
+                    }
                 });
             }
             else {
@@ -675,7 +898,7 @@ var UI = {
     },
 
     render: function() {
-        $("render").disabled = true;
+        $("render-btn").disabled = true;
         console.log('render');
         Hub.send('render', UI.project._id, UI.project.root_id, null);
     },
@@ -683,7 +906,8 @@ var UI = {
     on_render_finished: function(job_id, file_id) {
         UI.player.src = 'dmedia:' + file_id;
         UI.player.play();
-        $("render").disabled = false;
+        $("render-btn").disabled = false;
+        console.log(job_id);
     },
 
     on_new_doc: function(doc) {
@@ -694,14 +918,25 @@ var UI = {
             UI.scrubber.onmousewheel = UI.on_mousewheel;
             UI.scrubber.onmousedown = UI.on_mousedown;
         }
+        else if (doc._id == UI.project.main_bucket) {
+            UI.bucket = new Bucket(UI.session, doc);
+            if (doc.nodes.length < 1){
+                UI.view_clips();
+            }
+        }
         else if (doc.type == "dmedia/file"){
             var clip = new Clip(UI.session, doc);
             UI.clips[doc._id] = clip;
             UI.clips.length += 1;
-            clip.posX = Math.floor(UI.views.clips.clientWidth/2);
-            clip.posY = Math.floor(UI.views.clips.clientHeight/2);
             UI.views.clips.appendChild(clip.element);
+            UI.views.clips.flow();
             Thumbs.flush();
+            if (!doc.framerate){
+                doc.framerate = doc.meta.framerate;
+                doc.duration = doc.meta.duration;
+                UI.session.save(doc);
+                UI.session.commit();
+            }
         }
     },
     
@@ -710,6 +945,7 @@ var UI = {
             UI.views[v].classList.remove("show");
             if (view == v){
                 UI.views[view].classList.add("show");
+                console.log("changed view");
             }
         }
     },
@@ -736,24 +972,23 @@ var UI = {
             return o.id
         });
         UI.views.clips.by_time = list;
-        UI.views.clips.flow(list);
+        UI.views.clips.flow(list, true);
         UI.view("clips");
     },
     
     view_bucket: function(){
-        console.log("BUCKET");
         UI.view("bucket");
     },
     
     view_render: function(){
         UI.view("render");
-        UI.render();
     },
 
     on_mousewheel: function(event) {
         $halt(event);
         var delta = wheel_delta(event) * (192 + 8);
         UI.sequence.element.scrollLeft += delta;
+        UI.scrubber.style.setProperty("background-position", -UI.sequence.element.scrollLeft/2 + "px 0px");
     },
     
     on_mousedown: function(event) {
@@ -773,12 +1008,13 @@ var UI = {
     
     on_mousemove: function(event) {
         $halt(event);
-        var dist = (event.offsetX - UI.scrubber.offsetX)*3;
+        var dist = (event.clientX - UI.scrubber.offsetX);
         if (event.shiftKey == true){
             dist *= 10;
         }
         UI.sequence.element.scrollLeft -= dist;
-        UI.scrubber.offsetX = event.offsetX;
+        UI.scrubber.offsetX = event.clientX;
+        UI.scrubber.style.setProperty("background-position", -UI.sequence.element.scrollLeft + "px 0px");
     },
     
     on_dragover: function(event){
@@ -817,7 +1053,26 @@ var UI = {
                 UI.views.clips.flow(UI.views.clips.by_time);
             }, 10);
         }
-    }
+    },
+    
+    delete_project: function(){
+        if (confirm("Delete this Project?\nNote: This is irreversable")){
+            var tmp_db = new couch.Database("novacut-0");
+            tmp_db.delete_sync(UI.project_id, {rev: tmp_db.get_sync(UI.project_id)._rev});
+            UI.db.delete_sync();
+            window.history.back();
+        }
+    },
+    
+    delete_slice: function(doc){
+        if (doc.node && doc.node.type == "slice"){
+            UI.db.delete_sync(doc._id, {rev: doc._rev});
+        }
+    },
+    
+    alert: function(msg){
+        
+    },
 }
 
 window.addEventListener('load', UI.init);

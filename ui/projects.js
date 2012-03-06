@@ -41,7 +41,7 @@ var UI = {
                 var li = $el('li', {'class': 'project', 'id': row.id});
 
                 var thumb = $el('div', {'class': 'thumbnail'});
-                thumb.style.backgroundImage = novacut.att_css_url(row.id);
+                thumb.style.backgroundImage = "url(/_apps/dmedia/novacut-avatar-192.png)";//novacut.att_css_url(row.id);
 
                 var info = $el('div', {'class': 'info'});
                 info.appendChild(

@@ -1,26 +1,24 @@
 <!DOCTYPE html>
 <html>
-<head>
-<link rel="stylesheet" href="/_apps/dmedia/grid.css"></link>
-<link rel="stylesheet" href="novacut.css" />
-<link rel="stylesheet" href="projects.css" />
-<link rel="stylesheet" href="common.css" />
-<script src="/_apps/userwebkit/couch.js"></script>
-<script src="/_apps/userwebkit/base.js"></script>
-<script src="/_apps/dmedia/common.js"></script>
-<script src="novacut.js"></script>
-<script src="projects.js"></script>
-</head>
-<body>
+    <head>
+        <link rel="stylesheet" href="/_apps/dmedia/grid.css">
+        <link rel="stylesheet" href="/_apps/dmedia/common.css" />
+        <link rel="stylesheet" href="common.css" />
+        <script src="/_apps/userwebkit/couch.js"></script>
+        <script src="/_apps/userwebkit/base.js"></script>
+        <script src="/_apps/dmedia/common.js"></script>
+        <script src="novacut.js"></script>
+        <script src="projects.js"></script>
+    </head>
+    <body>
+        <form id="new_project" class="head">
+            <div class="grid_row">
+                <input placeholder="New project name" type="text" class="grid_4" autofocus>
+                <button class="grid_4" disabled>Create Project</button>
+            </div>
+        </form>
 
-<form id="new_project">
-<div class="grid_row">
-    <input placeholder="New project name" type="text" class="grid_4" autofocus>
-    <button class="grid_4" disabled>Create Project</button>
-</div>
-</form>
+        <ul id="projects"></ul>
 
-<ul id="projects"></ul>
-
-</body>
+    </body>
 </html>

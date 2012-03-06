@@ -1,4 +1,4 @@
-* {
+/* {
     margin: 0;
     padding: 0;
     font-family: Ubuntu, sans-sarif;
@@ -13,7 +13,7 @@ body {
 
 input, button {
     padding-left: 4px;
-    line-height: 22px;  /* 2px less becaues of 1px border */
+    line-height: 22px;  /* 2px less becaues of 1px border 
     border-radius: 3px;
     box-shadow: 0px 2px 5px 1px rgba(0,0,0,0.3);
 }
@@ -40,5 +40,5 @@ button:disabled {
 input:focus, button:focus {
     box-shadow: 0px 2px 5px 1px rgba(0,0,0,0.3), 0px 0px 0px 1px #e81f3b;
     outline:none;
-}
+}*/
 
