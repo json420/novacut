@@ -31,6 +31,8 @@ var UI = {
         UI.startframe = $('startframe');
         UI.endframe = $('endframe');
         
+        UI.bar = $('bar');
+        
         var uri = 'dmedia:' + UI.clip._id;
         UI.startframe.src = uri;
         UI.startframe.load();
@@ -62,6 +64,8 @@ var UI = {
         UI.scrubber.removeEventListener('mousemove', UI.on_scrub_start);
         window.addEventListener('mousemove', UI.on_scrub_end);
         window.addEventListener('mouseup', UI.on_mouseup);
+        UI.start_pos = event.pageX;
+        $show(UI.bar);
         $show(UI.endframe);
         UI.set_end(UI.get_frame(event));
     },
@@ -80,6 +84,14 @@ var UI = {
 
     on_scrub_end: function(event) {
         $halt(event);
+        var width = event.pageX - UI.start_pos;
+        if (width < 0) {
+        	UI.bar.style.left = (UI.start_pos + width) + 'px';
+        }
+        else {
+        	UI.bar.style.left = UI.start_pos + 'px';
+        }
+        UI.bar.style.width = Math.abs(width) + 'px';
         UI.set_end(UI.get_frame(event));
     },
 }
