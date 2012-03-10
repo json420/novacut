@@ -317,7 +317,7 @@ Slice.prototype = {
             if (child == this.element) {
                 me = i;
             }
-            child.classList.remove('home');
+            child.setAttribute('class', 'slice');
         }
         if (this.pos !== 0) {
             var target = parent.children[me + this.pos];
