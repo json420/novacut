@@ -24,6 +24,39 @@
 """
 
 __version__ = '12.03.0'
-
 BUS = 'com.novacut.Renderer'
+
+
+def configure_logging():
+    import sys
+    import os
+    from os import path
+    import logging
+
+    script = path.abspath(sys.argv[0])
+    namespace = path.basename(script)
+    format = [
+        '%(levelname)s',
+        '%(processName)s',
+        '%(threadName)s',
+        '%(message)s',
+    ]
+    home = path.abspath(os.environ['HOME'])
+    if not path.isdir(home):
+        raise Exception('$HOME is not a directory: {!r}'.format(home))
+    cache = path.join(home, '.cache', 'novacut')
+    if not path.exists(cache):
+        os.makedirs(cache)
+    filename = path.join(cache, namespace + '.log')
+    if path.exists(filename):
+        os.rename(filename, filename + '.previous')
+    logging.basicConfig(
+        filename=filename,
+        filemode='w',
+        level=logging.DEBUG,
+        format='\t'.join(format),
+    )
+    logging.info('script: %r', script)
+    logging.info('novacut.__file__: %r', __file__)
+    logging.info('novacut.__version__: %r', __version__)
 

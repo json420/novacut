@@ -39,7 +39,6 @@ import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GObject
-import dmedia
 
 import novacut
 
@@ -58,6 +57,9 @@ renderer = path.join(dirname, 'novacut-renderer')
 assert path.isfile(renderer)
 thumbnailer = path.join(dirname, 'novacut-thumbnailer')
 assert path.isfile(thumbnailer)
+
+
+Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
 
 
 def _start_thread(target, *args):
@@ -161,7 +163,7 @@ parser.add_option('--bus',
 (options, args) = parser.parse_args()
 
 
-dmedia.configure_logging()
+novacut.configure_logging()
 service = Service(options.bus)
 try:
     service.run()
