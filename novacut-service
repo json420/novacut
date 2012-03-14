@@ -72,7 +72,6 @@ def _start_thread(target, *args):
 class Service(dbus.service.Object):
     def __init__(self, bus):
         self._workers = {}
-        self._thumbnailers = {}
         self.bus = bus
         self.mainloop = GObject.MainLoop()
         super(Service, self).__init__(session, object_path='/')
@@ -135,8 +134,8 @@ class Service(dbus.service.Object):
     def thumbnail(self, file_id, frames):
         cmd = [thumbnailer, file_id]
         cmd.extend(str(f) for f in frames)
-        subprocess.check_output(cmd)
-        GObject.idle_add(self.ThumbnailFinished, file_id)
+        subprocess.check_call(cmd)
+        return (self.ThumbnailFinished, file_id)
 
     @dbus.service.method(IFACE, in_signature='', out_signature='s')
     def Version(self):
@@ -188,17 +187,16 @@ class Service(dbus.service.Object):
         """
         Generate thumbnails.
         """
-        log.info('Requested thumbnails file %r', file_id)
-        if file_id in self._thumbnailers:
-            return False
-        self._thumbnailers[file_id] = _start_thread(self.thumbnail, file_id, frames)
-        return True
+        file_id = str(file_id)
+        frames = [int(i) for i in frames]
+        log.info('Thumbnail(%r, %r)', file_id, frames)
+        key = ('thumbnail', file_id)
+        return self.start_worker(key, file_id, frames)
 
     @dbus.service.signal(IFACE, signature='s')
     def ThumbnailFinished(self, file_id):
-        log.info('Thumbnails finished for file %r', file_id)
-        del self._thumbnailers[file_id]
-    
+        log.info('@ThumbnailFinished(%r)', file_id)
+
 
 parser = optparse.OptionParser(
 	version=novacut.__version__,
