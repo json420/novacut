@@ -100,12 +100,24 @@ class Version(_Method):
 
 class Kill(_Method):
     'Shutdown `novacut-service`'
-    
+
     def format_output(self, seconds):
         return '{} was running for {}'.format(self.bus, minsec(seconds))
 
 
-class Render(_Method):
+class HashEdit(_Method):
+    'Hash edit state and save as intrinsic nodes'
+
+    args = ['project_id', 'node_id']
+
+
+class HashJob(_Method):
+    'Build job ID by hashing intrinsic node ID and settings ID'
+
+    args = ['intrinsic_id', 'settings_id']
+
+
+class RenderJob(_Method):
     'Render an edit'
 
     args = ['job_id']
