@@ -39,7 +39,7 @@ import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GObject
-from microfiber import Database
+from microfiber import Database, NotFound
 
 import novacut
 from novacut import schema
@@ -134,7 +134,12 @@ class Service(dbus.service.Object):
 
     def hash_job(self, intrinsic_id, settings_id):
         db = Database(schema.DB_NAME, self.env)
-        job_id = 'baz'
+        job = schema.create_job(intrinsic_id, settings_id)
+        job_id = job['_id']
+        try:
+            job = db.get(job_id)
+        except NotFound:
+            db.save(job)
         return (self.JobHashed, intrinsic_id, settings_id, job_id)
 
     def thumbnail(self, file_id, frames):

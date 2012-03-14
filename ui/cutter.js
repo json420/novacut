@@ -793,6 +793,7 @@ var UI = {
         UI.player = $('player');
         Hub.connect('render_finished', UI.on_render_finished);
         Hub.connect('state_hashed', UI.on_state_hashed);
+        Hub.connect('job_hashed', UI.on_job_hashed);
 
         var id = window.location.hash.slice(1);
         var doc = novacut.get_sync(id);
@@ -900,6 +901,12 @@ var UI = {
 
     on_state_hashed: function(project_id, node_id, intrinsic_id) {
         console.log(['state_hashed', project_id, node_id, intrinsic_id].join(' '));
+        // null for default settings_id:
+        Hub.send('hash_job', intrinsic_id, null);
+    },
+
+    on_job_hashed: function(intrinsic_id, settings_id, job_id) {
+        console.log(['job_hashed', intrinsic_id, settings_id, job_id].join(' '));
     },
 
     render: function() {
