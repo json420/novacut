@@ -132,6 +132,7 @@ class App(BaseApp):
         self.server.post({'docs': docs}, dst_db, '_bulk_docs')
 
     def on_render(self, hub, project_id, root_id, settings_id):
+        print(project_id, root_id)
         project = self.server.database(schema.project_db_name(project_id))
         _id = schema.save_to_intrinsic(root_id, project, self.db)
         if settings_id is None:
