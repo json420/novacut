@@ -111,7 +111,7 @@ class Render(_Method):
     args = ['job_id']
 
 
-class HashState(_Method):
+class HashEdit(_Method):
     'Hash edit state and save as intrinsic nodes'
 
     args = ['project_id', 'node_id']

@@ -78,8 +78,8 @@ class App(BaseApp):
         'thumbnail': ['file_id', 'frames'],
         'thumbnail_finished': ['file_id'],
 
-        'hash_state': ['project_id', 'node_id'],
-        'state_hashed': ['project_id', 'node_id', 'intrinsic_id'],
+        'hash_edit': ['project_id', 'node_id'],
+        'edit_hashed': ['project_id', 'node_id', 'intrinsic_id'],
 
         'hash_job': ['intrinsic_id', 'settings_id'],
         'job_hashed': ['intrinsic_id', 'settings_id', 'job_id'],
@@ -101,9 +101,9 @@ class App(BaseApp):
         elif signal == 'ThumbnailFinished':
             (file_id,) = params.unpack()
             self.hub.send('thumbnail_finished', file_id)
-        elif signal == 'StateHashed':
+        elif signal == 'EditHashed':
             (project_id, node_id, intrinsic_id) = params.unpack()
-            self.hub.send('state_hashed', project_id, node_id, intrinsic_id)
+            self.hub.send('edit_hashed', project_id, node_id, intrinsic_id)
         elif signal == 'JobHashed':
             (intrinsic_id, settings_id, job_id) = params.unpack()
             self.hub.send('job_hashed', intrinsic_id, settings_id, job_id)
@@ -112,7 +112,7 @@ class App(BaseApp):
         hub.connect('create_project', self.on_create_project)
         hub.connect('load_project', self.on_load_project)
         hub.connect('copy_docs', self.on_copy_docs)
-        hub.connect('hash_state', self.on_hash_state)
+        hub.connect('hash_edit', self.on_hash_edit)
         hub.connect('hash_job', self.on_hash_job)
         hub.connect('render', self.on_render)
         hub.connect('thumbnail', self.on_thumbnail)
@@ -172,9 +172,9 @@ class App(BaseApp):
             return
         self.Renderer.Render('(s)', job_id)
 
-    def on_hash_state(self, hub, project_id, root_id):
-        print('hash_state', project_id, root_id)
-        self.Renderer.HashState('(ss)', project_id, root_id)
+    def on_hash_edit(self, hub, project_id, root_id):
+        print('hash_edit', project_id, root_id)
+        self.Renderer.HashEdit('(ss)', project_id, root_id)
 
     def on_hash_job(self, hub, intrinsic_id, settings_id):
         print('hash_job', intrinsic_id, settings_id)

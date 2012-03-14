@@ -792,7 +792,7 @@ var UI = {
     init: function() {
         UI.player = $('player');
         Hub.connect('render_finished', UI.on_render_finished);
-        Hub.connect('state_hashed', UI.on_state_hashed);
+        Hub.connect('edit_hashed', UI.on_edit_hashed);
         Hub.connect('job_hashed', UI.on_job_hashed);
 
         var id = window.location.hash.slice(1);
@@ -899,8 +899,8 @@ var UI = {
         });
     },
 
-    on_state_hashed: function(project_id, node_id, intrinsic_id) {
-        console.log(['state_hashed', project_id, node_id, intrinsic_id].join(' '));
+    on_edit_hashed: function(project_id, node_id, intrinsic_id) {
+        console.log(['edit_hashed', project_id, node_id, intrinsic_id].join(' '));
         // null for default settings_id:
         Hub.send('hash_job', intrinsic_id, null);
     },
@@ -913,7 +913,7 @@ var UI = {
         $("render-btn").disabled = true;
         console.log('render');
         //Hub.send('render', UI.project._id, UI.project.root_id, null);
-        Hub.send('hash_state', UI.project._id, UI.project.root_id);
+        Hub.send('hash_edit', UI.project._id, UI.project.root_id);
     },
 
     on_render_finished: function(job_id, file_id) {
