@@ -108,6 +108,15 @@ class Service(dbus.service.Object):
         self.kill()
         return int(time.time() - start_time)
 
+    @dbus.service.method(IFACE, in_signature='ss', out_signature='')
+    def HashState(self, project_id, node_id):
+        log.info('HashState(%r, %r)', project_id, node_id)
+        self.StateHashed(project_id, node_id, 'baz')
+
+    @dbus.service.signal(IFACE, signature='sss')
+    def StateHashed(self, project_id, node_id, intrinsic_id):
+        log.info('StateHashed(%r, %r, %r)', project_id, node_id, intrinsic_id)
+
     @dbus.service.method(IFACE, in_signature='s', out_signature='b')
     def Render(self, job_id):
         """
