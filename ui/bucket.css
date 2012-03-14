@@ -1,0 +1,67 @@
+#bucket {
+    position: fixed;
+    top: 0;
+    bottom: 216px;
+    left: 0;
+    right: 0;
+    background-color: #fdd;
+}
+
+#bucket .slice {
+    position: absolute;
+}
+
+#bucket .frame {
+    width: 128px;
+    height: 72px;
+    font-size: 13px;
+}
+
+#sequence {
+    position: fixed;
+    height: 216px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #ddf;
+    
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 0;
+    line-height: 0;
+}
+
+#sequence .slice {
+    display: inline-block;
+}
+
+#sequence .frame {
+    width: 192px;
+    height: 108px;
+    font-size: 14px;
+}
+
+.frame {
+    background-position: center center;
+    background-size: cover;
+
+    padding: 0 6px;
+    text-align: right;
+    font-family: "Ubuntu Mono";
+    line-height: 1.6em;
+    font-weight: bold;
+    color: white;
+    background-color: black;
+    text-shadow: 0px 0px 10px black;
+
+    cursor: default;
+
+    pointer-events: none;
+}
+
+.grabbed {
+    position: fixed;
+    z-index: 1;
+}
+
+
