@@ -73,8 +73,6 @@ class App(BaseApp):
         'project_created': ['project_id'],
         'load_project': ['project_id'],
         'copy_docs': ['src_db_name', 'dst_db_name', 'doc_ids'],
-        'render': ['project_id', 'root_id', 'settings_id'],
-        'render_finished': ['job_id', 'file_id'],
         'thumbnail': ['file_id', 'frames'],
         'thumbnail_finished': ['file_id'],
 
@@ -83,6 +81,9 @@ class App(BaseApp):
 
         'hash_job': ['intrinsic_id', 'settings_id'],
         'job_hashed': ['intrinsic_id', 'settings_id', 'job_id'],
+
+        'render_job': ['job_id'],
+        'job_rendered': ['job_id', 'file_id'],
     }
 
     __Renderer = None
@@ -95,10 +96,7 @@ class App(BaseApp):
         return self.__Renderer
 
     def on_g_signal(self, proxy, sender, signal, params):
-        if signal == 'RenderFinished':
-            (job_id, file_id) = params.unpack()
-            self.hub.send('render_finished', job_id, file_id)
-        elif signal == 'ThumbnailFinished':
+        if signal == 'ThumbnailFinished':
             (file_id,) = params.unpack()
             self.hub.send('thumbnail_finished', file_id)
         elif signal == 'EditHashed':
@@ -107,15 +105,18 @@ class App(BaseApp):
         elif signal == 'JobHashed':
             (intrinsic_id, settings_id, job_id) = params.unpack()
             self.hub.send('job_hashed', intrinsic_id, settings_id, job_id)
+        elif signal == 'JobRendered':
+            (job_id, file_id) = params.unpack()
+            self.hub.send('job_rendered', job_id, file_id)
 
     def connect_hub_signals(self, hub):
         hub.connect('create_project', self.on_create_project)
         hub.connect('load_project', self.on_load_project)
         hub.connect('copy_docs', self.on_copy_docs)
+        hub.connect('thumbnail', self.on_thumbnail)
         hub.connect('hash_edit', self.on_hash_edit)
         hub.connect('hash_job', self.on_hash_job)
-        hub.connect('render', self.on_render)
-        hub.connect('thumbnail', self.on_thumbnail)
+        hub.connect('render_job', self.on_render_job)
 
     def post_env_init(self):
         views.init_views(self.db, views.novacut_main)
@@ -148,29 +149,8 @@ class App(BaseApp):
             docs.append(doc)
         self.server.post({'docs': docs}, dst_db, '_bulk_docs')
 
-    def on_render(self, hub, project_id, root_id, settings_id):
-        print(project_id, root_id)
-        project = self.server.database(schema.project_db_name(project_id))
-        _id = schema.save_to_intrinsic(root_id, project, self.db)
-        if settings_id is None:
-            settings = default_settings()
-            settings_id = settings['_id']
-            try:
-                self.db.save(settings)
-            except Conflict:
-                pass
-        job = schema.create_job(_id, settings_id)
-        job_id = job['_id']
-        try:
-            job = self.db.get(job_id)
-        except NotFound:
-            self.db.save(job)
-        if job.get('renders'):
-            file_id = list(job['renders'])[0]
-            print('using existing render', file_id)
-            self.hub.send('render_finished', job_id, file_id)
-            return
-        self.Renderer.Render('(s)', job_id)
+    def on_thumbnail(self, hub, file_id, frames):
+        self.Renderer.Thumbnail('(sai)', file_id, frames)
 
     def on_hash_edit(self, hub, project_id, root_id):
         print('hash_edit', project_id, root_id)
@@ -187,9 +167,15 @@ class App(BaseApp):
                 pass
         self.Renderer.HashJob('(ss)', intrinsic_id, settings_id)
 
-    def on_thumbnail(self, hub, file_id, frames):
-        self.Renderer.Thumbnail('(sai)', file_id, frames)
-
+    def on_render_job(self, hub, job_id):
+        print('render_job', job_id)
+        job = self.db.get(job_id)
+        if job.get('renders'):
+            file_id = list(job['renders'])[0]
+            print('using existing render', file_id)
+            self.hub.send('job_rendered', job_id, file_id)
+            return
+        self.Renderer.RenderJob('(s)', job_id)
 
 app = App()
 app.run()

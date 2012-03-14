@@ -791,9 +791,9 @@ var thingy;
 var UI = {
     init: function() {
         UI.player = $('player');
-        Hub.connect('render_finished', UI.on_render_finished);
         Hub.connect('edit_hashed', UI.on_edit_hashed);
         Hub.connect('job_hashed', UI.on_job_hashed);
+        Hub.connect('job_rendered', UI.on_job_rendered);
 
         var id = window.location.hash.slice(1);
         var doc = novacut.get_sync(id);
@@ -898,6 +898,12 @@ var UI = {
             UI.views.clips.flow(UI.views.clips.by_time);
         });
     },
+    
+    render: function() {
+        $("render-btn").disabled = true;
+        console.log('render');
+        Hub.send('hash_edit', UI.project._id, UI.project.root_id);
+    },
 
     on_edit_hashed: function(project_id, node_id, intrinsic_id) {
         console.log(['edit_hashed', project_id, node_id, intrinsic_id].join(' '));
@@ -907,20 +913,14 @@ var UI = {
 
     on_job_hashed: function(intrinsic_id, settings_id, job_id) {
         console.log(['job_hashed', intrinsic_id, settings_id, job_id].join(' '));
+        Hub.send('render_job', job_id);
     },
 
-    render: function() {
-        $("render-btn").disabled = true;
-        console.log('render');
-        //Hub.send('render', UI.project._id, UI.project.root_id, null);
-        Hub.send('hash_edit', UI.project._id, UI.project.root_id);
-    },
-
-    on_render_finished: function(job_id, file_id) {
+    on_job_rendered: function(job_id, file_id) {
+        console.log(['job_rendered', job_id, file_id].join(' '));
         UI.player.src = 'dmedia:' + file_id;
         UI.player.play();
         $("render-btn").disabled = false;
-        console.log(job_id);
     },
 
     on_new_doc: function(doc) {

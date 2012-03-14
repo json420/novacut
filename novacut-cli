@@ -105,12 +105,6 @@ class Kill(_Method):
         return '{} was running for {}'.format(self.bus, minsec(seconds))
 
 
-class Render(_Method):
-    'Render an edit'
-
-    args = ['job_id']
-
-
 class HashEdit(_Method):
     'Hash edit state and save as intrinsic nodes'
 
@@ -121,6 +115,12 @@ class HashJob(_Method):
     'Build job ID by hashing intrinsic node ID and settings ID'
 
     args = ['intrinsic_id', 'settings_id']
+
+
+class RenderJob(_Method):
+    'Render an edit'
+
+    args = ['job_id']
 
 
 class Thumbnail(_Method):
