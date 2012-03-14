@@ -1,7 +1,7 @@
 #bucket {
     position: fixed;
     top: 0;
-    bottom: 216px;
+    bottom: 218px;
     left: 0;
     right: 0;
     background-color: #fdd;
@@ -11,7 +11,7 @@
 
 #sequence {
     position: fixed;
-    height: 216px;
+    height: 218px;
     bottom: 0;
     left: 0;
     right: 0;
@@ -26,11 +26,13 @@
 .slice {
     display: inline-block;
     overflow: hidden;
+    border: 1px solid #333;
 }
 
 .frame {
     background-position: center center;
     background-size: cover;
+    box-sizing: border-box;
 
     padding: 0 6px;
     text-align: right;
@@ -47,7 +49,12 @@
     
     width: 192px;
     height: 108px;
-    font-size: 14px;
+    font-size: 14px; 
+}
+
+.over {
+    -webkit-transition: margin-left 100ms ease-in-out;
+    margin-left: 194px;
 }
 
 .grabbed {
@@ -62,7 +69,6 @@
 .slice.bucket .frame {
     width: 128px !important;
     height: 72px !important;
-    font-size: 13px !important;
 }
 
 

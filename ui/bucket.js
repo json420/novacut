@@ -43,6 +43,10 @@ var Slice = function(session, doc) {
     this.element.onmousedown = $bind(this.on_mousedown, this);
 
     this.on_change(doc);
+    
+    this.i = null;
+    this.over = null;
+    this.width = 194;
 }
 Slice.prototype = {
     set x(value) {
@@ -126,14 +130,18 @@ Slice.prototype = {
         var top = UI.sequence.element.offsetTop;
         if (this.element.classList.contains('bucket')) {
             if (y + height - top > threshold) {
-                console.log('move into sequence');
                 this.element.classList.remove('bucket');
+                this.i = null;
             }
         }
         else {
             if (y - top < -threshold) {
-                console.log('move into bucket');
                 this.element.classList.add('bucket');
+                if (this.over) {
+                    this.over.classList.remove('over');
+                    this.over = null;
+                    this.i = null;
+                }
             }
         }
         if (this.element.classList.contains('bucket')) {
@@ -150,7 +158,17 @@ Slice.prototype = {
     },
 
     on_mousemove_sequence: function(event) {
-        this.x = event.clientX - this.offsetX;
+        var x = event.clientX - (this.offsetX * 1.5);
+    
+        if (this.i === null) {
+            var parent = UI.sequence.element;
+            var unclamped = Math.round((x + parent.scrollLeft) / this.width);
+            this.i = Math.max(0, Math.min(unclamped, parent.children.length - 1));
+            this.over = parent.children[this.i];
+            this.over.classList.add('over');
+        }
+        
+        this.x = x; 
         this.y = UI.sequence.element.offsetTop - 10;
     },
 
