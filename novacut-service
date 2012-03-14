@@ -76,10 +76,10 @@ class Service(dbus.service.Object):
         self.mainloop = GObject.MainLoop()
         super(Service, self).__init__(session, object_path='/')
         self.busname = dbus.service.BusName(bus, session)
-        self.Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
-        self.env = json.loads(self.Dmedia.GetEnv())
 
     def run(self):
+        self.Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
+        self.env = json.loads(self.Dmedia.GetEnv())
         self.mainloop.run()
 
     def kill(self):
