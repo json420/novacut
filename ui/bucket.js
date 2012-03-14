@@ -79,6 +79,12 @@ Slice.prototype = {
         this.x = doc.x;
         this.y = doc.y;
         this.element.style.zIndex = (doc.z_index || 0);
+        if (doc.sink) {
+            this.element.classList.remove('bucket');
+        }
+        else {
+            this.element.classList.add('bucket');
+        }
     },
 
     on_mousedown: function(event) {
@@ -94,29 +100,67 @@ Slice.prototype = {
         this.element.classList.add('grabbed');
         this.offsetX = event.offsetX;
         this.offsetY = event.offsetY;
-        this.on_mousemove(event);
+
+        this.element.classList.add('bucket');
+        this.on_mousemove_bucket(event);
+        
         var self = this;
         var tmp = {};
         tmp.on_mousemove = function(event) {
-            self.on_mousemove(event);
+            self.on_mousemove(event);            
         }
+        
         tmp.on_mouseup = function(event) {
-            self.element.classList.remove('grabbed');
+            self.on_mouseup(event);
             window.removeEventListener('mousemove', tmp.on_mousemove);
             window.removeEventListener('mouseup', tmp.on_mouseup);
-            self.doc.x = self.x;
-            self.doc.y = self.y;
-            self.doc.z_index = UI.z_index;
-            self.session.save(self.doc);
-            self.session.commit();
         }
         window.addEventListener('mousemove', tmp.on_mousemove);
         window.addEventListener('mouseup', tmp.on_mouseup);
     },
 
     on_mousemove: function(event) {
+        var y = event.clientY - this.offsetY;
+        var height = this.element.clientHeight;
+        var threshold = height * 0.65;
+        var top = UI.sequence.element.offsetTop;
+        if (this.element.classList.contains('bucket')) {
+            if (y + height - top > threshold) {
+                console.log('move into sequence');
+                this.element.classList.remove('bucket');
+            }
+        }
+        else {
+            if (y - top < -threshold) {
+                console.log('move into bucket');
+                this.element.classList.add('bucket');
+            }
+        }
+        if (this.element.classList.contains('bucket')) {
+            this.on_mousemove_bucket(event);
+        }
+        else {
+            this.on_mousemove_sequence(event);
+        }
+    },
+
+    on_mousemove_bucket: function(event) {
         this.x = event.clientX - this.offsetX;
         this.y = event.clientY - this.offsetY;
+    },
+
+    on_mousemove_sequence: function(event) {
+        this.x = event.clientX - this.offsetX;
+        this.y = UI.sequence.element.offsetTop - 10;
+    },
+
+    on_mouseup: function(event) {
+        this.element.classList.remove('grabbed');
+        this.doc.x = this.x;
+        this.doc.y = this.y;
+        this.doc.z_index = UI.z_index;
+        this.session.save(this.doc);
+        this.session.commit();
     },
 
 }
