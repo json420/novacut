@@ -143,6 +143,7 @@ class Service(dbus.service.Object):
         """
         Return Novacut version.
         """
+        log.info('Version()')
         return novacut.__version__
 
     @dbus.service.method(IFACE, in_signature='', out_signature='i')
@@ -150,6 +151,7 @@ class Service(dbus.service.Object):
         """
         Kill the `novacut-service` process.
         """
+        log.info('Kill()')
         self.kill()
         return int(time.time() - start_time)
 
