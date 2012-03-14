@@ -74,6 +74,9 @@ class App(BaseApp):
         'render_finished': ['job_id', 'file_id'],
         'thumbnail': ['file_id', 'frames'],
         'thumbnail_finished': ['file_id'],
+
+        'hash_state': ['project_id', 'node_id'],
+        'state_hashed': ['project_id', 'node_id', 'intrinsic_id'],
     }
 
     __Renderer = None
@@ -92,11 +95,15 @@ class App(BaseApp):
         elif signal == 'ThumbnailFinished':
             (file_id,) = params.unpack()
             self.hub.send('thumbnail_finished', file_id)
+        elif signal == 'StateHashed':
+            (project_id, node_id, intrinsic_id) = params.unpack()
+            self.hub.send('state_hashed', project_id, node_id, intrinsic_id)
 
     def connect_hub_signals(self, hub):
         hub.connect('create_project', self.on_create_project)
         hub.connect('load_project', self.on_load_project)
         hub.connect('copy_docs', self.on_copy_docs)
+        hub.connect('hash_state', self.on_hash_state)
         hub.connect('render', self.on_render)
         hub.connect('thumbnail', self.on_thumbnail)
 
@@ -154,6 +161,10 @@ class App(BaseApp):
             self.hub.send('render_finished', job_id, file_id)
             return
         self.Renderer.Render('(s)', job_id)
+
+    def on_hash_state(self, hub, project_id, root_id):
+        print('hash_state', project_id, root_id)
+        self.Renderer.HashState('(ss)', project_id, root_id)
 
     def on_thumbnail(self, hub, file_id, frames):
         self.Renderer.Thumbnail('(sai)', file_id, frames)

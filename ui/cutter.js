@@ -792,6 +792,7 @@ var UI = {
     init: function() {
         UI.player = $('player');
         Hub.connect('render_finished', UI.on_render_finished);
+        Hub.connect('state_hashed', UI.on_state_hashed);
 
         var id = window.location.hash.slice(1);
         var doc = novacut.get_sync(id);
@@ -882,12 +883,12 @@ var UI = {
                 }
             }
         }
-        
+
         UI.views.bucket = $("bucket");
-        
+
         UI.views.clips.ondragover = UI.on_dragover;
         UI.views.clips.ondrop = UI.on_drop;
-        
+
         set_title('title', UI.project.title);
         UI.session = new couch.Session(UI.db, UI.on_new_doc);
         UI.session.start();
@@ -897,10 +898,15 @@ var UI = {
         });
     },
 
+    on_state_hashed: function(project_id, node_id, intrinsic_id) {
+        console.log(['state_hashed', project_id, node_id, intrinsic_id].join(' '));
+    },
+
     render: function() {
         $("render-btn").disabled = true;
         console.log('render');
-        Hub.send('render', UI.project._id, UI.project.root_id, null);
+        //Hub.send('render', UI.project._id, UI.project.root_id, null);
+        Hub.send('hash_state', UI.project._id, UI.project.root_id);
     },
 
     on_render_finished: function(job_id, file_id) {
