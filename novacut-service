@@ -83,6 +83,7 @@ class Service(dbus.service.Object):
         self.mainloop.run()
 
     def kill(self):
+        log.info('kill()')
         self.mainloop.quit()
 
     def start_worker(self, key, *args):
@@ -212,5 +213,10 @@ novacut.configure_logging()
 service = Service(options.bus)
 try:
     service.run()
+except Exception as e:
+    log.exception('Error inside Service.run()')
+    print('Error inside Service.run():')
+    print(e)
+    raise SystemExit(1)
 finally:
     service.kill()
