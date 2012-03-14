@@ -117,6 +117,12 @@ class HashState(_Method):
     args = ['project_id', 'node_id']
 
 
+class HashJob(_Method):
+    'Build job ID by hashing intrinsic node ID and settings ID'
+
+    args = ['intrinsic_id', 'settings_id']
+
+
 class Thumbnail(_Method):
     'Generate thumbnails'
 
