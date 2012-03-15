@@ -29,6 +29,7 @@
     border: 1px solid #ddd;
 }
 
+
 .frame {
     background-position: center center;
     background-size: cover;
@@ -49,7 +50,19 @@
     
     width: 192px;
     height: 108px;
-    font-size: 14px; 
+    font-size: 14px;
+}
+
+.bucket .frame {
+    width: 128px;
+    height: 72px;
+}
+
+.bucket {
+    position: absolute;
+    -webkit-transition-timing-function: ease;
+    -webkit-transition-duration: 200ms;
+    -webkit-transition-property: left, top;
 }
 
 .over {
@@ -60,31 +73,26 @@
     margin-right: 194px;
 }
 
-.slice.bucket {
-    position: absolute;
-    -webkit-transition-timing-function: ease;
-    -webkit-transition-duration: 150ms;
-    -webkit-transition-property: left, top;
-}
-
-.slice.grabbed {
-    position: fixed !important;
-    -webkit-transition-property: none !important;
-    z-index: 1;
-}
-
-.slice.bucket .frame {
-    width: 128px !important;
-    height: 72px !important;
-}
-
 
 .right {
+    position: relative;
     left: 194px;
 }
 
 .left {
+    position: relative;
     left: -194px;
+}
+
+.animated {
+    position: relative;
+    -webkit-transition: left 150ms ease;
+}
+
+.grabbed {
+    -webkit-transition-property: none !important;
+    position: fixed !important;
+    z-index: 1;
 }
 
 

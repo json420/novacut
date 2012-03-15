@@ -272,9 +272,11 @@ Slice.prototype = {
         this.i -= 1;
         if (this.target.classList.contains('left')) {
             this.target.classList.remove('left');
+            UI.set_animated(this.target);
         }
         else {
             this.target.previousSibling.classList.add('right');
+            UI.set_animated(this.target.previousSibling);
         }
         this.target = this.target.previousSibling;
     },
@@ -286,9 +288,11 @@ Slice.prototype = {
         this.i += 1;
         if (this.target.classList.contains('right')) {
             this.target.classList.remove('right');
+            UI.set_animated(this.target);
         }
         else {
             this.target.nextSibling.classList.add('left');
+            UI.set_animated(this.target.nextSibling);
         }
         this.target = this.target.nextSibling;
 
@@ -424,6 +428,16 @@ Sequence.prototype = {
 
 
 var UI = {
+    animated: null,
+    
+    set_animated: function(element) {
+        if (UI.animated) {
+            UI.animated.classList.remove('animated');
+        }
+        UI.animated = element;
+        UI.animated.classList.add('animated');
+    },
+
     z_index: 0,
 
     top: null,
