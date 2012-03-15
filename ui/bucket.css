@@ -4,7 +4,7 @@
     bottom: 218px;
     left: 0;
     right: 0;
-    background-color: #fdd;
+    background-color: #777;
 }
 
 
@@ -15,7 +15,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background-color: #ddf;
+    background-color: #222;
     
     overflow: hidden;
     white-space: nowrap;
@@ -26,7 +26,7 @@
 .slice {
     display: inline-block;
     overflow: hidden;
-    border: 1px solid #333;
+    border: 1px solid #ddd;
 }
 
 .frame {
@@ -53,21 +53,23 @@
 }
 
 .over {
-/*    -webkit-transition: margin-left 100ms ease-in-out;*/
     margin-left: 194px;
 }
 
 .over-right {
-/*    -webkit-transition: margin-left 100ms ease-in-out;*/
     margin-right: 194px;
 }
 
 .slice.bucket {
     position: absolute;
+    -webkit-transition-timing-function: ease;
+    -webkit-transition-duration: 150ms;
+    -webkit-transition-property: left, top;
 }
 
 .slice.grabbed {
     position: fixed !important;
+    -webkit-transition-property: none !important;
     z-index: 1;
 }
 
@@ -78,12 +80,10 @@
 
 
 .right {
-    position: relative;
     left: 194px;
 }
 
 .left {
-    position: relative;
     left: -194px;
 }
 

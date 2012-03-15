@@ -121,7 +121,7 @@ Slice.prototype = {
         this.offsetX = event.offsetX;
         this.offsetY = event.offsetY;
         this.origY = event.pageY;
-        this.element.classList.add('grabbed');
+        
         var self = this;
         var tmp = {};
         tmp.on_mousemove = function(event) {
@@ -160,6 +160,7 @@ Slice.prototype = {
             }
             this.on_mousemove_sequence(event);
         }
+        this.element.classList.add('grabbed');
     },
 
     on_mousemove: function(event) {
@@ -305,7 +306,6 @@ Slice.prototype = {
             this.doc.y = this.y;
             this.doc.z_index = UI.z_index;
             if (!this.frombucket) {
-                console.log('physically moving to bucket ' + this.element.id);
                 console.assert(this.element.parentNode.id == 'sequence');
                 $unparent(this.element);
                 $('bucket').appendChild(this.element);
@@ -315,7 +315,6 @@ Slice.prototype = {
             var seq = $('sequence');
             var ref = seq.children[this.i];
             if (ref != this.element) {
-                console.log('reordering ' + this.element.id);
                 $unparent(this.element);
                 seq.insertBefore(this.element, ref);
             }
@@ -354,10 +353,8 @@ var Sequence = function(session, doc) {
 }
 Sequence.prototype = {
     on_change: function(doc) {
-        console.log('Sequence.on_change');
         this.doc = doc;
         if ($compare(doc.node.src, this.get_src())) {
-            console.log('  already in correct order');
             this.reset();
             return;
         }
@@ -368,9 +365,6 @@ Sequence.prototype = {
             if (!child || child.id != _id) {
                 element = UI.get_slice(_id);
                 this.element.insertBefore(element, child);
-            }
-            else {
-                console.log('can reuse position of ' + _id);
             }
         }
         if (doc.node.src.length != this.element.children.length) {
