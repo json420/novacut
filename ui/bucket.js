@@ -57,6 +57,7 @@ var Slice = function(session, doc) {
     this.over = null;
     this.width = 192 + 2;
     this.threshold = this.width * 0.65;
+    this.onreorder = null;
 }
 Slice.prototype = {
     set x(value) {
@@ -166,7 +167,6 @@ Slice.prototype = {
         else {
             var dy = event.pageY - this.origY;
         }
-        console.log('dy=' + dy);
         var height = this.element.clientHeight;
         var threshold = height * 0.65;
         if (this.inbucket) {
@@ -305,11 +305,44 @@ Slice.prototype = {
             this.doc.y = this.y;
             this.doc.z_index = UI.z_index;
             delete this.doc.sink;
-            this.session.save(this.doc);
+            if (!this.frombucket) {
+                console.log('physically moving to bucket ' + this.element.id);
+                console.assert(this.element.parentNode.id == 'sequence');
+                $unparent(this.element);
+                $('bucket').appendChild(this.element);
+            }
+        }
+        else {
+            var seq = $('sequence');
+            var ref = seq.children[this.i];
+            if (ref != this.element) {
+                console.log('reordering ' + this.element.id);
+                $unparent(this.element);
+                seq.insertBefore(this.element, ref);
+            }
+            this.doc.sink = UI.sequence.doc._id;
         }
         UI.reset_sequence();
+        this.session.save(this.doc);
+        if (this.onreorder) {
+            this.onreorder();
+        }
         this.session.commit();
     },
+}
+
+
+Array.prototype.compare = function(other) {
+    if (this.length != other.length) {
+        return false;
+    }
+    var i;
+    for (i in this) {
+        if (this[i] != other[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 
@@ -323,10 +356,18 @@ Sequence.prototype = {
     on_change: function(doc) {
         this.doc = doc;
         this.element.innerHTML = null;
+        var on_reorder = $bind(this.on_reorder, this);
         doc.node.src.forEach(function(_id) {
             var slice = new Slice(this.session, this.session.get_doc(_id));
+            slice.onreorder = on_reorder;
             this.append(slice);
+            if (slice.doc.sink != this.doc._id) {
+                console.log('fixing ' + slice.doc._id);
+                slice.doc.sink = this.doc._id;
+                this.session.save(slice.doc);
+            }
         }, this);
+        this.session.commit();
     },
 
     get_src: function() {
@@ -353,7 +394,6 @@ Sequence.prototype = {
         console.log('reorder');
         this.doc.node.src = this.get_src();
         this.session.save(this.doc);
-        this.session.commit();
     },
 }
 
