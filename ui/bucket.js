@@ -7,6 +7,15 @@ function $halt(event) {
 }
 
 
+function $unparent(id) {
+    var child = $(id);
+    if (child && child.parentNode) {
+        child.parentNode.removeChild(child);
+    }
+    return child;
+}
+
+
 var Frame = function(file_id) {
     this.file_id = file_id;
     this.index = null;
@@ -43,10 +52,11 @@ var Slice = function(session, doc) {
     this.element.onmousedown = $bind(this.on_mousedown, this);
 
     this.on_change(doc);
-    
+
     this.i = null;
     this.over = null;
-    this.width = 194;
+    this.width = 192 + 2;
+    this.threshold = this.width * 0.65;
 }
 Slice.prototype = {
     set x(value) {
@@ -74,25 +84,33 @@ Slice.prototype = {
     get y() {
         return parseInt(this.element.style.top);
     },
+    
+    get inbucket() {
+        return this.element.classList.contains('bucket');
+    },
 
     on_change: function(doc) {
         this.doc = doc;
         var node = doc.node;
         this.start.set_index(node.start.frame);
         this.end.set_index(node.stop.frame - 1);
-        this.x = doc.x;
-        this.y = doc.y;
-        this.element.style.zIndex = (doc.z_index || 0);
         if (doc.sink) {
             this.element.classList.remove('bucket');
+            this.x = null;
+            this.y = null;
+            this.element.style.zIndex = null;
         }
         else {
             this.element.classList.add('bucket');
+            this.x = doc.x;
+            this.y = doc.y;
+            this.element.style.zIndex = (doc.z_index || 0);
         }
     },
 
     on_mousedown: function(event) {
         $halt(event);
+        this.parent = this.element.parentNode;
         if (this.element.parentNode.id == 'bucket') {
             this.drag_from_bucket(event);
         }
@@ -124,27 +142,21 @@ Slice.prototype = {
     },
 
     on_mousemove: function(event) {
-        var y = event.clientY - this.offsetY;
+        var y = event.pageY - this.offsetY;
         var height = this.element.clientHeight;
         var threshold = height * 0.65;
         var top = UI.sequence.element.offsetTop;
-        if (this.element.classList.contains('bucket')) {
+        if (this.inbucket) {
             if (y + height - top > threshold) {
-                this.element.classList.remove('bucket');
-                this.i = null;
+                this.move_into_sequence(event);
             }
         }
         else {
             if (y - top < -threshold) {
-                this.element.classList.add('bucket');
-                if (this.over) {
-                    this.over.classList.remove('over');
-                    this.over = null;
-                    this.i = null;
-                }
+                this.move_into_bucket(event);
             }
         }
-        if (this.element.classList.contains('bucket')) {
+        if (this.inbucket) {
             this.on_mousemove_bucket(event);
         }
         else {
@@ -152,25 +164,101 @@ Slice.prototype = {
         }
     },
 
-    on_mousemove_bucket: function(event) {
-        this.x = event.clientX - this.offsetX;
-        this.y = event.clientY - this.offsetY;
-    },
-
-    on_mousemove_sequence: function(event) {
-        var x = event.clientX - (this.offsetX * 1.5);
+    move_into_sequence: function(event) {
+        this.element.classList.remove('bucket');
+        if (this.parent.id != 'bucket') {
+            return;
+        }
+        var x = event.pageX - (this.offsetX * 1.5);
+        var seq = UI.sequence.element;
+        var scroll_x = x + seq.scrollLeft;
     
-        if (this.i === null) {
-            var parent = UI.sequence.element;
-            var unclamped = Math.round((x + parent.scrollLeft) / this.width);
-            this.i = Math.max(0, Math.min(unclamped, parent.children.length - 1));
-            this.over = parent.children[this.i];
+        var unclamped = Math.round(scroll_x / this.width);
+        this.i = Math.max(0, Math.min(unclamped, seq.children.length));
+        if (this.i == seq.children.length) {
+            this.over = seq.children[this.i - 1];
+            this.over.classList.add('over-right');
+        }
+        else {
+            this.over = seq.children[this.i];
             this.over.classList.add('over');
         }
         
+        var ref = seq.children[this.i];
+        $unparent(this.element);
+        seq.insertBefore(this.element, ref);
+        if (!ref) {
+            seq.scrollLeft += this.width;
+        }
+        this.target = this.element;
+    },
+
+    move_into_bucket: function(event) {
+        this.element.classList.add('bucket');
+        var seq = UI.sequence.element;
+        if (this.parent.id == 'bucket') {
+            $unparent(this.element);
+            this.parent.appendChild(this.element);
+            var i;
+            for (i=0; i<seq.children.length; i++) {
+                seq.children[i].setAttribute('class', 'slice');
+            }
+        }
+    },
+
+    on_mousemove_bucket: function(event) {
+        this.x = event.pageX - this.offsetX;
+        this.y = event.pageY - this.offsetY;
+    },
+
+    on_mousemove_sequence: function(event) {
+        var x = event.pageX - (this.offsetX * 1.5);
+        var parent = UI.sequence.element;
+        var scroll_x = x + parent.scrollLeft;
+        
+        var ix = this.i * this.width;
+        var dx = scroll_x - ix;
+        
         this.x = x; 
         this.y = UI.sequence.element.offsetTop - 10;
+
+        if (dx < -this.threshold) {
+            this.shift_right();
+        }
+        else if (dx > this.threshold) {
+            this.shift_left();
+        }
     },
+
+    shift_right: function() {
+        if (!this.target.previousSibling) {
+            return;
+        }
+        this.i -= 1;
+        if (this.target.classList.contains('left')) {
+            this.target.classList.remove('left');
+        }
+        else {
+            this.target.previousSibling.classList.add('right');
+        }
+        this.target = this.target.previousSibling;
+    },
+
+    shift_left: function() {
+        if (!this.target.nextSibling) {
+            return;
+        }
+        this.i += 1;
+        if (this.target.classList.contains('right')) {
+            this.target.classList.remove('right');
+        }
+        else {
+            this.target.nextSibling.classList.add('left');
+        }
+        this.target = this.target.nextSibling;
+
+    },
+    
 
     on_mouseup: function(event) {
         this.element.classList.remove('grabbed');

@@ -53,8 +53,13 @@
 }
 
 .over {
-    -webkit-transition: margin-left 100ms ease-in-out;
+/*    -webkit-transition: margin-left 100ms ease-in-out;*/
     margin-left: 194px;
+}
+
+.over-right {
+/*    -webkit-transition: margin-left 100ms ease-in-out;*/
+    margin-right: 194px;
 }
 
 .grabbed {
@@ -69,6 +74,17 @@
 .slice.bucket .frame {
     width: 128px !important;
     height: 72px !important;
+}
+
+
+.right {
+    position: relative;
+    left: 194px;
+}
+
+.left {
+    position: relative;
+    left: -194px;
 }
 
 
