@@ -89,6 +89,10 @@ Slice.prototype = {
         return this.element.classList.contains('bucket');
     },
 
+    get frombucket() {
+        return this.parent && this.parent.id == 'bucket';
+    },
+
     on_change: function(doc) {
         this.doc = doc;
         var node = doc.node;
@@ -110,28 +114,16 @@ Slice.prototype = {
 
     on_mousedown: function(event) {
         $halt(event);
-        this.parent = this.element.parentNode;
-        if (this.element.parentNode.id == 'bucket') {
-            this.drag_from_bucket(event);
-        }
-    },
-
-    drag_from_bucket: function(event) {
-        console.log('drag_from_bucket');
-        UI.to_top(this.element);
-        this.element.classList.add('grabbed');
+        this.parent = this.element.parentNode; 
         this.offsetX = event.offsetX;
         this.offsetY = event.offsetY;
-
-        this.element.classList.add('bucket');
-        this.on_mousemove_bucket(event);
-        
+        this.origY = event.pageY;
+        this.element.classList.add('grabbed');
         var self = this;
         var tmp = {};
         tmp.on_mousemove = function(event) {
             self.on_mousemove(event);            
         }
-        
         tmp.on_mouseup = function(event) {
             self.on_mouseup(event);
             window.removeEventListener('mousemove', tmp.on_mousemove);
@@ -139,20 +131,51 @@ Slice.prototype = {
         }
         window.addEventListener('mousemove', tmp.on_mousemove);
         window.addEventListener('mouseup', tmp.on_mouseup);
+
+        UI.top = null;
+        if (this.frombucket) {
+            UI.to_top(this.element);
+            this.on_mousemove_bucket(event);
+        }
+        else {
+            if (this.element.nextSibling) {
+                this.over = this.element.nextSibling;
+                this.over.classList.add('over'); 
+            }
+            if (this.element.nextSibling) {
+                this.over = this.element.nextSibling;
+                this.over.classList.add('over'); 
+            }
+            this.target = this.element;
+            var seq = this.element.parentNode;
+            var i, child;
+            for (i=0; i<seq.children.length; i++) {
+                child = seq.children[i];
+                if (child == this.element) {
+                    this.i = i;
+                }
+            }
+            this.on_mousemove_sequence(event);
+        }
     },
 
     on_mousemove: function(event) {
-        var y = event.pageY - this.offsetY;
+        if (this.frombucket) {
+            var dy = event.pageY - this.offsetY - UI.sequence.element.offsetTop;
+        }
+        else {
+            var dy = event.pageY - this.origY;
+        }
+        console.log('dy=' + dy);
         var height = this.element.clientHeight;
         var threshold = height * 0.65;
-        var top = UI.sequence.element.offsetTop;
         if (this.inbucket) {
-            if (y + height - top > threshold) {
+            if (dy + height > threshold) {
                 this.move_into_sequence(event);
             }
         }
         else {
-            if (y - top < -threshold) {
+            if (dy < -threshold) {
                 this.move_into_bucket(event);
             }
         }
@@ -166,7 +189,7 @@ Slice.prototype = {
 
     move_into_sequence: function(event) {
         this.element.classList.remove('bucket');
-        if (this.parent.id != 'bucket') {
+        if (!this.frombucket) {
             return;
         }
         var x = event.pageX - (this.offsetX * 1.5);
@@ -194,25 +217,36 @@ Slice.prototype = {
     },
 
     move_into_bucket: function(event) {
+        console.log('move_into_bucket');
         this.element.classList.add('bucket');
-        var seq = UI.sequence.element;
-        if (this.parent.id == 'bucket') {
+        if (this.frombucket) {
             $unparent(this.element);
             this.parent.appendChild(this.element);
-            var i;
-            for (i=0; i<seq.children.length; i++) {
-                seq.children[i].setAttribute('class', 'slice');
-            }
+            UI.reset_sequence();
+        }
+        else {
+            UI.to_top(this.element); 
         }
     },
 
     on_mousemove_bucket: function(event) {
-        this.x = event.pageX - this.offsetX;
-        this.y = event.pageY - this.offsetY;
+        if (this.frombucket) {
+            this.x = event.pageX - this.offsetX;
+            this.y = event.pageY - this.offsetY;
+        }
+        else {
+            this.x = event.pageX - (this.offsetX / 1.5);
+            this.y = event.pageY - (this.offsetY / 1.5);
+        }
     },
 
     on_mousemove_sequence: function(event) {
-        var x = event.pageX - (this.offsetX * 1.5);
+        if (this.frombucket) {
+            var x = event.pageX - (this.offsetX * 1.5);
+        }
+        else {
+            var x = event.pageX - this.offsetX;
+        }
         var parent = UI.sequence.element;
         var scroll_x = x + parent.scrollLeft;
         
@@ -258,17 +292,24 @@ Slice.prototype = {
         this.target = this.target.nextSibling;
 
     },
-    
 
     on_mouseup: function(event) {
+        if (this.over) {
+            this.over.classList.remove('over');
+            this.over.classList.remove('over-right');
+            this.over = null;
+        }
         this.element.classList.remove('grabbed');
-        this.doc.x = this.x;
-        this.doc.y = this.y;
-        this.doc.z_index = UI.z_index;
-        this.session.save(this.doc);
+        if (this.inbucket) {
+            this.doc.x = this.x;
+            this.doc.y = this.y;
+            this.doc.z_index = UI.z_index;
+            delete this.doc.sink;
+            this.session.save(this.doc);
+        }
+        UI.reset_sequence();
         this.session.commit();
     },
-
 }
 
 
@@ -323,9 +364,15 @@ var UI = {
     top: null,
 
     to_top: function(element) {
+        if (element == UI.top) {
+            console.log('same');
+            return;
+        }
+        UI.top = element;
         UI.z_index += 1;
         element.style.zIndex = UI.z_index;
     },
+    
 
     init: function() {
         UI.bucket = $('bucket');
@@ -349,6 +396,28 @@ var UI = {
                 UI.bucket.appendChild(slice.element);
                 UI.z_index = Math.max(UI.z_index, doc.z_index || 0);
             }
+        }
+    },
+
+    softly_reset_sequence: function() {
+        var seq = $('sequence');
+        var i, child;
+        for (i=0; i<seq.children.length; i++) {
+            child = seq.children[i];
+            child.classList.remove('left');
+            child.classList.remove('right');
+        }
+    },
+
+    reset_sequence: function() {
+        var seq = $('sequence');
+        var i, child;
+        for (i=0; i<seq.children.length; i++) {
+            child = seq.children[i];
+            child.setAttribute('class', 'slice');
+            child.style.zIndex = null;
+            child.style.left = null;
+            child.style.top = null;
         }
     },
 }

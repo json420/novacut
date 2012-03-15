@@ -62,13 +62,13 @@
     margin-right: 194px;
 }
 
-.grabbed {
-    position: fixed;
-    z-index: 1;
-}
-
 .slice.bucket {
     position: absolute;
+}
+
+.slice.grabbed {
+    position: fixed !important;
+    z-index: 1;
 }
 
 .slice.bucket .frame {
