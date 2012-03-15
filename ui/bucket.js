@@ -36,10 +36,15 @@ Frame.prototype = {
 
 
 
-var Slice = function(session, doc) {
+var Slice = function(session, doc, forbucket) {
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
     this.element = $el('div', {'class': 'slice', 'id': doc._id});
+
+    var forbucket = forbucket || false;
+    if (forbucket) {
+        this.element.classList.add('bucket');
+    }
 
     var file_id = doc.node.src;
 
@@ -57,7 +62,6 @@ var Slice = function(session, doc) {
     this.over = null;
     this.width = 192 + 2;
     this.threshold = this.width * 0.65;
-    this.onreorder = null;
 }
 Slice.prototype = {
     set x(value) {
@@ -99,17 +103,15 @@ Slice.prototype = {
         var node = doc.node;
         this.start.set_index(node.start.frame);
         this.end.set_index(node.stop.frame - 1);
-        if (doc.sink) {
-            this.element.classList.remove('bucket');
-            this.x = null;
-            this.y = null;
-            this.element.style.zIndex = null;
-        }
-        else {
-            this.element.classList.add('bucket');
+        if (this.inbucket) {
             this.x = doc.x;
             this.y = doc.y;
             this.element.style.zIndex = (doc.z_index || 0);
+        }
+        else {
+            this.x = null;
+            this.y = null;
+            this.element.style.zIndex = null;
         }
     },
 
@@ -217,15 +219,13 @@ Slice.prototype = {
     },
 
     move_into_bucket: function(event) {
-        console.log('move_into_bucket');
         this.element.classList.add('bucket');
         if (this.frombucket) {
             $unparent(this.element);
             this.parent.appendChild(this.element);
-            UI.reset_sequence();
         }
         else {
-            UI.to_top(this.element); 
+            UI.to_top(this.element);
         }
     },
 
@@ -304,7 +304,6 @@ Slice.prototype = {
             this.doc.x = this.x;
             this.doc.y = this.y;
             this.doc.z_index = UI.z_index;
-            delete this.doc.sink;
             if (!this.frombucket) {
                 console.log('physically moving to bucket ' + this.element.id);
                 console.assert(this.element.parentNode.id == 'sequence');
@@ -320,25 +319,26 @@ Slice.prototype = {
                 $unparent(this.element);
                 seq.insertBefore(this.element, ref);
             }
-            this.doc.sink = UI.sequence.doc._id;
         }
-        UI.reset_sequence();
         this.session.save(this.doc);
-        if (this.onreorder) {
-            this.onreorder();
+        if (UI.on_reorder) {
+            UI.on_reorder();
         }
         this.session.commit();
     },
 }
 
 
-Array.prototype.compare = function(other) {
-    if (this.length != other.length) {
+function $compare(one, two) {
+    if (! (one instanceof Array && two instanceof Array)) {
+        return false;
+    }
+    if (one.length != two.length) {
         return false;
     }
     var i;
-    for (i in this) {
-        if (this[i] != other[i]) {
+    for (i in one) {
+        if (one[i] != two[i]) {
             return false;
         }
     }
@@ -354,34 +354,47 @@ var Sequence = function(session, doc) {
 }
 Sequence.prototype = {
     on_change: function(doc) {
+        console.log('Sequence.on_change');
         this.doc = doc;
-        this.element.innerHTML = null;
-        var on_reorder = $bind(this.on_reorder, this);
-        doc.node.src.forEach(function(_id) {
-            var slice = new Slice(this.session, this.session.get_doc(_id));
-            slice.onreorder = on_reorder;
-            this.append(slice);
-            if (slice.doc.sink != this.doc._id) {
-                console.log('fixing ' + slice.doc._id);
-                slice.doc.sink = this.doc._id;
-                this.session.save(slice.doc);
+        if ($compare(doc.node.src, this.get_src())) {
+            console.log('  already in correct order');
+            this.reset();
+            return;
+        }
+        var i, _id, child, element;
+        for (i in doc.node.src) {
+            _id = doc.node.src[i];
+            child = this.element.children[i];
+            if (!child || child.id != _id) {
+                element = UI.get_slice(_id);
+                this.element.insertBefore(element, child);
             }
-        }, this);
-        this.session.commit();
+            else {
+                console.log('can reuse position of ' + _id);
+            }
+        }
+        if (doc.node.src.length != this.element.children.length) {
+            var remove = [];
+            for (i=doc.node.src.length; i<this.element.children.length; i++) {
+                remove.push(this.element.children[i]);
+            }
+            remove.forEach(function(boot) {
+                UI.move_to_bucket(boot);   
+            });
+        }
+        this.reset();
+        console.assert(
+            $compare(this.doc.node.src, this.get_src())
+        );
     },
 
     get_src: function() {
-        var i, child;
+        var i;
         var src = [];
         for (i=0; i<this.element.children.length; i++) {
-            child = this.element.children[i];
-            src.push(child.id);
+            src.push(this.element.children[i].id);
         }
         return src;
-    },
-
-    append: function(child) {
-        this.element.appendChild(child.element);
     },
 
     on_mousewheel: function(event) {
@@ -392,8 +405,26 @@ Sequence.prototype = {
 
     on_reorder: function() {
         console.log('reorder');
-        this.doc.node.src = this.get_src();
+        var src = this.get_src();
+        if ($compare(this.doc.node.src, src)) {
+            console.log('already in correct order');
+            this.reset();
+            return;
+        }
+        this.doc.node.src = src;
         this.session.save(this.doc);
+    },
+
+    reset: function() {
+        console.log('Sequence.reset()');
+        var i, child;
+        for (i=0; i<this.element.children.length; i++) {
+            child = this.element.children[i];
+            child.setAttribute('class', 'slice');
+            child.style.zIndex = null;
+            child.style.left = null;
+            child.style.top = null;
+        }
     },
 }
 
@@ -402,17 +433,25 @@ var UI = {
     z_index: 0,
 
     top: null,
+    
+    _sequence: null,
+
+    get sequence() {
+        if (!UI._sequence) {
+            UI._sequence = new Sequence(UI.session, UI.session.get_doc(UI.doc.root_id));
+            UI.on_reorder = $bind(UI._sequence.on_reorder, UI._sequence);
+        }
+        return UI._sequence;
+    },
 
     to_top: function(element) {
         if (element == UI.top) {
-            console.log('same');
             return;
         }
         UI.top = element;
         UI.z_index += 1;
         element.style.zIndex = UI.z_index;
     },
-    
 
     init: function() {
         UI.bucket = $('bucket');
@@ -426,38 +465,31 @@ var UI = {
         UI.session.start();
     },
 
+    get_slice: function(_id) {
+        var element = $unparent(_id);
+        if (element) {
+            return element;
+        }
+        var slice = new Slice(UI.session, UI.session.get_doc(_id));
+        return slice.element;
+    },
+    
+    move_to_bucket: function(child) {
+        child = $unparent(child);
+        child.classList.add('bucket');
+        UI.bucket.appendChild(child);
+        return child;
+    },
+
     on_new_doc: function(doc) {
-        if (doc._id == UI.doc.root_id) {
-            UI.sequence = new Sequence(UI.session, doc);
-        }
-        else if (doc.type == 'novacut/node' && doc.node.type == 'slice') {
-            if (!doc.sink) {
-                var slice = new Slice(UI.session, doc);
-                UI.bucket.appendChild(slice.element);
-                UI.z_index = Math.max(UI.z_index, doc.z_index || 0);
+        if (doc.type == 'novacut/node' && doc.node.type == 'slice') {
+            if (UI.sequence.doc.node.src.indexOf(doc._id) >= 0) {
+                // We don't create slices that the sequence will create itself
+                return;
             }
-        }
-    },
-
-    softly_reset_sequence: function() {
-        var seq = $('sequence');
-        var i, child;
-        for (i=0; i<seq.children.length; i++) {
-            child = seq.children[i];
-            child.classList.remove('left');
-            child.classList.remove('right');
-        }
-    },
-
-    reset_sequence: function() {
-        var seq = $('sequence');
-        var i, child;
-        for (i=0; i<seq.children.length; i++) {
-            child = seq.children[i];
-            child.setAttribute('class', 'slice');
-            child.style.zIndex = null;
-            child.style.left = null;
-            child.style.top = null;
+            var slice = new Slice(UI.session, doc, true);
+            UI.bucket.appendChild(slice.element);
+            UI.z_index = Math.max(UI.z_index, doc.z_index || 0);
         }
     },
 }
