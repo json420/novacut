@@ -156,6 +156,7 @@ Slice.prototype = {
                 child = seq.children[i];
                 if (child == this.element) {
                     this.i = i;
+                    this.orig_i = i;
                 }
             }
             this.on_mousemove_sequence(event);
@@ -201,6 +202,7 @@ Slice.prototype = {
     
         var unclamped = Math.round(scroll_x / this.width);
         this.i = Math.max(0, Math.min(unclamped, seq.children.length));
+        this.orig_i;
         if (this.i == seq.children.length) {
             this.over = seq.children[this.i - 1];
             this.over.classList.add('over-right');
@@ -316,9 +318,18 @@ Slice.prototype = {
             }
         }
         else {
+            console.log(this.orig_i + ' => ' + this.i);
             var seq = $('sequence');
-            var ref = seq.children[this.i];
-            if (ref != this.element) {
+            if (this.i == this.orig_i) {
+                console.assert(seq.children[this.i] == this.element);
+            }
+            else {
+                if (this.i < this.orig_i) {
+                    var ref = seq.children[this.i];
+                }
+                else {
+                    var ref = seq.children[this.i].nextSibling;
+                }
                 $unparent(this.element);
                 seq.insertBefore(this.element, ref);
             }
