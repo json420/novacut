@@ -120,7 +120,7 @@ Slice.prototype = {
         this.parent = this.element.parentNode; 
         this.offsetX = event.offsetX;
         this.offsetY = event.offsetY;
-        this.origY = event.pageY;
+        this.origY = event.clientY;
         
         var self = this;
         var tmp = {};
@@ -165,10 +165,10 @@ Slice.prototype = {
 
     on_mousemove: function(event) {
         if (this.frombucket) {
-            var dy = event.pageY - this.offsetY - UI.sequence.element.offsetTop;
+            var dy = event.clientY - this.offsetY - UI.sequence.element.offsetTop;
         }
         else {
-            var dy = event.pageY - this.origY;
+            var dy = event.clientY - this.origY;
         }
         var height = this.element.clientHeight;
         var threshold = height * 0.65;
@@ -195,7 +195,7 @@ Slice.prototype = {
         if (!this.frombucket) {
             return;
         }
-        var x = event.pageX - (this.offsetX * 1.5);
+        var x = event.clientX - (this.offsetX * 1.5);
         var seq = UI.sequence.element;
         var scroll_x = x + seq.scrollLeft;
     
@@ -232,21 +232,21 @@ Slice.prototype = {
 
     on_mousemove_bucket: function(event) {
         if (this.frombucket) {
-            this.x = event.pageX - this.offsetX;
-            this.y = event.pageY - this.offsetY;
+            this.x = event.clientX - this.offsetX;
+            this.y = event.clientY - this.offsetY;
         }
         else {
-            this.x = event.pageX - (this.offsetX / 1.5);
-            this.y = event.pageY - (this.offsetY / 1.5);
+            this.x = event.clientX - (this.offsetX / 1.5);
+            this.y = event.clientY - (this.offsetY / 1.5);
         }
     },
 
     on_mousemove_sequence: function(event) {
         if (this.frombucket) {
-            var x = event.pageX - (this.offsetX * 1.5);
+            var x = event.clientX - (this.offsetX * 1.5);
         }
         else {
-            var x = event.pageX - this.offsetX;
+            var x = event.clientX - this.offsetX;
         }
         var parent = UI.sequence.element;
         var scroll_x = x + parent.scrollLeft;
