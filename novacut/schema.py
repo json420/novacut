@@ -509,8 +509,9 @@ def create_sequence(src):
         'type': 'sequence',
         'src': src,
     }
-    return create_node(node)
-
+    doc = create_node(node)
+    doc['doodle'] = []
+    return doc
             
         
 

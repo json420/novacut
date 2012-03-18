@@ -8,7 +8,6 @@
 }
 
 
-
 #sequence {
     position: fixed;
     height: 218px;
@@ -24,9 +23,22 @@
 }
 
 .slice {
-    display: inline-block;
-    overflow: hidden;
     border: 1px solid #ddd;
+}
+
+.slice * {
+    pointer-events: none;
+}
+
+#bucket .slice {
+    position: absolute;
+    -webkit-transition-timing-function: ease;
+    -webkit-transition-duration: 200ms;
+    -webkit-transition-property: left, top;
+}
+
+#sequence .slice {
+    display: inline-block;
 }
 
 
@@ -38,6 +50,7 @@
     padding: 0 6px;
     text-align: right;
     font-family: "Ubuntu Mono";
+    font-size: 14px;
     line-height: 1.6em;
     font-weight: bold;
     color: white;
@@ -45,25 +58,19 @@
     text-shadow: 0px 0px 10px black;
 
     cursor: default;
-
-    pointer-events: none;
-    
-    width: 192px;
-    height: 108px;
-    font-size: 14px;
 }
 
-.bucket .frame {
+#bucket .frame {
     width: 128px;
     height: 72px;
 }
 
-.bucket {
-    position: absolute;
-    -webkit-transition-timing-function: ease;
-    -webkit-transition-duration: 200ms;
-    -webkit-transition-property: left, top;
+#sequence .frame {
+    width: 192px;
+    height: 108px;
 }
+
+
 
 .over {
     margin-left: 194px;
@@ -94,20 +101,4 @@
     position: fixed !important;
     z-index: 1;
 }
-
-
-#marker {
-    position: fixed;
-    z-index: 10;
-    width: 50px;
-    height: 25px;
-    top: 0;
-    left: 0;
-    border-top: 1px solid red;
-    border-left: 1px solid red;
-    font-family: "Ubuntu Mono";
-    font-size: 12px;
-    color: red;
-}
-
 
