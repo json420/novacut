@@ -220,6 +220,9 @@ Slice.prototype = {
     },
 
     move_into_sequence: function(dnd) {
+        if (!this.frombucket) {
+            UI.sequence.reset();
+        }
         var x = this.pos.x + dnd.dx;
         var seq = UI.sequence.element;
         var scroll_x = x + seq.scrollLeft;
@@ -442,9 +445,14 @@ Sequence.prototype = {
         var i, child;
         for (i=0; i<this.element.children.length; i++) {
             child = this.element.children[i];
-            child.setAttribute('class', 'slice');
-            child.style.left = null;
-            child.style.top = null;
+            if (!child.classList.contains('grabbed')) {
+                child.setAttribute('class', 'slice');
+                child.style.left = null;
+                child.style.top = null;
+            }
+            else {
+                console.log('not resetting ' + child.id);
+            }
         }
     },
 }
@@ -482,13 +490,6 @@ var UI = {
         return slice.element;
     },
 
-    move_to_bucket: function(child) {
-        child = $unparent(child);
-        child.classList.add('bucket');
-        UI.bucket.appendChild(child);
-        return child;
-    },
-
     on_new_doc: function(doc) {
         if (doc._id == UI.doc.root_id) {
             UI.sequence = new Sequence(UI.session, doc);
@@ -496,12 +497,6 @@ var UI = {
         }
     },
 
-    set_marker: function(x, y) {
-        var marker = $show('marker');
-        marker.style.left = x + 'px';
-        marker.style.top = y + 'px';
-        marker.textContent = x + ',' + y;
-    },
 }
 
 window.addEventListener('load', UI.init);
