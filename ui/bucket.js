@@ -38,6 +38,7 @@ var DragEvent = function(event) {
     this.offsetX = event.offsetX;
     this.offsetY = event.offsetY;
     this.ondragstart = null;
+    this.ondragcancel = null;
     this.ondrag = null;
     this.ondrop = null;
     this.started = false;
@@ -86,7 +87,9 @@ DragEvent.prototype = {
 
     on_mouseup: function(event) {
         if (!this.started) {
-            console.log('not a drop');
+            if (this.ondragcancel) {
+                this.ondragcancel(this);
+            }
             return;
         }
         $halt(event);
@@ -189,9 +192,24 @@ Slice.prototype = {
         UI.select(this.element);
         this.pos = $position(this.element);
         this.dnd = new DragEvent(event);
+        this.dnd.ondragcancel = $bind(this.on_dragcancel, this);
         this.dnd.ondragstart = $bind(this.on_dragstart, this);
         this.dnd.ondrag = $bind(this.on_drag, this);
         this.dnd.ondrop = $bind(this.on_drop, this);
+    },
+
+    on_dragcancel: function(dnd) {
+        console.log('dragcancel');
+        if (this.inbucket && UI.bucket.lastChild != this.element) {
+            console.log('moving to end of bucket');
+            $unparent(this.element);
+            UI.bucket.appendChild(this.element);
+            UI.sequence.do_reorder();
+        }
+        else if (UI.sequence.doc.selected != this.element.id) {
+            console.log('updating selected element');
+            UI.sequence.do_reorder();
+        }
     },
 
     on_dragstart: function(dnd) {
@@ -396,9 +414,7 @@ Slice.prototype = {
                 seq.insertBefore(this.element, ref);
             }
         }
-        if (UI.on_reorder) {
-            UI.on_reorder();
-        }
+        UI.sequence.do_reorder();
     },
 }
 
@@ -453,6 +469,8 @@ Sequence.prototype = {
             child.style.left = obj.x + 'px';
             child.style.top = obj.y + 'px';
         }
+
+        UI.select(doc.selected);
     
         console.assert(
             $compare(this.doc.node.src, this.get_src())
@@ -482,12 +500,18 @@ Sequence.prototype = {
         return doodle;
     },
 
-    on_reorder: function() {
-        console.log('reorder');
+    do_reorder: function() {
+        console.log('do_reorder');
         var src = this.get_src();
         var doodle = this.get_doodle();
         this.doc.node.src = src;
         this.doc.doodle = doodle;
+        if (UI.selected) {
+            this.doc.selected = UI.selected.id;
+        }
+        else {
+            this.doc.selected = null;
+        }
         this.session.save(this.doc);
         this.session.commit();
     },
@@ -550,7 +574,6 @@ var UI = {
     on_new_doc: function(doc) {
         if (doc._id == UI.doc.root_id) {
             UI.sequence = new Sequence(UI.session, doc);
-            UI.on_reorder = $bind(UI.sequence.on_reorder, UI.sequence);   
         }
     },
 
