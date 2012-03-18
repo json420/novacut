@@ -27,16 +27,20 @@ function $position(element) {
 }
 
 
-var DragEvent = function(event, ondrag, ondrop) {
+var DragEvent = function(event) {
     $halt(event);
-    this.ondrag = ondrag;
-    this.ondrop = ondrop;
     this.x = event.clientX;
     this.y = event.clientY;
     this.ox = this.x;
     this.oy = this.y;
     this.dx = 0;
     this.dy = 0;
+    this.offsetX = event.offsetX;
+    this.offsetY = event.offsetY;
+    this.ondragstart = null;
+    this.ondrag = null;
+    this.ondrop = null;
+    this.started = false;
 
     var self = this;
     var tmp = {};
@@ -62,13 +66,29 @@ DragEvent.prototype = {
 
     on_mousemove: function(event) {
         $halt(event);
+        this.update(event);
+        if (!this.started) {
+            if (Math.max(Math.abs(this.dx), Math.abs(this.dy)) > 3) {
+                console.log('starting drag');
+                this.started = true;
+                if (this.ondragstart) {
+                    this.ondragstart(this);
+                }   
+            }
+            else {
+                return;
+            }
+        }
         if (this.ondrag) {
-            this.update(event);
             this.ondrag(this);
         }
     },
 
     on_mouseup: function(event) {
+        if (!this.started) {
+            console.log('not a drop');
+            return;
+        }
         $halt(event);
         if (this.ondrop) {
             this.update(event);
@@ -164,11 +184,23 @@ Slice.prototype = {
 
     on_mousedown: function(event) {
         this.pos = $position(this.element);
-        this.dnd = new DragEvent(event, $bind(this.on_drag, this), $bind(this.on_drop, this));
+        this.dnd = new DragEvent(event);
+        this.dnd.ondragstart = $bind(this.on_dragstart, this);
+        this.dnd.ondrag = $bind(this.on_drag, this);
+        this.dnd.ondrop = $bind(this.on_drop, this);
+    },
+
+    on_dragstart: function(dnd) {
+        console.log('dragstart');
+        this.offsetX = this.dnd.offsetX;
+        this.offsetY = this.dnd.offsetY;
+        this.offsetWidth = this.element.offsetWidth;
+        this.offsetHeight = this.element.offsetHeight;
+
         this.parent = this.element.parentNode;
+        this.x = dnd.x - this.offsetX;
         if (this.inbucket) {
-            this.x = this.pos.x;
-            this.y = this.pos.y;
+            this.y = dnd.y - this.offsetY;
         }
         else {
             this.nextSibling = this.element.nextSibling;
@@ -190,7 +222,6 @@ Slice.prototype = {
                     this.orig_i = i;
                 }
             }
-            this.x = this.pos.x;
             this.y = UI.sequence.element.offsetTop - 10;
         }
         this.element.classList.add('grabbed');
@@ -199,7 +230,7 @@ Slice.prototype = {
     on_drag: function(dnd) {
         var top = UI.sequence.element.offsetTop;
         var height = this.element.clientHeight;
-        var y = this.pos.y + dnd.dy;
+        var y = dnd.y - this.offsetY;
         var f = 0.65;
         if (this.inbucket) {
             if (y > top - height * (1 - f)) {
@@ -246,6 +277,7 @@ Slice.prototype = {
             seq.scrollLeft += this.width;
         }
         this.target = this.element;
+        this.update_offset();
     },
 
     move_into_bucket: function(dnd) {
@@ -254,15 +286,22 @@ Slice.prototype = {
         if (this.frombucket) {
             UI.sequence.reset();
         }
+        this.update_offset();
+    },
+
+    update_offset: function() {
+        this.offsetX = Math.round(this.dnd.offsetX * this.element.offsetWidth / this.offsetWidth);
+        this.offsetY = Math.round(this.dnd.offsetY * this.element.offsetHeight / this.offsetHeight);
+        console.log(this.offsetX + ',' + this.offsetY);
     },
 
     on_mousemove_bucket: function(dnd) {
-        this.x = this.pos.x + dnd.dx;
-        this.y = this.pos.y + dnd.dy;
+        this.x = dnd.x - this.offsetX;
+        this.y = dnd.y - this.offsetY;
     },
 
     on_mousemove_sequence: function(dnd) {
-        var x = this.pos.x + dnd.dx;
+        var x = dnd.x - this.offsetX;
         var parent = UI.sequence.element;
         var scroll_x = x + parent.scrollLeft;
         
