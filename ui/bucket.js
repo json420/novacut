@@ -132,6 +132,9 @@ var Slice = function(session, doc) {
     this.element.appendChild(this.end.element);
 
     this.element.onmousedown = $bind(this.on_mousedown, this);
+    this.element.ondblclick = function() {
+        console.log('dblclick');
+    }
 
     this.on_change(doc);
 
@@ -183,6 +186,7 @@ Slice.prototype = {
     },
 
     on_mousedown: function(event) {
+        UI.select(this.element);
         this.pos = $position(this.element);
         this.dnd = new DragEvent(event);
         this.dnd.ondragstart = $bind(this.on_dragstart, this);
@@ -252,6 +256,7 @@ Slice.prototype = {
 
     move_into_sequence: function(dnd) {
         if (!this.frombucket) {
+            this.clear_over();
             UI.sequence.reset();
         }
         var x = this.pos.x + dnd.dx;
@@ -284,6 +289,7 @@ Slice.prototype = {
         $unparent(this.element);
         $('bucket').appendChild(this.element);
         if (this.frombucket) {
+            this.clear_over();
             UI.sequence.reset();
         }
         this.update_offset();
@@ -326,11 +332,11 @@ Slice.prototype = {
         this.i -= 1;
         if (this.target.classList.contains('left')) {
             this.target.classList.remove('left');
-            UI.set_animated(this.target);
+            UI.animate(this.target);
         }
         else {
             this.target.previousSibling.classList.add('right');
-            UI.set_animated(this.target.previousSibling);
+            UI.animate(this.target.previousSibling);
         }
         this.target = this.target.previousSibling;
     },
@@ -342,23 +348,29 @@ Slice.prototype = {
         this.i += 1;
         if (this.target.classList.contains('right')) {
             this.target.classList.remove('right');
-            UI.set_animated(this.target);
+            UI.animate(this.target);
         }
         else {
             this.target.nextSibling.classList.add('left');
-            UI.set_animated(this.target.nextSibling);
+            UI.animate(this.target.nextSibling);
         }
         this.target = this.target.nextSibling;
 
     },
 
-    on_drop: function(dnd) {
-        this.element.classList.remove('grabbed');
+    clear_over: function() {
         if (this.over) {
             this.over.classList.remove('over');
             this.over.classList.remove('over-right');
             this.over = null;
         }
+    },
+
+    on_drop: function(dnd) {
+        this.element.classList.remove('grabbed');
+        this.clear_over();
+        UI.animate(null);
+        UI.sequence.reset();
         if (this.inbucket) {
             if (UI.bucket.lastChild != this.element) {
                 $unparent(this.element);
@@ -367,6 +379,8 @@ Slice.prototype = {
         }
         else {
             console.log(this.orig_i + ' => ' + this.i);
+            this.x = null;
+            this.y = null;
             var seq = $('sequence');
             if (this.i == this.orig_i) {
                 console.assert(seq.children[this.i] == this.element);
@@ -470,7 +484,6 @@ Sequence.prototype = {
 
     on_reorder: function() {
         console.log('reorder');
-        this.reset();
         var src = this.get_src();
         var doodle = this.get_doodle();
         this.doc.node.src = src;
@@ -485,12 +498,8 @@ Sequence.prototype = {
         for (i=0; i<this.element.children.length; i++) {
             child = this.element.children[i];
             if (!child.classList.contains('grabbed')) {
-                child.setAttribute('class', 'slice');
-                child.style.left = null;
-                child.style.top = null;
-            }
-            else {
-                console.log('not resetting ' + child.id);
+                child.classList.remove('left');
+                child.classList.remove('right');
             }
         }
     },
@@ -500,12 +509,21 @@ Sequence.prototype = {
 var UI = {
     animated: null,
 
-    set_animated: function(element) {
+    animate: function(element) {
         if (UI.animated) {
             UI.animated.classList.remove('animated');
         }
-        UI.animated = element;
-        UI.animated.classList.add('animated');
+        UI.animated = $(element);
+        if (UI.animated) {
+            UI.animated.classList.add('animated');
+        }
+    },
+
+    selected: null,
+
+    select: function(element) {
+        $unselect(UI.selected);
+        UI.selected = $select(element);
     },
 
     init: function() {

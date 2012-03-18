@@ -5,6 +5,7 @@
     left: 0;
     right: 0;
     background-color: #777;
+    overflow: hidden;
 }
 
 
@@ -14,7 +15,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background-color: #222;
+    background-color: black;
     
     overflow: hidden;
     white-space: nowrap;
@@ -23,7 +24,12 @@
 }
 
 .slice {
-    border: 1px solid #ddd;
+    border: 1px solid #333;
+}
+
+.slice.selected {
+    border-color: white;
+    z-index: 1;
 }
 
 .slice * {
