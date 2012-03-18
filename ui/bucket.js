@@ -16,6 +16,68 @@ function $unparent(id) {
 }
 
 
+function $position(element) {
+    var pos = {x: element.offsetLeft, y: element.offsetTop};
+    while (element.offsetParent) {
+        element = element.offsetParent;
+        pos.x += (element.offsetLeft - element.scrollLeft);
+        pos.y += (element.offsetTop - element.scrollTop);
+    }
+    return pos;
+}
+
+
+var DragEvent = function(event, ondrag, ondrop) {
+    $halt(event);
+    this.ondrag = ondrag;
+    this.ondrop = ondrop;
+    this.x = event.clientX;
+    this.y = event.clientY;
+    this.ox = this.x;
+    this.oy = this.y;
+    this.dx = 0;
+    this.dy = 0;
+
+    var self = this;
+    var tmp = {};
+    tmp.on_mousemove = function(event) {
+        self.on_mousemove(event);            
+    }
+    tmp.on_mouseup = function(event) {
+        window.removeEventListener('mousemove', tmp.on_mousemove);
+        window.removeEventListener('mouseup', tmp.on_mouseup);
+        self.on_mouseup(event);
+    }
+    window.addEventListener('mousemove', tmp.on_mousemove);
+    window.addEventListener('mouseup', tmp.on_mouseup);
+}
+DragEvent.prototype = {
+    update: function(event) {
+        var html = document.body.parentNode;
+        this.x = Math.max(0, Math.min(event.clientX, html.clientWidth));
+        this.y = Math.max(0, Math.min(event.clientY, html.clientHeight));
+        this.dx = this.x - this.ox;
+        this.dy = this.y - this.oy;
+    },
+
+    on_mousemove: function(event) {
+        $halt(event);
+        if (this.ondrag) {
+            this.update(event);
+            this.ondrag(this);
+        }
+    },
+
+    on_mouseup: function(event) {
+        $halt(event);
+        if (this.ondrop) {
+            this.update(event);
+            this.ondrop(this);
+        }
+    },
+}
+
+
 var Frame = function(file_id) {
     this.file_id = file_id;
     this.index = null;
@@ -106,7 +168,7 @@ Slice.prototype = {
         if (this.inbucket) {
             this.x = doc.x;
             this.y = doc.y;
-            this.element.style.zIndex = (doc.z_index || 0);
+            //this.element.style.zIndex = (doc.z_index || 0);
         }
         else {
             this.x = null;
@@ -116,29 +178,12 @@ Slice.prototype = {
     },
 
     on_mousedown: function(event) {
-        $halt(event);
-        this.parent = this.element.parentNode; 
-        this.offsetX = event.offsetX;
-        this.offsetY = event.offsetY;
-        this.origY = event.clientY;
-        
-        var self = this;
-        var tmp = {};
-        tmp.on_mousemove = function(event) {
-            self.on_mousemove(event);            
-        }
-        tmp.on_mouseup = function(event) {
-            self.on_mouseup(event);
-            window.removeEventListener('mousemove', tmp.on_mousemove);
-            window.removeEventListener('mouseup', tmp.on_mouseup);
-        }
-        window.addEventListener('mousemove', tmp.on_mousemove);
-        window.addEventListener('mouseup', tmp.on_mouseup);
-
-        UI.top = null;
+        this.pos = $position(this.element);
+        this.dnd = new DragEvent(event, $bind(this.on_drag, this), $bind(this.on_drop, this));
+        this.parent = this.element.parentNode;
         if (this.frombucket) {
             UI.to_top(this.element);
-            this.on_mousemove_bucket(event);
+            this.on_mousemove_bucket(this.dnd);
         }
         else {
             if (this.element.nextSibling) {
@@ -159,50 +204,46 @@ Slice.prototype = {
                     this.orig_i = i;
                 }
             }
-            this.on_mousemove_sequence(event);
+            this.on_mousemove_sequence(this.dnd);
         }
         this.element.classList.add('grabbed');
     },
 
-    on_mousemove: function(event) {
-        if (this.frombucket) {
-            var dy = event.clientY - this.offsetY - UI.sequence.element.offsetTop;
-        }
-        else {
-            var dy = event.clientY - this.origY;
-        }
+    on_drag: function(dnd) {
+        var top = UI.sequence.element.offsetTop;
         var height = this.element.clientHeight;
-        var threshold = height * 0.65;
+        var y = this.pos.y + dnd.dy;
+        var f = 0.65;
         if (this.inbucket) {
-            if (dy + height > threshold) {
-                this.move_into_sequence(event);
+            if (y > top - height * (1 - f)) {
+                this.move_into_sequence(dnd);
             }
         }
         else {
-            if (dy < -threshold) {
-                this.move_into_bucket(event);
+            if (y < top - height * f) {
+                this.move_into_bucket(dnd);
             }
         }
         if (this.inbucket) {
-            this.on_mousemove_bucket(event);
+            this.on_mousemove_bucket(dnd);
         }
         else {
-            this.on_mousemove_sequence(event);
+            this.on_mousemove_sequence(dnd);
         }
     },
 
-    move_into_sequence: function(event) {
+    move_into_sequence: function(dnd) {
         this.element.classList.remove('bucket');
         if (!this.frombucket) {
             return;
         }
-        var x = event.clientX - (this.offsetX * 1.5);
+        var x = this.pos.x + dnd.dx;
         var seq = UI.sequence.element;
         var scroll_x = x + seq.scrollLeft;
     
         var unclamped = Math.round(scroll_x / this.width);
         this.i = Math.max(0, Math.min(unclamped, seq.children.length));
-        this.orig_i;
+        this.orig_i = this.i;
         if (this.i == seq.children.length) {
             this.over = seq.children[this.i - 1];
             this.over.classList.add('over-right');
@@ -221,7 +262,7 @@ Slice.prototype = {
         this.target = this.element;
     },
 
-    move_into_bucket: function(event) {
+    move_into_bucket: function(dnd) {
         this.element.classList.add('bucket');
         if (this.frombucket) {
             $unparent(this.element);
@@ -233,24 +274,13 @@ Slice.prototype = {
         }
     },
 
-    on_mousemove_bucket: function(event) {
-        if (this.frombucket) {
-            this.x = event.clientX - this.offsetX;
-            this.y = event.clientY - this.offsetY;
-        }
-        else {
-            this.x = event.clientX - (this.offsetX / 1.5);
-            this.y = event.clientY - (this.offsetY / 1.5);
-        }
+    on_mousemove_bucket: function(dnd) {
+        this.x = this.pos.x + dnd.dx;
+        this.y = this.pos.y + dnd.dy;
     },
 
-    on_mousemove_sequence: function(event) {
-        if (this.frombucket) {
-            var x = event.clientX - (this.offsetX * 1.5);
-        }
-        else {
-            var x = event.clientX - this.offsetX;
-        }
+    on_mousemove_sequence: function(dnd) {
+        var x = this.pos.x + dnd.dx;
         var parent = UI.sequence.element;
         var scroll_x = x + parent.scrollLeft;
         
@@ -301,17 +331,14 @@ Slice.prototype = {
 
     },
 
-    on_mouseup: function(event) {
+    on_drop: function(dnd) {
+        this.element.classList.remove('grabbed');
         if (this.over) {
             this.over.classList.remove('over');
             this.over.classList.remove('over-right');
             this.over = null;
         }
-        this.element.classList.remove('grabbed');
         if (this.inbucket) {
-            this.doc.x = this.x;
-            this.doc.y = this.y;
-            this.doc.z_index = UI.z_index;
             if (!this.frombucket) {
                 console.assert(this.element.parentNode.id == 'sequence');
                 $unparent(this.element);
@@ -335,7 +362,6 @@ Slice.prototype = {
                 seq.insertBefore(this.element, ref);
             }
         }
-        this.session.save(this.doc);
         if (UI.on_reorder) {
             UI.on_reorder();
         }
@@ -359,7 +385,6 @@ function $compare(one, two) {
     }
     return true;
 }
-
 
 var Sequence = function(session, doc) {
     this.element = $('sequence');
@@ -511,6 +536,13 @@ var UI = {
             UI.bucket.appendChild(slice.element);
             UI.z_index = Math.max(UI.z_index, doc.z_index || 0);
         }
+    },
+
+    set_marker: function(x, y) {
+        var marker = $show('marker');
+        marker.style.left = x + 'px';
+        marker.style.top = y + 'px';
+        marker.textContent = x + ',' + y;
     },
 }
 
