@@ -135,9 +135,7 @@ var Slice = function(session, doc) {
     this.element.appendChild(this.end.element);
 
     this.element.onmousedown = $bind(this.on_mousedown, this);
-    this.element.ondblclick = function() {
-        console.log('dblclick');
-    }
+    this.element.ondblclick = $bind(this.on_dblclick, this);
 
     this.on_change(doc);
 
@@ -196,6 +194,11 @@ Slice.prototype = {
         this.dnd.ondragstart = $bind(this.on_dragstart, this);
         this.dnd.ondrag = $bind(this.on_drag, this);
         this.dnd.ondrop = $bind(this.on_drop, this);
+    },
+    
+    on_dblclick: function(event) {
+        $halt(event);
+        UI.edit_slice(this.doc);
     },
 
     on_dragcancel: function(dnd) {
@@ -589,7 +592,11 @@ var UI = {
             UI.sequence = new Sequence(UI.session, doc);
         }
     },
-
+    
+    edit_slice: function(doc) {
+        var url = ['slice.html#', UI.project_id, '/', doc._id].join('');
+        window.location.assign(url);
+    },
 }
 
 window.addEventListener('load', UI.init);
