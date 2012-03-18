@@ -548,6 +548,19 @@ var UI = {
     select: function(element) {
         $unselect(UI.selected);
         UI.selected = $select(element);
+        if (UI.selected && UI.selected.parentNode.id == 'sequence') {
+            var child = UI.selected;
+            var seq = $('sequence');
+            if (child.offsetLeft < seq.scrollLeft) {
+                console.log('scrolling left');
+                seq.scrollLeft = child.offsetLeft;
+            }
+            else if (child.offsetLeft + child.offsetWidth > seq.scrollLeft + seq.clientWidth) {
+                console.log('scrolling right');
+                seq.scrollLeft = child.offsetLeft + child.offsetWidth - seq.clientWidth;
+                
+            }
+        }
     },
 
     init: function() {

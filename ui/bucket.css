@@ -28,7 +28,7 @@
 }
 
 .slice.selected {
-    border-color: white;
+    border-color: #e81f3b;
     z-index: 1;
 }
 
