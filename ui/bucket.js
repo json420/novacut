@@ -364,12 +364,12 @@ Slice.prototype = {
             this.over.classList.remove('over-right');
             this.over = null;
         }
+        UI.animate(null);
     },
 
     on_drop: function(dnd) {
         this.element.classList.remove('grabbed');
         this.clear_over();
-        UI.animate(null);
         UI.sequence.reset();
         if (this.inbucket) {
             if (UI.bucket.lastChild != this.element) {
