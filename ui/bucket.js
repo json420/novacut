@@ -226,6 +226,7 @@ Slice.prototype = {
         if (this.frombucket) {
             $unparent(this.element);
             this.parent.appendChild(this.element);
+            UI.sequence.reset();
         }
         else {
             UI.to_top(this.element);
