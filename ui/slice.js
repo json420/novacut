@@ -12,6 +12,37 @@ function frame_to_seconds(frame, framerate) {
 }
 
 
+function seconds_to_frame(seconds, framerate) {
+    return Math.round(seconds * framerate.num / framerate.denom);
+}
+
+
+var VideoFrame = function(id) {
+    this.video = $(id);
+    this.pending = null;
+    this.current = null;
+}
+VideoFrame.prototype = {
+    seek: function(seconds) {
+        this.pending = seconds;
+    },
+
+    do_seek: function() {
+        if (this.pending != this.current) {
+            this.current = this.pending;
+            this.video.currentTime = this.pending;
+        }
+    },
+
+    set_src: function(uri) {
+        this.pending = 0;
+        this.current = 0;
+        this.video.src = uri;
+        this.video.load();
+    },
+}
+
+
 var UI = {
     init: function() {
         console.log('init');
@@ -28,34 +59,41 @@ var UI = {
         UI.scrubber.addEventListener('mousedown', UI.on_mousedown);
         UI.scrubber.addEventListener('mousemove', UI.on_scrub_start);
 
-        UI.startframe = $('startframe');
-        UI.endframe = $('endframe');
+        UI.startframe = new VideoFrame('startframe');
+        UI.endframe = new VideoFrame('endframe');
         
         UI.bar = $('bar');
         
         var uri = 'dmedia:' + UI.clip._id;
-        UI.startframe.src = uri;
-        UI.startframe.load();
+        UI.startframe.set_src(uri);
         $hide(UI.endframe);
-        UI.endframe.src = uri;
-        UI.endframe.load();
+        UI.endframe.set_src(uri);
+
+        UI.intervalID = setInterval(UI.on_interval, 100);
+    },
+
+    on_interval: function() {
+        UI.startframe.do_seek();
+        UI.endframe.do_seek();
     },
 
     get_frame: function(event) {
         var width = UI.scrubber.clientWidth - 4;
         var x = Math.max(0, Math.min(event.pageX - 2, width));
         var percent = x / width;
-        return Math.round(percent * (UI.clip.duration.frames - 1));
+        var precise = Math.round(percent * (UI.clip.duration.frames - 1));
+        var rough = Math.round(precise / 15) * 15;
+        return rough + 1;
     },
 
     set_start: function(frame) {
         UI.start = frame;
-        UI.startframe.currentTime = frame_to_seconds(frame, UI.clip.framerate);
+        UI.startframe.seek(frame_to_seconds(frame, UI.clip.framerate));
     },
 
     set_end: function(frame) {
         UI.stop = frame + 1;
-        UI.endframe.currentTime = frame_to_seconds(frame, UI.clip.framerate);
+        UI.endframe.seek(frame_to_seconds(frame, UI.clip.framerate));
     },
 
     on_mousedown: function(event) {
@@ -66,7 +104,7 @@ var UI = {
         window.addEventListener('mouseup', UI.on_mouseup);
         UI.start_pos = event.pageX;
         $show(UI.bar);
-        $show(UI.endframe);
+        $show(UI.endframe.video);
         UI.set_end(UI.get_frame(event));
     },
 
