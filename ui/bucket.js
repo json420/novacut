@@ -70,7 +70,6 @@ DragEvent.prototype = {
         this.update(event);
         if (!this.started) {
             if (Math.max(Math.abs(this.dx), Math.abs(this.dy)) > 3) {
-                console.log('starting drag');
                 this.started = true;
                 if (this.ondragstart) {
                     this.ondragstart(this);
@@ -661,74 +660,57 @@ RoughCut.prototype = {
 
     create_slice: function() {
         console.log('create_slice');
-
-        this.scrubber.onmousedown = $bind(this.on_mousedown, this);
-        this.scrubber.onmousemove = $bind(this.on_scrub_start, this);
-        
-        console.log('edit_slice ' + slice._id);
-        this.slice = slice;
-        this._start = 0;
-        this._stop = this.frames;
-        this.endvideo.show();
-
-        this.start = slice.node.start.frame;
-        this.stop = slice.node.stop.frame;
-        this.update_bar();
-
-        this.scrubber.onmousedown = $bind(this.on_mousedown2, this);
-        this.scrubber.onmousemove = null;
+        this.endvideo.hide();
+        this.reset();    
+        this.bar.style.left = this.left + 'px';
+        this.bar.style.width = '1px';
+        this.scrubber.onmousemove = $bind(this.on_mousemove1, this);
+        this.scrubber.onmousedown = $bind(this.on_mousedown1, this);
     },
 
-    on_scrub_start: function(event) {
-        $halt(event);
-        this.bar.style.left = event.clientX + 'px';
-        this.startvideo.seek(this.get_frame(event.clientX));
+    on_mousemove1: function(event) {
+        this.start = this.get_frame(event.clientX, true);
+        this.bar.style.left = this.left + 'px';
     },
 
-    on_mousedown: function(event) {
-        console.log('mousedown');
+    on_mousedown1: function(event) {
+        console.log('mousedown1');
         this.scrubber.onmousemove = null;
         this.dnd = new DragEvent(event);
-        this.dnd.ondragcancel = $bind(this.on_dragcancel, this);
-        this.dnd.ondragstart = $bind(this.on_dragstart, this);
+        this.dnd.ondragcancel = $bind(this.on_dragcancel1, this);
+        this.dnd.ondragstart = $bind(this.on_dragstart1, this);
     },
 
-    on_dragcancel: function(dnd) {
-        console.log('dragcancel');
+    on_dragcancel1: function(dnd) {
+        console.log('dragcancel1');
         this.dnd = null;
-        this.scrubber.onmousemove = $bind(this.on_scrub_start, this);
+        this.scrubber.onmousemove = $bind(this.on_mousemove1, this);
     },  
 
-    on_dragstart: function(dnd) {
-        console.log('dragstart');
-        this.dnd.ondrag = $bind(this.on_drag, this);
-        this.dnd.ondrop = $bind(this.on_drop, this);
+    on_dragstart1: function(dnd) {
+        console.log('dragstart1');
+        this.dnd.ondrag = $bind(this.on_drag1, this);
+        this.dnd.ondrop = $bind(this.on_drop1, this);
         this.endvideo.show();
-        this.endvideo.seek(this.get_frame(dnd.x));
+        this.orig_start = this.start;
     },
 
-    on_drag: function(dnd) {
-        if (dnd.dx < 0) {
-            this.bar.style.left = (dnd.ox + dnd.dx) + 'px';
+    on_drag1: function(dnd) {
+        var frame = this.get_frame(dnd.x, true);
+        if (frame < this.orig_start) {
+            this.start = frame;
+            this.stop = this.orig_start + 1;
         }
         else {
-            this.bar.style.left = dnd.ox + 'px';
+            this.start = this.orig_start;
+            this.stop = frame + 1;
         }
-        var width = Math.max(2, Math.abs(dnd.dx));
-        this.bar.style.width = width + 'px';
-        this.end.seek(this.get_frame(dnd.x));
+        this.update_bar();
     },
 
-    on_drop: function(dnd) {
-        console.log('drop');
+    on_drop1: function(dnd) {
+        console.log('drop1');
         this.dnd = null;
-    },
-
-    on_mouseup: function(event) {
-        console.log('mouseup');
-        $halt(event);
-        window.removeEventListener('mousemove', UI.on_scrub_end);
-        window.removeEventListener('mouseup', UI.on_mouseup);
     },
 
     edit_slice: function(slice) {
@@ -745,12 +727,12 @@ RoughCut.prototype = {
         var mid = (this.left + this.right) / 2;
         this.point = (event.clientX <= mid) ? 'left' : 'right';
         console.log(this.point);
-        var frame = this.get_frame(event.clientX);
+        var frame = this.get_frame(event.clientX, true);
         if (this.point == 'left') {
             this.start = frame;
         }
         else {
-            this.stop = frame;
+            this.stop = frame + 1;
         }
         this.update_bar();
         this.dnd = new DragEvent(event);
@@ -851,7 +833,8 @@ var UI = {
 
     edit_slice: function(doc) {
         UI.roughcut = new RoughCut(UI.session, doc.node.src);
-        UI.roughcut.edit_slice(doc);
+        UI.roughcut.create_slice();
+        //UI.roughcut.edit_slice(doc);
         //var url = ['slice.html#', UI.project_id, '/', doc._id].join('');
         //window.location.assign(url);
     },
