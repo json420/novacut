@@ -559,9 +559,13 @@ VideoFrame.prototype = {
             this.video.currentTime = this.pending;
         }
     },
-    
+
     show: function() {
         this.video.classList.remove('hide');
+    },
+
+    hide: function() {
+        this.video.classList.add('hide');
     },
 }
 
@@ -570,45 +574,115 @@ var RoughCut = function(session, clip_id) {
     this.session = session;
     this.clip = session.get_doc(clip_id);
     this.frames = this.clip.duration.frames;
+
     this.element = $('roughcut');
-    
+
     this.done = $el('button', {textContent: 'Done'});
     this.element.appendChild(this.done);
 
-    this.start = new VideoFrame(this.clip, 'start');
-    this.end = new VideoFrame(this.clip, 'end hide');
-    this.element.appendChild(this.start.video);
-    this.element.appendChild(this.end.video);
+    this.startvideo = new VideoFrame(this.clip, 'start');
+    this.endvideo = new VideoFrame(this.clip, 'end hide');
+    this.element.appendChild(this.startvideo.video);
+    this.element.appendChild(this.endvideo.video);
 
     this.scrubber = $el('div', {'class': 'scrubber'});
     this.element.appendChild(this.scrubber);
     this.bar = $el('div', {'class': 'bar'});
     this.scrubber.appendChild(this.bar);
-    this.scrubber.onmousedown = $bind(this.on_mousedown, this);
-    this.scrubber.onmousemove = $bind(this.on_scrub_start, this);
-
     $show(this.element);
     this.interval_id = setInterval($bind(this.on_interval, this), 150);
 }
 RoughCut.prototype = {
     on_interval: function() {
-        this.start.do_seek();
-        this.end.do_seek();
+        this.startvideo.do_seek();
+        this.endvideo.do_seek();
     },
 
-    get_frame: function(clientX) {
-        var width = this.scrubber.clientWidth - 4;
-        var x = Math.max(0, Math.min(event.clientX - 2, width));
-        var percent = x / width;
-        var precise = Math.round(percent * (this.frames - 1));
-        var rough = Math.round(precise / 15) * 15;
-        return rough + 1;
+    reset: function() {
+        this._start = 0;
+        this._stop = this.frames;
+        this.dnd = null;
+        this.scrubber.onmousedown = null;
+        this.scrubber.onmousemove = null;
+    },
+
+    get_x: function(frame) {
+        return Math.round(this.scrubber.clientWidth * frame / this.frames);
+    },
+
+    get_frame: function(x, key_unit) {
+        var frame = Math.round(this.frames * x / this.scrubber.clientWidth);
+        if (key_unit) {
+            return 1 + Math.round(frame / 15) * 15;
+        }
+        return frame;
+    },
+
+    set start(value) {
+        this._start = Math.max(0, Math.min(value, this._stop - 1));
+        this.startvideo.seek(this._start);
+    },
+
+    get start() {
+        return this._start;
+    },
+
+    set stop(value) {
+        this._stop = Math.max(this._start + 1, Math.min(value, this.frames));
+        this.endvideo.seek(this._stop - 1);
+    },
+
+    get stop() {
+        return this._stop;
+    },
+ 
+    get left() {
+        return this.get_x(this._start);
+    },
+
+    get right() {
+        return this.get_x(this._stop);
+    },
+
+    update_bar: function() {
+        var left = this.left;
+        var width = Math.max(2, this.right - left);
+        this.bar.style.left = left + 'px';
+        this.bar.style.width = width + 'px';
+    },
+
+    sync_from_slice: function() {
+        this._start = 0;
+        this._stop = this.frames;
+        this.start = this.slice.node.start.frame;
+        this.stop = this.slice.node.stop.frame;
+        this.update_bar();
+    },
+
+    create_slice: function() {
+        console.log('create_slice');
+
+        this.scrubber.onmousedown = $bind(this.on_mousedown, this);
+        this.scrubber.onmousemove = $bind(this.on_scrub_start, this);
+        
+        console.log('edit_slice ' + slice._id);
+        this.slice = slice;
+        this._start = 0;
+        this._stop = this.frames;
+        this.endvideo.show();
+
+        this.start = slice.node.start.frame;
+        this.stop = slice.node.stop.frame;
+        this.update_bar();
+
+        this.scrubber.onmousedown = $bind(this.on_mousedown2, this);
+        this.scrubber.onmousemove = null;
     },
 
     on_scrub_start: function(event) {
         $halt(event);
         this.bar.style.left = event.clientX + 'px';
-        this.start.seek(this.get_frame(event.clientX));
+        this.startvideo.seek(this.get_frame(event.clientX));
     },
 
     on_mousedown: function(event) {
@@ -621,6 +695,7 @@ RoughCut.prototype = {
 
     on_dragcancel: function(dnd) {
         console.log('dragcancel');
+        this.dnd = null;
         this.scrubber.onmousemove = $bind(this.on_scrub_start, this);
     },  
 
@@ -628,8 +703,8 @@ RoughCut.prototype = {
         console.log('dragstart');
         this.dnd.ondrag = $bind(this.on_drag, this);
         this.dnd.ondrop = $bind(this.on_drop, this);
-        this.end.show();
-        this.end.seek(this.get_frame(dnd.x));
+        this.endvideo.show();
+        this.endvideo.seek(this.get_frame(dnd.x));
     },
 
     on_drag: function(dnd) {
@@ -646,6 +721,7 @@ RoughCut.prototype = {
 
     on_drop: function(dnd) {
         console.log('drop');
+        this.dnd = null;
     },
 
     on_mouseup: function(event) {
@@ -655,17 +731,59 @@ RoughCut.prototype = {
         window.removeEventListener('mouseup', UI.on_mouseup);
     },
 
-    on_scrub_end: function(event) {
-        $halt(event);
-        var width = event.pageX - UI.start_pos;
-        if (width < 0) {
-        	UI.bar.style.left = (UI.start_pos + width) + 'px';
+    edit_slice: function(slice) {
+        console.log('edit_slice ' + slice._id);
+        this.slice = slice;
+        this.endvideo.show();
+        this.reset();
+        this.sync_from_slice();
+        this.scrubber.onmousedown = $bind(this.on_mousedown2, this);
+    },
+
+    on_mousedown2: function(event) {
+        console.log('mousedown2');
+        var mid = (this.left + this.right) / 2;
+        this.point = (event.clientX <= mid) ? 'left' : 'right';
+        console.log(this.point);
+        var frame = this.get_frame(event.clientX);
+        if (this.point == 'left') {
+            this.start = frame;
         }
         else {
-        	UI.bar.style.left = UI.start_pos + 'px';
+            this.stop = frame;
         }
-        UI.bar.style.width = Math.abs(width) + 'px';
-        UI.set_end(UI.get_frame(event));
+        this.update_bar();
+        this.dnd = new DragEvent(event);
+        this.dnd.ondragcancel = $bind(this.on_dragcancel2, this);
+        this.dnd.ondragstart = $bind(this.on_dragstart2, this);
+    },
+
+    on_dragcancel2: function(dnd) {
+        console.log('dragcancel2');
+        this.dnd = null;
+        this.sync_from_slice();
+    },  
+
+    on_dragstart2: function(dnd) {
+        console.log('dragstart');
+        this.dnd.ondrag = $bind(this.on_drag2, this);
+        this.dnd.ondrop = $bind(this.on_drop2, this);
+    },
+
+    on_drag2: function(dnd) {
+        var frame = this.get_frame(dnd.x, true);
+        if (this.point == 'left') {
+            this.start = frame;
+        }
+        else {
+            this.stop = frame + 1;
+        }
+        this.update_bar();
+    },
+
+    on_drop2: function(dnd) {
+        console.log('drop2');
+        this.dnd = null;
     },
 
 }
@@ -733,6 +851,7 @@ var UI = {
 
     edit_slice: function(doc) {
         UI.roughcut = new RoughCut(UI.session, doc.node.src);
+        UI.roughcut.edit_slice(doc);
         //var url = ['slice.html#', UI.project_id, '/', doc._id].join('');
         //window.location.assign(url);
     },
