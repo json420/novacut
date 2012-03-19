@@ -533,6 +533,144 @@ Sequence.prototype = {
 }
 
 
+function frame_to_seconds(frame, framerate) {
+    return frame * framerate.denom / framerate.num;
+}
+
+
+var VideoFrame = function(clip, which) {
+    this.framerate = clip.framerate;
+    this.count = clip.duration.frames;
+    this.video = $el('video', {'class': which});
+    this.video.src = 'dmedia:' + clip._id;
+    this.video.load();
+    this.pending = 0;
+    this.current = 0;
+}
+VideoFrame.prototype = {
+    seek: function(index) {
+        this.index = Math.max(0, Math.min(index, this.count - 1));
+        this.pending = frame_to_seconds(this.index, this.framerate);
+    },
+
+    do_seek: function() {
+        if (this.pending != this.current) {
+            this.current = this.pending;
+            this.video.currentTime = this.pending;
+        }
+    },
+    
+    show: function() {
+        this.video.classList.remove('hide');
+    },
+}
+
+
+var RoughCut = function(session, clip_id) {
+    this.session = session;
+    this.clip = session.get_doc(clip_id);
+    this.frames = this.clip.duration.frames;
+    this.element = $('roughcut');
+    
+    this.done = $el('button', {textContent: 'Done'});
+    this.element.appendChild(this.done);
+
+    this.start = new VideoFrame(this.clip, 'start');
+    this.end = new VideoFrame(this.clip, 'end hide');
+    this.element.appendChild(this.start.video);
+    this.element.appendChild(this.end.video);
+
+    this.scrubber = $el('div', {'class': 'scrubber'});
+    this.element.appendChild(this.scrubber);
+    this.bar = $el('div', {'class': 'bar'});
+    this.scrubber.appendChild(this.bar);
+    this.scrubber.onmousedown = $bind(this.on_mousedown, this);
+    this.scrubber.onmousemove = $bind(this.on_scrub_start, this);
+
+    $show(this.element);
+    this.interval_id = setInterval($bind(this.on_interval, this), 150);
+}
+RoughCut.prototype = {
+    on_interval: function() {
+        this.start.do_seek();
+        this.end.do_seek();
+    },
+
+    get_frame: function(clientX) {
+        var width = this.scrubber.clientWidth - 4;
+        var x = Math.max(0, Math.min(event.clientX - 2, width));
+        var percent = x / width;
+        var precise = Math.round(percent * (this.frames - 1));
+        var rough = Math.round(precise / 15) * 15;
+        return rough + 1;
+    },
+
+    on_scrub_start: function(event) {
+        $halt(event);
+        this.bar.style.left = event.clientX + 'px';
+        this.start.seek(this.get_frame(event.clientX));
+    },
+
+    on_mousedown: function(event) {
+        console.log('mousedown');
+        this.scrubber.onmousemove = null;
+        this.dnd = new DragEvent(event);
+        this.dnd.ondragcancel = $bind(this.on_dragcancel, this);
+        this.dnd.ondragstart = $bind(this.on_dragstart, this);
+    },
+
+    on_dragcancel: function(dnd) {
+        console.log('dragcancel');
+        this.scrubber.onmousemove = $bind(this.on_scrub_start, this);
+    },  
+
+    on_dragstart: function(dnd) {
+        console.log('dragstart');
+        this.dnd.ondrag = $bind(this.on_drag, this);
+        this.dnd.ondrop = $bind(this.on_drop, this);
+        this.end.show();
+        this.end.seek(this.get_frame(dnd.x));
+    },
+
+    on_drag: function(dnd) {
+        if (dnd.dx < 0) {
+            this.bar.style.left = (dnd.ox + dnd.dx) + 'px';
+        }
+        else {
+            this.bar.style.left = dnd.ox + 'px';
+        }
+        var width = Math.max(2, Math.abs(dnd.dx));
+        this.bar.style.width = width + 'px';
+        this.end.seek(this.get_frame(dnd.x));
+    },
+
+    on_drop: function(dnd) {
+        console.log('drop');
+    },
+
+    on_mouseup: function(event) {
+        console.log('mouseup');
+        $halt(event);
+        window.removeEventListener('mousemove', UI.on_scrub_end);
+        window.removeEventListener('mouseup', UI.on_mouseup);
+    },
+
+    on_scrub_end: function(event) {
+        $halt(event);
+        var width = event.pageX - UI.start_pos;
+        if (width < 0) {
+        	UI.bar.style.left = (UI.start_pos + width) + 'px';
+        }
+        else {
+        	UI.bar.style.left = UI.start_pos + 'px';
+        }
+        UI.bar.style.width = Math.abs(width) + 'px';
+        UI.set_end(UI.get_frame(event));
+    },
+
+}
+
+
 var UI = {
     animated: null,
 
@@ -592,10 +730,11 @@ var UI = {
             UI.sequence = new Sequence(UI.session, doc);
         }
     },
-    
+
     edit_slice: function(doc) {
-        var url = ['slice.html#', UI.project_id, '/', doc._id].join('');
-        window.location.assign(url);
+        UI.roughcut = new RoughCut(UI.session, doc.node.src);
+        //var url = ['slice.html#', UI.project_id, '/', doc._id].join('');
+        //window.location.assign(url);
     },
 }
 
