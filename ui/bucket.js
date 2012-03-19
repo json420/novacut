@@ -569,6 +569,29 @@ VideoFrame.prototype = {
 }
 
 
+function create_node(node) {
+    return {
+        '_id': couch.random_id(),
+        'ver': 0,
+        'type': 'novacut/node',
+        'time': couch.time(),
+        'node': node,
+    }
+}
+
+
+function create_slice(src, frame_count) {
+    var node = {
+        'type': 'slice',
+        'src': src,
+        'start': {'frame': 0},
+        'stop': {'frame': frame_count},
+        'stream': 'video',
+    }
+    return create_node(node);
+}
+
+
 var RoughCut = function(session, clip_id) {
     this.session = session;
     this.clip = session.get_doc(clip_id);
@@ -578,7 +601,10 @@ var RoughCut = function(session, clip_id) {
 
     this.done = $el('button', {textContent: 'Done'});
     this.element.appendChild(this.done);
-
+    this.done.onclick = function() {
+        UI.destroy_roughcut();
+    }
+    
     this.startvideo = new VideoFrame(this.clip, 'start');
     this.endvideo = new VideoFrame(this.clip, 'end hide');
     this.element.appendChild(this.startvideo.video);
@@ -595,6 +621,13 @@ RoughCut.prototype = {
     on_interval: function() {
         this.startvideo.do_seek();
         this.endvideo.do_seek();
+    },
+
+    destroy: function() {
+        console.log('destroy');
+        clearInterval(this.interval_id);
+        this.element.innerHTML = null;
+        $hide(this.element);
     },
 
     reset: function() {
@@ -664,6 +697,8 @@ RoughCut.prototype = {
         this.reset();    
         this.bar.style.left = this.left + 'px';
         this.bar.style.width = '1px';
+        this.slice = create_slice(this.clip._id, this.frames);
+        console.log(JSON.stringify(this.slice));
         this.scrubber.onmousemove = $bind(this.on_mousemove1, this);
         this.scrubber.onmousedown = $bind(this.on_mousedown1, this);
     },
@@ -711,6 +746,14 @@ RoughCut.prototype = {
     on_drop1: function(dnd) {
         console.log('drop1');
         this.dnd = null;
+        this.slice.node.start.frame = this.start;
+        this.slice.node.stop.frame = this.stop;
+        UI.sequence.doc.doodle.push({id: this.slice._id, x: 16, y: 9});
+        UI.sequence.doc.selected = this.slice._id;
+        this.session.save(this.slice);
+        this.session.save(UI.sequence.doc);
+        this.session.commit();
+        this.edit_slice(this.slice);
     },
 
     edit_slice: function(slice) {
@@ -747,7 +790,7 @@ RoughCut.prototype = {
     },  
 
     on_dragstart2: function(dnd) {
-        console.log('dragstart');
+        console.log('dragstart2');
         this.dnd.ondrag = $bind(this.on_drag2, this);
         this.dnd.ondrop = $bind(this.on_drop2, this);
     },
@@ -837,6 +880,11 @@ var UI = {
         //UI.roughcut.edit_slice(doc);
         //var url = ['slice.html#', UI.project_id, '/', doc._id].join('');
         //window.location.assign(url);
+    },
+    
+    destroy_roughcut: function() {
+        UI.roughcut.destroy();
+        UI.roughcut = null;
     },
 }
 
