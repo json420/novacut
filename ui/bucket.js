@@ -624,7 +624,6 @@ RoughCut.prototype = {
     },
 
     destroy: function() {
-        console.log('destroy');
         clearInterval(this.interval_id);
         this.element.innerHTML = null;
         $hide(this.element);
@@ -722,7 +721,6 @@ RoughCut.prototype = {
     },
 
     on_mousedown1: function(event) {
-        console.log('mousedown1');
         this.scrubber.onmousemove = null;
         this.dnd = new DragEvent(event);
         this.dnd.ondragcancel = $bind(this.on_dragcancel1, this);
@@ -730,13 +728,11 @@ RoughCut.prototype = {
     },
 
     on_dragcancel1: function(dnd) {
-        console.log('dragcancel1');
         this.dnd = null;
         this.scrubber.onmousemove = $bind(this.on_mousemove1, this);
     },  
 
     on_dragstart1: function(dnd) {
-        console.log('dragstart1');
         this.dnd.ondrag = $bind(this.on_drag1, this);
         this.dnd.ondrop = $bind(this.on_drop1, this);
         this.endvideo.show();
@@ -757,7 +753,6 @@ RoughCut.prototype = {
     },
 
     on_drop1: function(dnd) {
-        console.log('drop1');
         this.dnd = null;
         this.save_to_slice();
         UI.sequence.doc.doodle.push({id: this.slice._id, x: 16, y: 9});
@@ -777,10 +772,8 @@ RoughCut.prototype = {
     },
 
     on_mousedown2: function(event) {
-        console.log('mousedown2');
         var mid = (this.left + this.right) / 2;
         this.point = (event.clientX <= mid) ? 'left' : 'right';
-        console.log(this.point);
         var frame = this.get_frame(event.clientX, true);
         if (this.point == 'left') {
             this.start = frame;
@@ -795,13 +788,11 @@ RoughCut.prototype = {
     },
 
     on_dragcancel2: function(dnd) {
-        console.log('dragcancel2');
         this.dnd = null;
         this.sync_from_slice();
     },  
 
     on_dragstart2: function(dnd) {
-        console.log('dragstart2');
         this.dnd.ondrag = $bind(this.on_drag2, this);
         this.dnd.ondrop = $bind(this.on_drop2, this);
     },
@@ -818,7 +809,6 @@ RoughCut.prototype = {
     },
 
     on_drop2: function(dnd) {
-        console.log('drop2');
         this.dnd = null;
         this.save_to_slice();
         this.session.commit();
@@ -889,12 +879,9 @@ var UI = {
 
     edit_slice: function(doc) {
         UI.roughcut = new RoughCut(UI.session, doc.node.src);
-        UI.roughcut.create_slice();
-        //UI.roughcut.edit_slice(doc);
-        //var url = ['slice.html#', UI.project_id, '/', doc._id].join('');
-        //window.location.assign(url);
+        UI.roughcut.edit_slice(doc);
     },
-    
+
     destroy_roughcut: function() {
         UI.roughcut.destroy();
         UI.roughcut = null;
