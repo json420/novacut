@@ -691,6 +691,20 @@ RoughCut.prototype = {
         this.update_bar();
     },
 
+    save_to_slice: function() {
+        /*
+        Store start & stop in slice doc, mark doc as dirty.
+
+        Note that this *only* marks the slice doc as dirty, does *not* call
+        session.commit().  This is for cases when you also need to update the
+        sequence doc, so you can send both in a single CouchDB request.
+        */
+        this.slice.node.start.frame = this.start;
+        this.slice.node.stop.frame = this.stop;
+        this.session.save(this.slice);
+        console.log(JSON.stringify(this.slice));
+    },
+
     create_slice: function() {
         console.log('create_slice');
         this.endvideo.hide();
@@ -698,7 +712,6 @@ RoughCut.prototype = {
         this.bar.style.left = this.left + 'px';
         this.bar.style.width = '1px';
         this.slice = create_slice(this.clip._id, this.frames);
-        console.log(JSON.stringify(this.slice));
         this.scrubber.onmousemove = $bind(this.on_mousemove1, this);
         this.scrubber.onmousedown = $bind(this.on_mousedown1, this);
     },
@@ -746,11 +759,9 @@ RoughCut.prototype = {
     on_drop1: function(dnd) {
         console.log('drop1');
         this.dnd = null;
-        this.slice.node.start.frame = this.start;
-        this.slice.node.stop.frame = this.stop;
+        this.save_to_slice();
         UI.sequence.doc.doodle.push({id: this.slice._id, x: 16, y: 9});
         UI.sequence.doc.selected = this.slice._id;
-        this.session.save(this.slice);
         this.session.save(UI.sequence.doc);
         this.session.commit();
         this.edit_slice(this.slice);
@@ -809,6 +820,8 @@ RoughCut.prototype = {
     on_drop2: function(dnd) {
         console.log('drop2');
         this.dnd = null;
+        this.save_to_slice();
+        this.session.commit();
     },
 
 }
