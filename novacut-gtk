@@ -132,7 +132,7 @@ class App(BaseApp):
         project.put(None)  # Create DB
         project.post(doc)
         views.init_views(project, views.novacut_projects)
-        self.load_page('cutter.html#' + doc['_id'])
+        self.load_page('bucket.html#' + doc['_id'])
         #self.hub.send('project_created', doc['_id'])
 
     def on_load_project(self, hub, project_id):
