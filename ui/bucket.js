@@ -58,13 +58,13 @@ var DragEvent = function(event) {
 }
 DragEvent.prototype = {
     update: function(event) {
-//        var html = document.body.parentNode;
-//        this.x = Math.max(0, Math.min(event.clientX, html.clientWidth));
-//        this.y = Math.max(0, Math.min(event.clientY, html.clientHeight));
         $halt(event);
         this.event = event;
-        this.x = event.clientX;
-        this.y = event.clientY;
+        var html = document.body.parentNode;
+        this.x = Math.max(0, Math.min(event.clientX, html.clientWidth));
+        this.y = Math.max(0, Math.min(event.clientY, html.clientHeight));
+//        this.x = event.clientX;
+//        this.y = event.clientY;
         this.dx = this.x - this.ox;
         this.dy = this.y - this.oy;
     },
@@ -117,48 +117,6 @@ Frame.prototype = {
             this.img = img;
             this.element.style.backgroundImage = img;
         }
-    },
-}
-
-
-var Scroller = function(parent, delta, ms) {
-    this.parent = parent;
-    this.delta = delta;
-    this.ms = ms;
-    this.id = null;
-    this.direction = null;
-    this.onscroll = null;
-}
-Scroller.prototype = {
-    scroll: function() {
-        var d = (this.direction == 'left') ? -1 : 1;
-        var scrollLeft = this.parent.scrollLeft;
-        this.parent.scrollLeft += (d * this.delta);
-        return scrollLeft != this.parent.scrollLeft;
-    },
-
-    start: function(direction) {
-        if (direction == this.direction) {
-            return false;
-        }
-        this.direction = direction;
-        this.scroll();
-        this.id = setInterval($bind(this.on_interval, this), this.ms);
-        return true;
-    },
-
-    stop: function() {
-        if (this.direction == null) {
-            return false;
-        }
-        this.direction = null;
-        clearInterval(this.id);
-        this.id = null;
-        return true;      
-    },
-
-    on_interval: function() {
-        this.scroll();
     },
 }
 
@@ -238,7 +196,7 @@ Slice.prototype = {
         this.dnd.ondrag = $bind(this.on_drag, this);
         this.dnd.ondrop = $bind(this.on_drop, this);
     },
-    
+
     on_dblclick: function(event) {
         $halt(event);
         UI.edit_slice(this.doc);
@@ -246,7 +204,7 @@ Slice.prototype = {
 
     on_dragcancel: function(dnd) {
         console.log('dragcancel');
-        UI.sequence.scroller.stop();
+        this.stop_scrolling();
         if (this.inbucket && UI.bucket.lastChild != this.element) {
             console.log('moving to end of bucket');
             $unparent(this.element);
@@ -272,7 +230,6 @@ Slice.prototype = {
             this.y = dnd.y - this.offsetY;
         }
         else {
-            UI.sequence.element.onscroll = $bind(this.do_mousemove_sequence, this);
             this.nextSibling = this.element.nextSibling;
             if (this.element.nextSibling) {
                 this.over = this.element.nextSibling;
@@ -321,7 +278,6 @@ Slice.prototype = {
     },
 
     move_into_sequence: function(dnd) {
-        UI.sequence.element.onscroll = $bind(this.do_mousemove_sequence, this);
         if (!this.frombucket) {
             this.clear_over();
             UI.sequence.reset();
@@ -353,7 +309,7 @@ Slice.prototype = {
     },
 
     move_into_bucket: function(dnd) {
-        UI.sequence.scroller.stop();
+        this.stop_scrolling();
         $unparent(this.element);
         $('bucket').appendChild(this.element);
         if (this.frombucket) {
@@ -374,22 +330,48 @@ Slice.prototype = {
         this.y = dnd.y - this.offsetY;
     },
 
+    start_scrolling: function(direction) {
+        console.log(direction);
+        this.direction = direction;
+        this.scrolling = true;
+        this.interval_id = setInterval($bind(this.on_interval, this), 300);
+    },
+
+    stop_scrolling: function() {
+        console.log('stop');
+        this.scrolling = false;
+        clearInterval(this.interval_id);
+        this.interval_id = null;
+    },
+
+    on_interval: function() {
+        console.log('interval');
+        var d = (this.direction == 'left') ? -1 : 1;
+        UI.sequence.element.scrollLeft += (d * this.width);
+        this.do_mousemove_sequence();
+    },
+
     on_mousemove_sequence: function(dnd) {
-        var x = this.dnd.x - this.offsetX;
-        var parent = UI.sequence.element;
-        var half = this.element.offsetWidth / 2;
-        if (x + half < 0) {
-            if (UI.sequence.scroller.start('left')) {
-                console.log('entered scroll-left region');
+        var mid_x = dnd.x - this.offsetX + (this.element.offsetWidth / 2);
+        var width = UI.sequence.element.clientWidth;
+        var left = Math.min(dnd.x, mid_x);
+        var right = Math.max(dnd.x, mid_x);
+
+        if (this.scrolling) {
+            if (left > 0 && right < width) {
+                this.stop_scrolling();
             }
-        }
-        else if (x + half > parent.clientWidth) {
-            if (UI.sequence.scroller.start('right')) {
-                console.log('entered scroll-right region');
+            else {
+                return;
             }
         }
         else {
-            UI.sequence.scroller.stop();
+            if (left <= 0) {
+                this.start_scrolling('left');
+            }
+            else if (right >= width) {
+                this.start_scrolling('right');
+            }
         }
         this.do_mousemove_sequence();
     },
@@ -455,7 +437,7 @@ Slice.prototype = {
     },
 
     on_drop: function(dnd) {
-        UI.sequence.scroller.stop();
+        this.stop_scrolling();
         this.element.classList.remove('grabbed');
         this.clear_over();
         UI.sequence.reset();
@@ -512,8 +494,6 @@ var Sequence = function(session, doc) {
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
     this.on_change(doc);
-
-    this.scroller = new Scroller(this.element, 194, 300);
 }
 Sequence.prototype = {
     on_change: function(doc) {
