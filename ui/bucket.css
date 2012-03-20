@@ -49,29 +49,54 @@
 
 
 .frame {
-    background-position: center center;
-    background-size: cover;
-    box-sizing: border-box;
+    position: relative;
+}
 
-    padding: 0 6px;
+.frame div {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 2px 6px;
+    
+    cursor: default;
     text-align: right;
     font-family: "Ubuntu Mono";
     font-size: 14px;
     line-height: 1.6em;
     font-weight: bold;
     color: white;
-    background-color: black;
     text-shadow: 0px 0px 10px black;
-
-    cursor: default;
 }
 
-#bucket .frame {
+.frame img {
+    margin: 0;
+    padding: 0;
+    border: none;
+    display: block;
+    background-color: white;
+}
+
+/*
+Interesting 16:9 thumbnail sizes we might want to use:
+
+
+112 63
+128 72
+144 81
+160 90
+176 99
+192 108
+208 117
+224 126
+
+*/
+
+#bucket img {
     width: 128px;
     height: 72px;
 }
 
-#sequence .frame {
+#sequence img {
     width: 192px;
     height: 108px;
 }

@@ -1,6 +1,135 @@
 "use strict";
 
 
+var Thumbs = {
+    db: new couch.Database('thumbnails'), 
+
+    docs: {},
+
+    has_frame: function(file_id, index) {
+        if (!Thumbs.docs[file_id]) {
+            try {
+                Thumbs.docs[file_id] = Thumbs.db.get_sync(file_id);
+            }
+            catch (e) {
+                return false;
+            }
+        }
+        if (Thumbs.docs[file_id]._attachments[index]) {
+            return true;
+        }
+        return false;
+    },
+
+    q: {},
+    
+    need_init: true,
+
+    init: function() {
+        console.assert(Thumbs.need_init);
+        Thumbs.need_init = false;
+        var ids = Object.keys(Thumbs.q);
+        if (ids.length == 0) {
+            return;
+        }
+        Thumbs.db.post(Thumbs.on_docs, {keys: ids}, '_all_docs', {include_docs: true});
+    },
+
+    on_docs: function(req) {
+        try {
+            var rows = req.read().rows;
+            rows.forEach(function(row) {
+                var id = row.key;
+                if (row.doc) {
+                    Thumbs.docs[id] = row.doc;
+                }
+                else {
+                    Thumbs.docs[id] = {'_id': id, '_attachments': {}};
+                }
+            });
+        }
+        catch (e) {
+            var ids = Object.keys(Thumbs.q);
+            ids.forEach(function(id) {
+                Thumbs.docs[id] = {'_id': id, '_attachments': {}};
+            });
+        }
+        Thumbs.unfreeze();
+    },
+
+    enqueue: function(frame) {
+        if (!Thumbs.q[frame.file_id]) {
+            Thumbs.q[frame.file_id] = [];
+        }
+        Thumbs.q[frame.file_id].push(frame);
+    },
+    
+    frozen: false,
+
+    freeze: function() {
+        Thumbs.frozen = true;
+    },
+    
+    unfreeze: function() {
+        console.log('unfreeze');
+        if (this.need_init) {
+            this.init();
+            return;
+        }
+        Thumbs.frozen = false;
+        Thumbs.flush();
+    },
+
+    flush: function() {
+        if (Thumbs.frozen) {
+            return;
+        }
+        var ids = Object.keys(Thumbs.q);
+        if (ids.length == 0) {
+            return;
+        }
+        ids.forEach(function(id) {
+            var frames = Thumbs.q[id];
+            var needed = [];
+            frames.forEach(function(frame) {
+                if (Thumbs.has_frame(id, frame.index)) {
+                    frame.request_thumbnail.call(frame);
+                }
+                else {
+                    needed.push(frame.index);
+                }
+            });
+            if (needed.length == 0) {
+                delete Thumbs.q[id];
+            }
+            else {
+                Hub.send('thumbnail', id, needed);
+            }
+        }); 
+    },
+
+    on_thumbnail_finished: function(file_id) {
+        if (!Thumbs.q[file_id]) {
+            return;
+        }
+        var frames = Thumbs.q[file_id];
+        delete Thumbs.q[file_id];
+        Thumbs.docs[file_id] = Thumbs.db.get_sync(file_id);
+        frames.forEach(function(frame) {
+            if (Thumbs.has_frame(file_id, frame.index)) {
+                frame.request_thumbnail.call(frame);
+            }
+            else {
+                Thumbs.enqueue(frame);
+            }
+        });
+        Thumbs.flush();
+    },
+}
+
+Hub.connect('thumbnail_finished', Thumbs.on_thumbnail_finished);
+
+
 function $halt(event) {
     event.preventDefault();
     event.stopPropagation();
@@ -105,19 +234,26 @@ DragEvent.prototype = {
 var Frame = function(file_id) {
     this.file_id = file_id;
     this.index = null;
-    this.img = null;
     this.element = $el('div', {'class': 'frame'});
+    this.img = $el('img');
+    this.element.appendChild(this.img);
+    this.info = $el('div');
+    this.element.appendChild(this.info);
 }
 Frame.prototype = {
     set_index: function(index) {
-        this.index = index;
-        this.element.textContent = index + 1;
-        var img = UI.thumbnails.att_css_url(this.file_id, index);
-        if (img != this.img) {
-            this.img = img;
-            this.element.style.backgroundImage = img;
+        if (index === this.index) {
+            return;
         }
+        this.index = index;
+        this.info.textContent = index + 1;
+        Thumbs.enqueue(this);
     },
+
+    request_thumbnail: function() {
+        this.img.src = Thumbs.db.att_url(this.file_id, this.index.toString());
+    },
+
 }
 
 
@@ -185,6 +321,7 @@ Slice.prototype = {
         var node = doc.node;
         this.start.set_index(node.start.frame);
         this.end.set_index(node.stop.frame - 1);
+        Thumbs.flush();
     },
 
     on_mousedown: function(event) {
@@ -500,6 +637,8 @@ Sequence.prototype = {
         console.log('Sequence.on_change()');
         this.doc = doc;
 
+        Thumbs.freeze();
+
         var i, _id, child, element;
         for (i in doc.node.src) {
             _id = doc.node.src[i];
@@ -524,6 +663,8 @@ Sequence.prototype = {
         }
 
         UI.select(doc.selected);
+        
+        Thumbs.unfreeze();
 
         console.assert(
             $compare(this.doc.node.src, this.get_src())
