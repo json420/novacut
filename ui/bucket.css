@@ -33,7 +33,6 @@
 }
 
 .slice * {
-    pointer-events: none;
 }
 
 #bucket .slice {

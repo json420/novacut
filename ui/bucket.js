@@ -23,6 +23,12 @@ var Thumbs = {
 
     q: {},
     
+    order: [],
+
+    active: {},
+    
+    active_count: 0,
+
     need_init: true,
 
     init: function() {
@@ -59,9 +65,9 @@ var Thumbs = {
 
     enqueue: function(frame) {
         if (!Thumbs.q[frame.file_id]) {
-            Thumbs.q[frame.file_id] = [];
+            Thumbs.q[frame.file_id] = {};
         }
-        Thumbs.q[frame.file_id].push(frame);
+        Thumbs.q[frame.file_id][frame.key] = frame;
     },
     
     frozen: false,
@@ -86,43 +92,53 @@ var Thumbs = {
         }
         var ids = Object.keys(Thumbs.q);
         if (ids.length == 0) {
+            console.log('no pending thumbnail requests');
             return;
         }
         ids.forEach(function(id) {
+            if (Thumbs.active[id]) {
+                console.log('already waiting for ' + id);
+                return;
+            }
             var frames = Thumbs.q[id];
+            delete Thumbs.q[id];
+
             var needed = [];
-            frames.forEach(function(frame) {
+            var key, frame;
+            for (key in frames) {
+                frame = frames[key];
                 if (Thumbs.has_frame(id, frame.index)) {
                     frame.request_thumbnail.call(frame);
                 }
                 else {
                     needed.push(frame.index);
                 }
-            });
-            if (needed.length == 0) {
-                delete Thumbs.q[id];
             }
-            else {
+            if (needed.length > 0) {
+                Thumbs.active[id] = frames;
+                console.log(JSON.stringify([id, needed]));
                 Hub.send('thumbnail', id, needed);
             }
         }); 
     },
 
     on_thumbnail_finished: function(file_id) {
-        if (!Thumbs.q[file_id]) {
+        console.log('finished ' + file_id);
+        if (!Thumbs.active[file_id]) {
             return;
         }
-        var frames = Thumbs.q[file_id];
-        delete Thumbs.q[file_id];
+        var frames = Thumbs.active[file_id];
+        delete Thumbs.active[file_id];
         Thumbs.docs[file_id] = Thumbs.db.get_sync(file_id);
-        frames.forEach(function(frame) {
+        
+        var key, frame;
+        for (key in frames) {
+            console.log(key);
+            frame = frames[key];
             if (Thumbs.has_frame(file_id, frame.index)) {
                 frame.request_thumbnail.call(frame);
             }
-            else {
-                Thumbs.enqueue(frame);
-            }
-        });
+        }
         Thumbs.flush();
     },
 }
@@ -231,8 +247,9 @@ DragEvent.prototype = {
 }
 
 
-var Frame = function(file_id) {
+var Frame = function(file_id, key) {
     this.file_id = file_id;
+    this.key = key;
     this.index = null;
     this.element = $el('div', {'class': 'frame'});
     this.img = $el('img');
@@ -251,9 +268,20 @@ Frame.prototype = {
     },
 
     request_thumbnail: function() {
+        console.log(this.index + ' ' + this.file_id);
         this.img.src = Thumbs.db.att_url(this.file_id, this.index.toString());
     },
 
+}
+
+
+function wheel_delta(event) {
+    var delta = event.wheelDeltaY;
+    if (delta == 0) {
+        return 0;
+    }
+    var scale = (event.shiftKey) ? -10 : -1;
+    return scale * (delta / Math.abs(delta));
 }
 
 
@@ -264,15 +292,18 @@ var Slice = function(session, doc) {
 
     var file_id = doc.node.src;
 
-    this.start = new Frame(file_id);
+    this.start = new Frame(file_id, doc._id + '.start');
     this.element.appendChild(this.start.element);
 
-    this.end = new Frame(file_id);
+    this.end = new Frame(file_id, doc._id + '.end');
     this.element.appendChild(this.end.element);
 
+    this.start.element.onmousewheel = $bind(this.on_mousewheel_start, this);
+    this.end.element.onmousewheel = $bind(this.on_mousewheel_end, this);
     this.element.onmousedown = $bind(this.on_mousedown, this);
     this.element.ondblclick = $bind(this.on_dblclick, this);
 
+    this.frames = session.get_doc(doc.node.src).duration.frames;
     this.on_change(doc);
 
     this.i = null;
@@ -322,6 +353,32 @@ Slice.prototype = {
         this.start.set_index(node.start.frame);
         this.end.set_index(node.stop.frame - 1);
         Thumbs.flush();
+    },
+
+    on_mousewheel_start: function(event) {
+        $halt(event);
+        var delta = wheel_delta(event);
+        var start = this.doc.node.start.frame;
+        var stop = this.doc.node.stop.frame;
+        var proposed = Math.max(0, Math.min(start + delta, stop - 1));
+        if (start != proposed) {
+            this.doc.node.start.frame = proposed;
+            this.session.save(this.doc);
+            this.session.commit();
+        }   
+    },
+
+    on_mousewheel_end: function(event) {
+        $halt(event);
+        var delta = wheel_delta(event);
+        var start = this.doc.node.start.frame;
+        var stop = this.doc.node.stop.frame;
+        var proposed = Math.max(start + 1, Math.min(stop + delta, this.frames));
+        if (stop != proposed) {
+            this.doc.node.stop.frame = proposed;
+            this.session.save(this.doc);
+            this.session.commit();
+        }   
     },
 
     on_mousedown: function(event) {
@@ -1027,10 +1084,9 @@ var UI = {
     select: function(element) {
         $unselect(UI.selected);
         UI.selected = $select(element);
-        return;
         if (UI.selected && UI.selected.parentNode.id == 'sequence') {
             var child = UI.selected;
-            var seq = $('sequence');
+            var seq = child.parentNode;
             if (child.offsetLeft < seq.scrollLeft) {
                 console.log('scrolling left');
                 seq.scrollLeft = child.offsetLeft;
@@ -1058,6 +1114,7 @@ var UI = {
     get_slice: function(_id) {
         var element = $unparent(_id);
         if (element) {
+            console.log(_id);
             return element;
         }
         var slice = new Slice(UI.session, UI.session.get_doc(_id));
