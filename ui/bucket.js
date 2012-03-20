@@ -156,17 +156,24 @@ function $unparent(id) {
 
 
 function $position(element) {
-    var pos = {x: element.offsetLeft, y: element.offsetTop};
+    var pos = {
+        left: element.offsetLeft,
+        top: element.offsetTop,
+        width: element.offsetWidth,
+        height: element.offsetHeight,
+    };
     while (element.offsetParent) {
         element = element.offsetParent;
-        pos.x += (element.offsetLeft - element.scrollLeft);
-        pos.y += (element.offsetTop - element.scrollTop);
+        pos.left += (element.offsetLeft - element.scrollLeft);
+        pos.top += (element.offsetTop - element.scrollTop);
     }
+    pos.right = pos.left + pos.width;
+    pos.bottom = pos.top + pos.height;
     return pos;
 }
 
 
-var DragEvent = function(event) {
+var DragEvent = function(event, element) {
     $halt(event);
     this.x = event.clientX;
     this.y = event.clientY;
@@ -174,8 +181,17 @@ var DragEvent = function(event) {
     this.oy = this.y;
     this.dx = 0;
     this.dy = 0;
-    this.offsetX = event.offsetX;
-    this.offsetY = event.offsetY;
+    
+    if (element) {
+        var pos = $position(element);
+        this.offsetX = this.x - pos.left;
+        this.offsetY = this.y - pos.top;
+    }
+    else {    
+        this.offsetX = event.offsetX;
+        this.offsetY = event.offsetY;
+    }
+
     this.ondragstart = null;
     this.ondragcancel = null;
     this.ondrag = null;
@@ -377,7 +393,7 @@ Slice.prototype = {
     on_mousedown: function(event) {
         UI.select(this.element);
         this.pos = $position(this.element);
-        this.dnd = new DragEvent(event);
+        this.dnd = new DragEvent(event, this.element);
         this.dnd.ondragcancel = $bind(this.on_dragcancel, this);
         this.dnd.ondragstart = $bind(this.on_dragstart, this);
         this.dnd.ondrag = $bind(this.on_drag, this);
@@ -469,7 +485,7 @@ Slice.prototype = {
             this.clear_over();
             UI.sequence.reset();
         }
-        var x = this.pos.x + dnd.dx;
+        var x = this.pos.left + dnd.dx;
         var seq = UI.sequence.element;
         var scroll_x = x + seq.scrollLeft;
     
