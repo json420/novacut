@@ -317,7 +317,9 @@ Slice.prototype = {
             if (child == this.element) {
                 me = i;
             }
-            child.setAttribute('class', 'slice');
+            if (!child.classList.contains("ghost")){
+                child.setAttribute('class', 'slice');
+            }
         }
         if (this.pos !== 0) {
             var target = parent.children[me + this.pos];
@@ -419,7 +421,7 @@ Slice.prototype = {
     },
 
     shift_left: function() {
-        if (!this.target.nextSibling) {
+        if (!this.target.nextSibling || this.target.nextSibling.classList.contains("ghost")) {
             return;
         }
         this.pos += 1;
@@ -477,6 +479,10 @@ Sequence.prototype = {
             slice.onreorder = on_reorder;
             this.append(slice);
         }, this);
+        var ghost = document.createElement("div");
+        ghost.classList.add("ghost");
+        ghost.classList.add("slice");
+        this.element.appendChild(ghost);
         Thumbs.flush();
     },
 
@@ -485,7 +491,9 @@ Sequence.prototype = {
         var src = [];
         for (i=0; i<this.element.children.length; i++) {
             child = this.element.children[i];
-            src.push(child.id);
+            if (child.id){
+                src.push(child.id);
+            }
         }
         return src;
     },
@@ -1001,7 +1009,7 @@ var UI = {
         $halt(event);
         var delta = wheel_delta(event) * (192 + 8);
         UI.sequence.element.scrollLeft += delta;
-        UI.scrubber.style.setProperty("background-position", -UI.sequence.element.scrollLeft/2 + "px 0px");
+        UI.scrubber.style.setProperty("background-position", -UI.sequence.element.scrollLeft + "px 0px");
     },
     
     on_mousedown: function(event) {

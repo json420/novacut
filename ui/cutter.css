@@ -7,14 +7,41 @@
 
 #scrubber {
     position: fixed;
-    bottom: 0;
+    bottom: 260px;
     left: 0;
     right: 0;
     height: 30px;
     background-image:url(grip.png);/*-webkit-linear-gradient(top, #555, #444);*/
     background-position:0px 0px;
-    border-top:1px solid #666;
     cursor:move;
+}
+
+#scroller{
+    position:fixed;
+    bottom:0px;
+    left:0px;
+    right:0px;
+    height:30px;
+    background:#222;
+    box-shadow:inset 0px 0px 5px #111;
+}
+
+#scroller .thumb{
+    position:absolute;
+    top:0px;
+    left:0%;
+    bottom:0px;
+    width:20%;
+    border-radius:3px;
+    border-top:1px solid #666;
+    border-bottom:1px solid #333;
+    background:-webkit-linear-gradient(top, #555, #444);
+    cursor:move;
+}
+
+#scroller .thumb:hover{
+    background:-webkit-linear-gradient(top, #666, #555);
+    border-top:1px solid #777;
 }
 
 #clips{
@@ -62,7 +89,7 @@
 .view{
     position:absolute;
     top:40px;
-    bottom:269px;
+    bottom:290px;
     left:0px;
     right:0px;
     visibility:hidden;
@@ -86,10 +113,10 @@
     line-height: 0;
     white-space: nowrap;
 
-    padding-top: 5px;
-    padding-right: 5px;
-    padding-left: 5px;
-    padding-bottom: 5px;
+    padding-top: 1px;
+    padding-right: 1px;
+    padding-left: 1px;
+    padding-bottom: 1px;
 }
 
 .slice {
@@ -105,6 +132,15 @@
     left:0px;
 }
 
+.slice.ghost{
+    width:192px;
+    height:220px;
+    background:-webkit-linear-gradient(top, #777, #555);
+}
+
+.slice .frame{
+    cursor:col-resize;
+}
 .slice.bucket{
     position:absolute;
     padding:1px;
@@ -141,11 +177,6 @@
     z-index:99;
     pointer-events:none;
 }
-
-.clip .frame{
-    /*pointer-events:none;*/
-}
-
 .clip .frame div{
     visibility:hidden;
 }
