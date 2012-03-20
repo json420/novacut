@@ -715,6 +715,10 @@ Sequence.prototype = {
             }
         }
 
+        if (! doc.doodle instanceof Array) {
+            UI.sequence.doc.doodle = [];
+        }
+
         var obj;
         for (i in doc.doodle) {
             obj = doc.doodle[i];
@@ -772,7 +776,7 @@ Sequence.prototype = {
         else {
             this.doc.selected = null;
         }
-        this.session.save(this.doc);
+        this.session.save(this.doc, true);  // no_emit=true
         this.session.commit();
     },
 
