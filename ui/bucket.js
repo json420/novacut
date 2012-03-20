@@ -22,12 +22,8 @@ var Thumbs = {
     },
 
     q: {},
-    
-    order: [],
 
     active: {},
-    
-    active_count: 0,
 
     need_init: true,
 
@@ -92,13 +88,14 @@ var Thumbs = {
         }
         var ids = Object.keys(Thumbs.q);
         if (ids.length == 0) {
-            console.log('no pending thumbnail requests');
+            console.log('no thumbnails in queue');
             return;
         }
-        ids.forEach(function(id) {
+        while (ids.length > 0 && Object.keys(Thumbs.active).length <= 4) {
+            var id = ids.shift();
             if (Thumbs.active[id]) {
                 console.log('already waiting for ' + id);
-                return;
+                continue;
             }
             var frames = Thumbs.q[id];
             delete Thumbs.q[id];
@@ -116,14 +113,12 @@ var Thumbs = {
             }
             if (needed.length > 0) {
                 Thumbs.active[id] = frames;
-                console.log(JSON.stringify([id, needed]));
                 Hub.send('thumbnail', id, needed);
             }
-        }); 
+        }
     },
 
     on_thumbnail_finished: function(file_id) {
-        console.log('finished ' + file_id);
         if (!Thumbs.active[file_id]) {
             return;
         }
@@ -133,7 +128,6 @@ var Thumbs = {
         
         var key, frame;
         for (key in frames) {
-            console.log(key);
             frame = frames[key];
             if (Thumbs.has_frame(file_id, frame.index)) {
                 frame.request_thumbnail.call(frame);
@@ -268,7 +262,6 @@ Frame.prototype = {
     },
 
     request_thumbnail: function() {
-        console.log(this.index + ' ' + this.file_id);
         this.img.src = Thumbs.db.att_url(this.file_id, this.index.toString());
     },
 
