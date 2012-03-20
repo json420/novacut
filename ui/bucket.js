@@ -58,15 +58,18 @@ var DragEvent = function(event) {
 }
 DragEvent.prototype = {
     update: function(event) {
-        var html = document.body.parentNode;
-        this.x = Math.max(0, Math.min(event.clientX, html.clientWidth));
-        this.y = Math.max(0, Math.min(event.clientY, html.clientHeight));
+//        var html = document.body.parentNode;
+//        this.x = Math.max(0, Math.min(event.clientX, html.clientWidth));
+//        this.y = Math.max(0, Math.min(event.clientY, html.clientHeight));
+        $halt(event);
+        this.event = event;
+        this.x = event.clientX;
+        this.y = event.clientY;
         this.dx = this.x - this.ox;
         this.dy = this.y - this.oy;
     },
 
     on_mousemove: function(event) {
-        $halt(event);
         this.update(event);
         if (!this.started) {
             if (Math.max(Math.abs(this.dx), Math.abs(this.dy)) > 3) {
@@ -91,7 +94,6 @@ DragEvent.prototype = {
             }
             return;
         }
-        $halt(event);
         if (this.ondrop) {
             this.update(event);
             this.ondrop(this);
@@ -119,6 +121,47 @@ Frame.prototype = {
 }
 
 
+var Scroller = function(parent, delta, ms) {
+    this.parent = parent;
+    this.delta = delta;
+    this.ms = ms;
+    this.id = null;
+    this.direction = null;
+    this.onscroll = null;
+}
+Scroller.prototype = {
+    scroll: function() {
+        var d = (this.direction == 'left') ? -1 : 1;
+        var scrollLeft = this.parent.scrollLeft;
+        this.parent.scrollLeft += (d * this.delta);
+        return scrollLeft != this.parent.scrollLeft;
+    },
+
+    start: function(direction) {
+        if (direction == this.direction) {
+            return false;
+        }
+        this.direction = direction;
+        this.scroll();
+        this.id = setInterval($bind(this.on_interval, this), this.ms);
+        return true;
+    },
+
+    stop: function() {
+        if (this.direction == null) {
+            return false;
+        }
+        this.direction = null;
+        clearInterval(this.id);
+        this.id = null;
+        return true;      
+    },
+
+    on_interval: function() {
+        this.scroll();
+    },
+}
+
 
 var Slice = function(session, doc) {
     session.subscribe(doc._id, this.on_change, this);
@@ -142,6 +185,7 @@ var Slice = function(session, doc) {
     this.over = null;
     this.width = 192 + 2;
     this.threshold = this.width * 0.65;
+    
 }
 Slice.prototype = {
     set x(value) {
@@ -202,6 +246,7 @@ Slice.prototype = {
 
     on_dragcancel: function(dnd) {
         console.log('dragcancel');
+        UI.sequence.scroller.stop();
         if (this.inbucket && UI.bucket.lastChild != this.element) {
             console.log('moving to end of bucket');
             $unparent(this.element);
@@ -227,6 +272,7 @@ Slice.prototype = {
             this.y = dnd.y - this.offsetY;
         }
         else {
+            UI.sequence.element.onscroll = $bind(this.do_mousemove_sequence, this);
             this.nextSibling = this.element.nextSibling;
             if (this.element.nextSibling) {
                 this.over = this.element.nextSibling;
@@ -275,6 +321,7 @@ Slice.prototype = {
     },
 
     move_into_sequence: function(dnd) {
+        UI.sequence.element.onscroll = $bind(this.do_mousemove_sequence, this);
         if (!this.frombucket) {
             this.clear_over();
             UI.sequence.reset();
@@ -306,6 +353,7 @@ Slice.prototype = {
     },
 
     move_into_bucket: function(dnd) {
+        UI.sequence.scroller.stop();
         $unparent(this.element);
         $('bucket').appendChild(this.element);
         if (this.frombucket) {
@@ -327,10 +375,29 @@ Slice.prototype = {
     },
 
     on_mousemove_sequence: function(dnd) {
-        var x = dnd.x - this.offsetX;
+        var x = this.dnd.x - this.offsetX;
+        var parent = UI.sequence.element;
+        var half = this.element.offsetWidth / 2;
+        if (x + half < 0) {
+            if (UI.sequence.scroller.start('left')) {
+                console.log('entered scroll-left region');
+            }
+        }
+        else if (x + half > parent.clientWidth) {
+            if (UI.sequence.scroller.start('right')) {
+                console.log('entered scroll-right region');
+            }
+        }
+        else {
+            UI.sequence.scroller.stop();
+        }
+        this.do_mousemove_sequence();
+    },
+   
+    do_mousemove_sequence: function() {
+        var x = this.dnd.x - this.offsetX;
         var parent = UI.sequence.element;
         var scroll_x = x + parent.scrollLeft;
-        
         var ix = this.i * this.width;
         var dx = scroll_x - ix;
         
@@ -388,6 +455,7 @@ Slice.prototype = {
     },
 
     on_drop: function(dnd) {
+        UI.sequence.scroller.stop();
         this.element.classList.remove('grabbed');
         this.clear_over();
         UI.sequence.reset();
@@ -437,12 +505,15 @@ function $compare(one, two) {
     return true;
 }
 
+
 var Sequence = function(session, doc) {
     this.element = $('sequence');
     this.bucket = $('bucket');
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
     this.on_change(doc);
+
+    this.scroller = new Scroller(this.element, 194, 300);
 }
 Sequence.prototype = {
     on_change: function(doc) {
@@ -473,7 +544,7 @@ Sequence.prototype = {
         }
 
         UI.select(doc.selected);
-    
+
         console.assert(
             $compare(this.doc.node.src, this.get_src())
         );
@@ -835,6 +906,7 @@ var UI = {
     select: function(element) {
         $unselect(UI.selected);
         UI.selected = $select(element);
+        return;
         if (UI.selected && UI.selected.parentNode.id == 'sequence') {
             var child = UI.selected;
             var seq = $('sequence');
