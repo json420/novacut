@@ -697,6 +697,9 @@ var Sequence = function(session, doc) {
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
     this.on_change(doc);
+    
+    this.element.onmousedown = $bind(this.on_mousedown, this);
+    this.element.onscroll = $bind(this.on_scroll, this);
 }
 Sequence.prototype = {
     on_change: function(doc) {
@@ -739,6 +742,21 @@ Sequence.prototype = {
         console.assert(
             $compare(this.doc.node.src, this.get_src())
         );
+    },
+
+    on_scroll: function(event) {
+        this.element.style.setProperty('background-position', -this.element.scrollLeft + 'px 0px');
+    },
+
+    on_mousedown: function(event) {
+        console.log('sequence mousedown');
+        this.dnd = new DragEvent(event, this.element);
+        this.dnd.ondrag = $bind(this.on_drag, this);
+        this.dnd.scrollLeft = this.element.scrollLeft;
+    },
+
+    on_drag: function(dnd) {  
+        this.element.scrollLeft = dnd.scrollLeft - dnd.dx;  
     },
 
     get_src: function() {
