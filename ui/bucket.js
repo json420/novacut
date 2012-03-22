@@ -452,13 +452,13 @@ Slice.prototype = {
                     this.orig_i = i;
                 }
             }
-            this.y = UI.sequence.element.offsetTop - 10;
+            this.y = UI.sequence.top - 10;
         }
         this.element.classList.add('grabbed');
     },
 
     on_drag: function(dnd) {
-        var top = UI.sequence.element.offsetTop;
+        var top = UI.sequence.top;
         var height = this.element.clientHeight;
         var y = dnd.y - this.offsetY;
         var f = 0.65;
@@ -485,8 +485,18 @@ Slice.prototype = {
             this.clear_over();
             UI.sequence.reset();
         }
-        var x = this.pos.left + dnd.dx;
         var seq = UI.sequence.element;
+        if (seq.children.length == 0) {
+            this.i = 0;
+            this.orig_i = 0;
+            this.target = this.element;
+            seq.appendChild(this.element);
+            this.update_offset();
+            return;
+        }
+        
+        var x = this.pos.left + dnd.dx;
+        
         var scroll_x = x + seq.scrollLeft;
     
         var unclamped = Math.round(scroll_x / this.width);
@@ -587,7 +597,7 @@ Slice.prototype = {
         var dx = scroll_x - ix;
         
         this.x = x; 
-        this.y = UI.sequence.element.offsetTop - 10;
+        this.y = UI.sequence.top - 10;
 
         if (dx < -this.threshold) {
             this.shift_right();
@@ -702,6 +712,10 @@ var Sequence = function(session, doc) {
     this.element.onscroll = $bind(this.on_scroll, this);
 }
 Sequence.prototype = {
+    get top() {
+        return this.element.offsetTop + 29;
+    },
+
     on_change: function(doc) {
         console.log('Sequence.on_change()');
         this.doc = doc;
