@@ -284,6 +284,21 @@ Frame.prototype = {
 }
 
 
+function SliceIndicator() {
+    this.element = $el('div', {'class': 'indicator'});
+    this.bar = $el('div');
+    this.element.appendChild(this.bar);
+}
+SliceIndicator.prototype = {
+    update: function(start, stop, count) {
+        var left = 100 * start / count;
+        var right = 100 - (100 * stop / count);
+        this.bar.style.left = left.toFixed(1) + '%';
+        this.bar.style.right = right.toFixed(1) + '%';  
+    },
+}
+
+
 function wheel_delta(event) {
     var delta = event.wheelDeltaY;
     if (delta == 0) {
@@ -303,6 +318,9 @@ var Slice = function(session, doc) {
 
     this.start = new Frame(file_id, doc._id + '.start');
     this.element.appendChild(this.start.element);
+    
+    this.indicator = new SliceIndicator();
+    this.element.appendChild(this.indicator.element);
 
     this.end = new Frame(file_id, doc._id + '.end');
     this.element.appendChild(this.end.element);
@@ -361,6 +379,7 @@ Slice.prototype = {
         var node = doc.node;
         this.start.set_index(node.start.frame);
         this.end.set_index(node.stop.frame - 1);
+        this.indicator.update(node.start.frame, node.stop.frame, this.frames);
         Thumbs.flush();
     },
 
@@ -452,7 +471,7 @@ Slice.prototype = {
                     this.orig_i = i;
                 }
             }
-            this.y = UI.sequence.top - 10;
+            this.y = UI.sequence.top - 14;
         }
         this.element.classList.add('grabbed');
     },
@@ -597,7 +616,7 @@ Slice.prototype = {
         var dx = scroll_x - ix;
         
         this.x = x; 
-        this.y = UI.sequence.top - 10;
+        this.y = UI.sequence.top - 14;
 
         if (dx < -this.threshold) {
             this.shift_right();
@@ -750,7 +769,7 @@ Sequence.prototype = {
         }
 
         UI.select(doc.selected);
-        
+
         Thumbs.unfreeze();
 
         console.assert(

@@ -1,7 +1,7 @@
 #bucket {
     position: fixed;
     top: 0;
-    bottom: 218px;
+    bottom: 250px;
     left: 0;
     right: 0;
     background-color: #777;
@@ -11,7 +11,7 @@
 
 #sequence {
     position: fixed;
-    height: 218px;
+    height: 221px;
     bottom: 0;
     left: 0;
     right: 0;
@@ -105,6 +105,43 @@ Interesting 16:9 thumbnail sizes we might want to use:
 #sequence img {
     width: 192px;
     height: 108px;
+}
+
+
+.indicator {
+    height: 3px;
+    background:-webkit-linear-gradient(top, #111, #222);
+    position: relative;
+    pointer-events: none;
+}
+
+.indicator div {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    left: 0%;
+    right: 0%;
+    background:-webkit-linear-gradient(top, #ddd, #fff);
+}
+
+.indicator div:before{
+    position:absolute;
+    top:-1px;
+    bottom:-1px;
+    left:0px;
+    width:1px;
+    background:white;
+    content:"";
+}
+
+.indicator div:after{
+    position:absolute;
+    top:-1px;
+    bottom:-1px;
+    right:0px;
+    width:1px;
+    background:white;
+    content:"";
 }
 
 
