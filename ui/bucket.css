@@ -274,7 +274,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 1px;
+    width: 2px;
     background-color: green;
     /*
     -webkit-transition: left 150ms linear;

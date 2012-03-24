@@ -853,16 +853,24 @@ function frame_to_seconds(frame, framerate) {
 }
 
 
-var VideoFrame = function(clip, which) {
+var VideoFrame = function(which) {
     this.video = $el('video', {'class': which});
-    this.set_src(clip);
+    var callback = $bind(this.on_canplaythrough, this);
+    this.video.addEventListener('canplaythrough', callback);
 }
 VideoFrame.prototype = {
-    set_src: function(clip) {
+    on_canplaythrough: function(event) {
+        console.log('canplaythrough ' + this.index);
+        this.ready = true;
+        this.do_seek();
+    },
+
+    set_clip: function(clip) {
+        this.ready = false;
         this.framerate = clip.framerate;
         this.frames = clip.duration.frames;
         this.pending = 0;
-        this.current = 0;
+        this.current = null;
         this.video.src = 'dmedia:' + clip._id;
         this.video.load();
     },
@@ -879,13 +887,13 @@ VideoFrame.prototype = {
         this.index = Math.max(0, Math.min(index, this.frames - 1));
         this.pending = frame_to_seconds(this.index, this.framerate);
         if (now) {
-            this.current = this.pending;
-            this.video.currentTime = this.pending;
+            this.current = null;
+            this.do_seek();
         }
     },
 
     do_seek: function() {
-        if (this.pending != this.current) {
+        if (this.ready && this.pending != this.current) {
             this.current = this.pending;
             this.video.currentTime = this.pending;
         }
@@ -933,34 +941,31 @@ function create_slice(src, frame_count) {
 }
 
 
-var RoughCut = function(session, clip_id) {
+var RoughCut = function(session) {
     this.session = session;
-    this.clip = session.get_doc(clip_id);
-    this.frames = this.clip.duration.frames;
+    this.active = false;
 
     this.element = $('roughcut');
 
     this.done = $el('button', {textContent: 'Done'});
     this.element.appendChild(this.done);
     this.done.onclick = function() {
-        UI.destroy_roughcut();
+        UI.hide_roughcut();
     }
-    
-    this.startvideo = new VideoFrame(this.clip, 'start');
-    this.endvideo = new VideoFrame(this.clip, 'end hide');
+
+    this.startvideo = new VideoFrame('start');
+    this.endvideo = new VideoFrame('end hide');
     this.element.appendChild(this.startvideo.video);
     this.element.appendChild(this.endvideo.video);
 
     this.scrubber = $el('div', {'class': 'scrubber'});
     this.element.appendChild(this.scrubber);
+    
     this.bar = $el('div', {'class': 'bar hide'});
     this.scrubber.appendChild(this.bar);
 
     this.playhead = $el('div', {'class': 'playhead hide'});
     this.scrubber.appendChild(this.playhead);
-
-    $show(this.element);
-    this.interval_id = setInterval($bind(this.on_interval, this), 200);
 
     this.scrubber.onmouseover = $bind(this.on_mouseover, this);
     this.scrubber.onmouseout = $bind(this.on_mouseout, this);
@@ -985,15 +990,28 @@ RoughCut.prototype = {
     },
 
     hide: function() {
+        this.active = false;
         clearInterval(this.interval_id);
-        this.element.innerHTML = null;
+        this.mode = null;
+        this.pause(); 
         $hide(this.element);
     },
 
+    show: function(clip_id) {
+        this.active = true;
+        this.clip = this.session.get_doc(clip_id);
+        this.frames = this.clip.duration.frames;
+        this.reset();
+        this.startvideo.set_clip(this.clip);
+        this.endvideo.set_clip(this.clip);
+        $show(this.element);
+        this.interval_id = setInterval($bind(this.on_interval, this), 100);
+    },
+
     reset: function() {
+        delete this.dnd;
         this._start = 0;
         this._stop = this.frames;
-        this.dnd = null;
         this.scrubber.onmousemove = null;
     },
 
@@ -1422,26 +1440,34 @@ var UI = {
             UI.sequence = new Sequence(UI.session, doc);
         }
     },
+    
+    _roughcut: null,
 
-    edit_slice: function(doc) {
-        UI.roughcut = new RoughCut(UI.session, doc.node.src);
-        UI.roughcut.edit_slice(doc);
+    get roughcut() {
+        if (UI._roughcut == null) {
+            UI._roughcut = new RoughCut(UI.session);
+        }
+        return UI._roughcut;
     },
-
+    
     create_slice: function(id) {
-        UI.roughcut = new RoughCut(UI.session, id);
+        UI.roughcut.show(id);
         UI.roughcut.create_slice();
     },
 
-    destroy_roughcut: function() {
-        UI.roughcut.destroy();
-        UI.roughcut = null;
+    edit_slice: function(doc) {
+        UI.roughcut.show(doc.node.src);
+        UI.roughcut.edit_slice(doc);
+    },
+
+    hide_roughcut: function() {
+        UI.roughcut.hide();
     },
 
     on_keypress: function(event) {
         if (event.keyCode == 32) {
             $halt(event);
-            if (UI.roughcut) {
+            if (UI.roughcut.active) {
                 UI.roughcut.playpause();
             }
             else if (!UI.player) {
