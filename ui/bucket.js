@@ -916,13 +916,13 @@ VideoFrame.prototype = {
     },
 
     play: function() {
-        this.video.classList.add('player');
+        //this.video.classList.add('player');
         this.video.play();
     },
 
     pause: function() {
         this.video.pause();
-        this.video.classList.remove('player');
+        //this.video.classList.remove('player');
     },
 
     seek: function(index, now) {
@@ -1097,6 +1097,7 @@ RoughCut.prototype = {
  
     pause: function() {
         this.startvideo.pause();
+        this.startvideo.seek(this.start, true);
         this.playing = false;
         $hide(this.playhead);
         if (this.mode == 'create') {
