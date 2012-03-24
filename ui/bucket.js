@@ -269,6 +269,15 @@ var Frame = function(file_id, key) {
     this.element.appendChild(this.info);
 }
 Frame.prototype = {
+    destroy: function() {
+        $unparent(this.info);
+        $unparent(this.img);
+        $unparent(this.element);
+        delete this.info;
+        delete this.img;
+        delete this.element;
+    },
+
     set_index: function(index) {
         if (index === this.index) {
             return;
@@ -291,6 +300,13 @@ function SliceIndicator() {
     this.element.appendChild(this.bar);
 }
 SliceIndicator.prototype = {
+    destroy: function() {
+        $unparent(this.bar);
+        $unparent(this.element);
+        delete this.bar;
+        delete this.element;
+    },
+
     update: function(start, stop, count) {
         var left = 100 * start / count;
         var right = 100 - (100 * stop / count);
@@ -341,6 +357,17 @@ var Slice = function(session, doc) {
     
 }
 Slice.prototype = {
+    destroy: function() {
+        this.start.destroy();
+        delete this.start;
+        this.end.destroy();
+        delete this.end;
+        this.indicator.destroy();
+        delete this.indicator;
+        $unparent(this.element);
+        delete this.element;
+    },
+
     set x(value) {
         if (typeof value == 'number') {
             this.element.style.left = value + 'px';
@@ -378,7 +405,7 @@ Slice.prototype = {
     on_change: function(doc) {
         if (doc._deleted) {
             console.log('deleted ' + doc._id);
-            $unparent(this.element);
+            this.destroy();
             UI.sequence.do_reorder();
             return;
         }
