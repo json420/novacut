@@ -854,18 +854,34 @@ function frame_to_seconds(frame, framerate) {
 
 
 var VideoFrame = function(clip, which) {
-    this.framerate = clip.framerate;
-    this.count = clip.duration.frames;
     this.video = $el('video', {'class': which});
-    this.video.src = 'dmedia:' + clip._id;
-    this.video.load();
-    this.pending = 0;
-    this.current = 0;
+    this.set_src(clip);
 }
 VideoFrame.prototype = {
-    seek: function(index) {
-        this.index = Math.max(0, Math.min(index, this.count - 1));
+    set_src: function(clip) {
+        this.framerate = clip.framerate;
+        this.frames = clip.duration.frames;
+        this.pending = 0;
+        this.current = 0;
+        this.video.src = 'dmedia:' + clip._id;
+        this.video.load();
+    },
+
+    play: function() {
+        this.video.play();
+    },
+
+    pause: function() {
+        this.video.pause();
+    },
+
+    seek: function(index, now) {
+        this.index = Math.max(0, Math.min(index, this.frames - 1));
         this.pending = frame_to_seconds(this.index, this.framerate);
+        if (now) {
+            this.current = this.pending;
+            this.video.currentTime = this.pending;
+        }
     },
 
     do_seek: function() {
@@ -880,7 +896,16 @@ VideoFrame.prototype = {
     },
 
     hide: function() {
+        this.video.pause();
         this.video.classList.add('hide');
+    },
+
+    get_x: function(width) {
+        return Math.round(width * this.video.currentTime / this.video.duration);
+    },
+
+    get_frame: function() {
+        return Math.round(this.frames * this.video.currentTime / this.video.duration);
     },
 }
 
@@ -928,18 +953,38 @@ var RoughCut = function(session, clip_id) {
 
     this.scrubber = $el('div', {'class': 'scrubber'});
     this.element.appendChild(this.scrubber);
-    this.bar = $el('div', {'class': 'bar'});
+    this.bar = $el('div', {'class': 'bar hide'});
     this.scrubber.appendChild(this.bar);
+
+    this.playhead = $el('div', {'class': 'playhead hide'});
+    this.scrubber.appendChild(this.playhead);
+
     $show(this.element);
-    this.interval_id = setInterval($bind(this.on_interval, this), 150);
-}
+    this.interval_id = setInterval($bind(this.on_interval, this), 200);
+
+    this.scrubber.onmouseover = $bind(this.on_mouseover, this);
+    this.scrubber.onmouseout = $bind(this.on_mouseout, this);
+    this.scrubber.onmousedown = $bind(this.on_mousedown, this);
+} 
 RoughCut.prototype = {
     on_interval: function() {
+        if (this.playing) {
+            if (this.dnd) {
+                this.startvideo.do_seek();
+            }
+            var frame = this.startvideo.get_frame();
+            if (frame >= this.stop - 1) {
+                console.log('stop');
+                this.startvideo.seek(this.start, true);
+                frame = this.start;
+            }
+            this.playhead.style.left = this.get_x(frame) + 'px';
+        }
         this.startvideo.do_seek();
         this.endvideo.do_seek();
     },
 
-    destroy: function() {
+    hide: function() {
         clearInterval(this.interval_id);
         this.element.innerHTML = null;
         $hide(this.element);
@@ -949,7 +994,6 @@ RoughCut.prototype = {
         this._start = 0;
         this._stop = this.frames;
         this.dnd = null;
-        this.scrubber.onmousedown = null;
         this.scrubber.onmousemove = null;
     },
 
@@ -991,6 +1035,31 @@ RoughCut.prototype = {
         return this.get_x(this._stop);
     },
 
+    playpause: function() {
+        if (this.playing) {
+            this.pause();
+        }
+        else {
+            this.play();
+        }
+    },
+ 
+    play: function() {
+        this.playing = true;
+        $show(this.playhead);
+        this.scrubber.onmousemove = null;
+        this.startvideo.play();
+    },
+ 
+    pause: function() {
+        this.startvideo.pause();
+        this.playing = false;
+        $hide(this.playhead);
+        if (this.mode == 'create') {
+            this.bind_mousemove();
+        }
+    },
+ 
     update_bar: function() {
         var left = this.left;
         var width = Math.max(2, this.right - left);
@@ -1022,113 +1091,144 @@ RoughCut.prototype = {
 
     create_slice: function() {
         console.log('create_slice');
+        this.mode = 'create';
         this.endvideo.hide();
         this.reset();    
         this.bar.style.left = this.left + 'px';
         this.bar.style.width = '1px';
         this.slice = create_slice(this.clip._id, this.frames);
-        this.scrubber.onmousemove = $bind(this.on_mousemove1, this);
-        this.scrubber.onmousedown = $bind(this.on_mousedown1, this);
-    },
-
-    on_mousemove1: function(event) {
-        this.start = this.get_frame(event.clientX, true);
-        this.bar.style.left = this.left + 'px';
-    },
-
-    on_mousedown1: function(event) {
-        this.scrubber.onmousemove = null;
-        this.dnd = new DragEvent(event);
-        this.dnd.ondragcancel = $bind(this.on_dragcancel1, this);
-        this.dnd.ondragstart = $bind(this.on_dragstart1, this);
-    },
-
-    on_dragcancel1: function(dnd) {
-        this.dnd = null;
-        this.scrubber.onmousemove = $bind(this.on_mousemove1, this);
-    },  
-
-    on_dragstart1: function(dnd) {
-        this.dnd.ondrag = $bind(this.on_drag1, this);
-        this.dnd.ondrop = $bind(this.on_drop1, this);
-        this.endvideo.show();
-        this.orig_start = this.start;
-    },
-
-    on_drag1: function(dnd) {
-        var frame = this.get_frame(dnd.x, true);
-        if (frame < this.orig_start) {
-            this.start = frame;
-            this.stop = this.orig_start + 1;
-        }
-        else {
-            this.start = this.orig_start;
-            this.stop = frame + 1;
-        }
-        this.update_bar();
-    },
-
-    on_drop1: function(dnd) {
-        this.dnd = null;
-        this.save_to_slice();
-        UI.sequence.doc.doodle.push({id: this.slice._id, x: 16, y: 9});
-        UI.sequence.doc.selected = this.slice._id;
-        this.session.save(UI.sequence.doc);
-        this.session.commit();
-        this.edit_slice(this.slice);
+        this.bind_mousemove();
     },
 
     edit_slice: function(slice) {
         console.log('edit_slice ' + slice._id);
+        this.mode = 'edit';
         this.slice = slice;
         this.endvideo.show();
         this.reset();
+        $show(this.bar);
         this.sync_from_slice();
-        this.scrubber.onmousedown = $bind(this.on_mousedown2, this);
     },
 
-    on_mousedown2: function(event) {
-        var mid = (this.left + this.right) / 2;
-        this.point = (event.clientX <= mid) ? 'left' : 'right';
-        var frame = this.get_frame(event.clientX, true);
-        if (this.point == 'left') {
-            this.start = frame;
+    bind_mousemove: function() {
+        this.scrubber.onmousemove = $bind(this.on_mousemove, this);
+    },
+
+    on_mouseover: function(event) {
+        if (this.mode == 'create' && !this.playing && !this.dnd) {
+            $show(this.bar);
         }
-        else {
-            this.stop = frame + 1;
+    },
+
+    on_mouseout: function(event) {
+        if (this.mode == 'create' && !this.playing && !this.dnd) {
+            $hide(this.bar);
+            this.start = 0;
         }
-        this.update_bar();
+    },
+
+    on_mousemove: function(event) {
+        this.start = this.get_frame(event.clientX, true);
+        this.bar.style.left = this.left + 'px';
+    },
+
+    on_mousedown: function(event) {
+        this.scrubber.onmousemove = null;
         this.dnd = new DragEvent(event);
-        this.dnd.ondragcancel = $bind(this.on_dragcancel2, this);
-        this.dnd.ondragstart = $bind(this.on_dragstart2, this);
+        this.dnd.ondragcancel = $bind(this.on_dragcancel, this);
+        this.dnd.ondragstart = $bind(this.on_dragstart, this);
+
+        if (this.playing) {
+            this.startvideo.pause();
+            var frame = Math.max(this.start, Math.min(this.get_frame(this.dnd.x), this.stop - 1));
+            this.startvideo.seek(frame, true);
+        }
+        else if (this.mode == 'edit') {
+            var mid = (this.left + this.right) / 2;
+            this.point = (event.clientX <= mid) ? 'left' : 'right';
+            var frame = this.get_frame(event.clientX, true);
+            if (this.point == 'left') {
+                this.start = frame;
+            }
+            else {
+                this.stop = frame + 1;
+            }
+            this.update_bar();
+        }
     },
 
-    on_dragcancel2: function(dnd) {
-        this.dnd = null;
-        this.sync_from_slice();
-    },  
-
-    on_dragstart2: function(dnd) {
-        this.dnd.ondrag = $bind(this.on_drag2, this);
-        this.dnd.ondrop = $bind(this.on_drop2, this);
-    },
-
-    on_drag2: function(dnd) {
-        var frame = this.get_frame(dnd.x, true);
-        if (this.point == 'left') {
-            this.start = frame;
+    on_dragcancel: function(dnd) {
+        delete this.dnd;
+        if (this.playing) {
+            this.startvideo.play();
+            return;
+        }
+        if (this.mode == 'create') {
+            this.bindmousemove();
         }
         else {
-            this.stop = frame + 1;
+            this.sync_from_slice();
+        }
+    },
+ 
+    on_dragstart: function(dnd) {
+        this.dnd.ondrag = $bind(this.on_drag, this);
+        this.dnd.ondrop = $bind(this.on_drop, this);
+        if (!this.playing && this.mode == 'create') {
+            this.endvideo.show();
+            this.orig_start = this.start;
+        }
+    },
+
+    on_drag: function(dnd) {
+        var frame = this.get_frame(dnd.x, true);
+        if (this.playing) {
+            frame = Math.max(this.start, Math.min(frame, this.stop - 1));
+            this.startvideo.seek(frame);
+            return;
+        }
+        if (this.mode == 'create') {
+            if (frame < this.orig_start) {
+                this.start = frame;
+                this.stop = this.orig_start + 1;
+            }
+            else {
+                this.start = this.orig_start;
+                this.stop = frame + 1;
+            }
+        }
+        else {
+            if (this.point == 'left') {
+                this.start = frame;
+            }
+            else {
+                this.stop = frame + 1;
+            }
         }
         this.update_bar();
     },
-
-    on_drop2: function(dnd) {
-        this.dnd = null;
-        this.save_to_slice();
-        this.session.commit();
+ 
+    on_drop: function(dnd) {
+        delete this.dnd;
+        if (this.playing) {
+            this.startvideo.play();
+            return;
+        }
+        if (this.mode == 'create') {
+            this.save_to_slice();
+            UI.sequence.doc.doodle.push({id: this.slice._id, x: 16, y: 9});
+            UI.sequence.doc.selected = this.slice._id;
+            this.session.save(UI.sequence.doc);
+            this.session.commit();
+            this.edit_slice(this.slice);
+        }
+        else {
+            this.save_to_slice();
+            this.session.commit();
+        }
     },
+
+
 
 }
 
@@ -1341,7 +1441,10 @@ var UI = {
     on_keypress: function(event) {
         if (event.keyCode == 32) {
             $halt(event);
-            if (!UI.player) {
+            if (UI.roughcut) {
+                UI.roughcut.playpause();
+            }
+            else if (!UI.player) {
                 UI.player = new sequence_viewer(UI.session, UI.sequence.doc);
                 document.body.appendChild(UI.player.element);
                 UI.player.play();
