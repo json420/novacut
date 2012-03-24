@@ -1044,12 +1044,12 @@ RoughCut.prototype = {
         $hide(this.element);
     },
 
-    show: function(clip_id, x, y) {
+    show: function(clip, x, y) {
         this.count = 0;
         this.x = x;
         this.y = y;
         this.active = true;
-        this.clip = this.session.get_doc(clip_id);
+        this.clip = clip;
         this.frames = this.clip.duration.frames;
         this.startvideo.set_clip(this.clip);
         this.endvideo.set_clip(this.clip);
@@ -1409,6 +1409,9 @@ Clips.prototype = {
             img.onclick = function(event) {
                 self.on_click(id, event);
             }
+            img.ondblclick = function(event) {
+                self.on_dblclick(id, event);
+            }
             this.div.appendChild(img);
         }, this);
         this.do_select();
@@ -1418,7 +1421,16 @@ Clips.prototype = {
         this.select(id);
     },
 
+    on_dblclick: function(id, event) {
+        var clip = this.db.get_sync(id);
+        UI.create_slice(clip);
+    },
+
     select: function(id) {
+        if (id == this.doc.selected_clips[this.id]) {
+            console.log('no change');
+            return;
+        }
         this.doc.selected_clips[this.id] = id;
         this.session.save(this.doc);
         this.session.commit();
@@ -1436,33 +1448,6 @@ Clips.prototype = {
         if (el && el.previousSibling) {
             this.select(el.previousSibling.id);
         }
-    },
-
-    on_mousedown: function(id, event) {
-        this.target = id;
-        this.dnd = new DragEvent(event);
-        this.dnd.ondragcancel = $bind(this.on_dragcancel, this);
-        this.dnd.ondragstart = $bind(this.on_dragstart, this);
-    },
-
-    on_dragcancel: function(dnd) {
-        console.log('dragcancel' + this.target);
-        delete this.dnd;
-    },
-
-    on_dragstart: function(dnd) {
-        console.log('dragstart' + this.target);
-        this.dnd.ondrag = $bind(this.on_drag, this);
-        this.dnd.ondrop = $bind(this.on_drop, this);
-    },
-
-    on_drag: function(dnd) {
-        console.log('dragcancel' + this.target);
-    },
-
-    on_drop: function(dnd) {
-        console.log('drop');
-        delete this.dnd;
     },
 
     att_url: function(doc_or_id, name) {
@@ -1563,9 +1548,9 @@ var UI = {
         return UI._roughcut;
     },
 
-    create_slice: function(id) {
-        var pos = $position(id);
-        UI.roughcut.show(id, pos.left, pos.top);
+    create_slice: function(clip) {
+        var pos = $position(clip._id);
+        UI.roughcut.show(clip, pos.left, pos.top);
         UI.roughcut.create_slice();
     },
 
