@@ -678,6 +678,9 @@ Slice.prototype = {
                 $unparent(this.element);
                 UI.bucket.appendChild(this.element);
             }
+            var pos = $position(UI.bucket);
+            this.x = dnd.x - this.offsetX - pos.left;
+            this.y = dnd.y - this.offsetY - pos.top;
         }
         else {
             console.log(this.orig_i + ' => ' + this.i);

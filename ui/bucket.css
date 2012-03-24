@@ -1,6 +1,6 @@
 #bucket {
     position: fixed;
-    top: 0;
+    top: 20px;
     bottom: 250px;
     left: 0;
     right: 0;
@@ -36,14 +36,17 @@
     z-index: 1;
 }
 
-.slice * {
+.slice, .slice * {
+    -webkit-user-select: none;
 }
 
 #bucket .slice {
     position: absolute;
+    /*
     -webkit-transition-timing-function: ease;
     -webkit-transition-duration: 200ms;
     -webkit-transition-property: left, top;
+    */
 }
 
 #sequence .slice {
@@ -84,17 +87,14 @@
 
 /*
 Interesting 16:9 thumbnail sizes we might want to use:
-
-
-112 63
-128 72
-144 81
-160 90
-176 99
-192 108
-208 117
-224 126
-
+    112 63
+    128 72
+    144 81
+    160 90
+    176 99
+    192 108
+    208 117
+    224 126
 */
 
 #bucket img {
@@ -110,7 +110,8 @@ Interesting 16:9 thumbnail sizes we might want to use:
 
 .indicator {
     height: 3px;
-    background:-webkit-linear-gradient(top, #111, #222);
+    /*background:-webkit-linear-gradient(top, #111, #222);*/
+    background-color: #333;
     position: relative;
     pointer-events: none;
 }
