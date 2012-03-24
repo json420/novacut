@@ -1133,6 +1133,99 @@ RoughCut.prototype = {
 }
 
 
+function Clips(coredb) {
+    this.coredb = coredb;
+    this.select = $('dmedia_project');
+    this.select.onchange = $bind(this.on_change, this);
+    this.div = $('clips');
+    this.load_projects();
+}
+Clips.prototype = {
+    load: function(id) {
+        if (!id) {
+            this.id = null;
+            this.doc = null;
+            this.db = null;
+            return false;
+        }
+        this.id = id;
+        this.doc = this.coredb.get_sync(id);
+        this.db = new couch.Database(this.doc['db_name']);
+        return true;
+    },
+
+    load_recent: function() {
+        var rows = this.coredb.view_sync('project', 'atime',
+               {limit: 1, descending: true}
+        )['rows'];
+        if (rows.length >= 1) {
+            this.load(rows[0].id);
+        }
+        else {
+            this.load(null);
+        }
+    },
+
+    load_projects: function() {
+        var callback = $bind(this.on_projects, this);
+        this.coredb.view(callback, 'project', 'title');
+    },
+
+    on_projects: function(req) {
+        var rows = req.read().rows;
+        this.select.innerHTML = null;
+        this.select.appendChild($el('option'));
+        rows.forEach(function(row) {
+            var option = $el('option', {textContent: row.key, value: row.id});
+            this.select.appendChild(option);
+        }, this);
+    },
+
+    on_change: function(event) {
+        console.log(this.select.value);
+        this.div.innerHTML = null;
+        if (this.load(this.select.value)) {
+            this.load_clips();
+        }
+    },
+
+    load_clips: function() {
+        var callback = $bind(this.on_clips, this);
+        this.db.view(callback, 'user', 'video');
+    },
+
+    on_clips: function(req) {
+        var rows = req.read().rows;
+        this.div.innerHTML = null;
+        var self = this;
+        rows.forEach(function(row) {
+            var id = row.id;
+            var img = new Image();
+            img.src = this.att_url(id);
+            img.ondblclick = function(event) {
+                UI.copy_clips([id]);
+                UI.create_slice(id);
+            }
+            this.div.appendChild(img);
+        }, this);
+    },
+
+    att_url: function(doc_or_id, name) {
+        if (!this.db) {
+            return null;
+        }
+        return this.db.att_url(doc_or_id, name);
+    },
+
+    att_css_url: function(doc_or_id, name) {
+        if (!this.db) {
+            return null;
+        }
+        return this.db.att_css_url(doc_or_id, name);
+    },
+}
+
+
 var UI = {
     animated: null,
 
@@ -1144,6 +1237,10 @@ var UI = {
         if (UI.animated) {
             UI.animated.classList.add('animated');
         }
+    },
+
+    copy_clips: function(ids) {
+        Hub.send('copy_docs', UI.clips.db.name, UI.db.name, ids);
     },
 
     selected: null,
@@ -1176,6 +1273,7 @@ var UI = {
         UI.project_id = id;
         UI.session = new couch.Session(UI.db, UI.on_new_doc);
         UI.session.start();
+        UI.clips = new Clips(dmedia);
     },
 
     get_slice: function(_id) {
@@ -1197,6 +1295,11 @@ var UI = {
     edit_slice: function(doc) {
         UI.roughcut = new RoughCut(UI.session, doc.node.src);
         UI.roughcut.edit_slice(doc);
+    },
+
+    create_slice: function(id) {
+        UI.roughcut = new RoughCut(UI.session, id);
+        UI.roughcut.create_slice();
     },
 
     destroy_roughcut: function() {

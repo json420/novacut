@@ -1,6 +1,30 @@
+#clips {
+    position: fixed;
+    top: 0px;
+    height: 90px;
+    left: 0;
+    right: 0;
+    background-color: black;
+    overflow: hidden;
+}
+
+#clips img {
+    width: 160px;
+    height: 90px;
+    -webkit-user-select: none;
+}
+
+#dmedia_project {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 90px;
+    z-index: 10;
+}
+
 #bucket {
     position: fixed;
-    top: 20px;
+    top: 90px;
     bottom: 250px;
     left: 0;
     right: 0;
