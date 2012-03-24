@@ -1299,29 +1299,62 @@ RoughCut.prototype = {
         }
     },
 
-
-
 }
 
 
 function Clips(coredb) {
     this.coredb = coredb;
-    this.select = $('dmedia_project');
-    this.select.onchange = $bind(this.on_change, this);
+    this.selected = null;
+    this.dropdown = $('dmedia_project');
+    this.dropdown.onchange = $bind(this.on_dropdown_change, this);
     this.div = $('clips');
+    this.session = UI.session;
+    this.doc = this.session.get_doc(UI.project_id);
+    this.session.subscribe(this.doc._id, this.on_change, this);
     this.load_projects();
+    this.id = null;
+    this.db = null;
 }
 Clips.prototype = {
+    on_change: function(doc) {
+        console.log('Clips.on_change');
+        this.doc = doc;
+        var id = doc.dmedia_project_id;
+        this.dropdown.value = id;
+        if (this.load(id)) {
+            this.div.innerHTML = null;
+            this.load_clips();
+        }
+        else {
+            this.do_select();
+        }
+    },
+
+    do_select: function() {
+        var id = this.doc.selected_clips[this.id];
+        $unselect(this.selected);
+        this.selected = id;
+        var el = $select(id);
+        if (!el) {
+            return;
+        }
+        var div = this.div;
+        if (el.offsetLeft < div.scrollLeft) {
+            div.scrollLeft = el.offsetLeft;
+        }
+        else if (el.offsetLeft + el.offsetWidth > div.scrollLeft + div.clientWidth) {
+            div.scrollLeft = el.offsetLeft + el.offsetWidth - div.clientWidth;
+        }
+    },
+
     load: function(id) {
-        if (!id) {
-            this.id = null;
-            this.doc = null;
-            this.db = null;
+        console.log('load ' + id);
+        if (id == this.id) {
             return false;
         }
         this.id = id;
-        this.doc = this.coredb.get_sync(id);
-        this.db = new couch.Database(this.doc['db_name']);
+        var doc = this.coredb.get_sync(id);
+        this.db = new couch.Database(doc['db_name']);
         return true;
     },
 
@@ -1344,20 +1377,19 @@ Clips.prototype = {
 
     on_projects: function(req) {
         var rows = req.read().rows;
-        this.select.innerHTML = null;
-        this.select.appendChild($el('option'));
+        this.dropdown.innerHTML = null;
+        this.dropdown.appendChild($el('option'));
         rows.forEach(function(row) {
             var option = $el('option', {textContent: row.key, value: row.id});
-            this.select.appendChild(option);
+            this.dropdown.appendChild(option);
         }, this);
+        this.on_change(this.doc);
     },
 
-    on_change: function(event) {
-        console.log(this.select.value);
-        this.div.innerHTML = null;
-        if (this.load(this.select.value)) {
-            this.load_clips();
-        }
+    on_dropdown_change: function(event) {
+        this.doc.dmedia_project_id = this.dropdown.value;
+        this.session.save(this.doc);
+        this.session.commit();
     },
 
     load_clips: function() {
@@ -1374,15 +1406,36 @@ Clips.prototype = {
             var img = new Image();
             img.id = id;
             img.src = this.att_url(id);
-            img.ondblclick = function(event) {
-                UI.copy_clips([id]);
-                UI.create_slice(id);
-            }
-            img.onmousedown = function(event) {
-                self.on_mousedown(id, event);
+            img.onclick = function(event) {
+                self.on_click(id, event);
             }
             this.div.appendChild(img);
         }, this);
+        this.do_select();
+    },
+
+    on_click: function(id, event) {
+        this.select(id);
+    },
+
+    select: function(id) {
+        this.doc.selected_clips[this.id] = id;
+        this.session.save(this.doc);
+        this.session.commit();
+    },
+
+    next: function() {
+        var el = $(this.selected);
+        if (el && el.nextSibling) {
+            this.select(el.nextSibling.id);
+        }
+    },
+
+    previous: function() {
+        var el = $(this.selected);
+        if (el && el.previousSibling) {
+            this.select(el.previousSibling.id);
+        }
     },
 
     on_mousedown: function(id, event) {

@@ -1,12 +1,13 @@
 #clips {
     position: fixed;
     top: 0px;
-    height: 90px;
+    height: 107px;
     left: 0;
     right: 0;
     background-color: black;
 
-    overflow: hidden;
+    overflow-y: hidden;
+    overflow-x: scroll;
     white-space: nowrap;
     font-size: 0;
     line-height: 0;
@@ -16,20 +17,25 @@
     width: 160px;
     height: 90px;
     display: inline-block;
+    border: 2px solid #333;
     -webkit-user-select: none;
+}
+
+#clips img.selected {
+    border-color: #e81f3b;
 }
 
 #dmedia_project {
     display: block;
     position: absolute;
     left: 0;
-    top: 90px;
+    top: 107px;
     z-index: 2;
 }
 
 #bucket {
     position: fixed;
-    top: 90px;
+    top: 107px;
     bottom: 250px;
     left: 0;
     right: 0;
@@ -227,7 +233,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
 
 #roughcut {
     position: fixed;
-    top: 0;
+    top: 150px;
     bottom: 0;
     left: 0;
     right: 0;
