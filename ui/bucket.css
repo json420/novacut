@@ -44,6 +44,7 @@
     right: 0;
     bottom: 250px;
     z-index: 3;
+    background-color: black;
 }
 
 .seq-preview video {

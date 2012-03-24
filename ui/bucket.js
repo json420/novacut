@@ -778,12 +778,6 @@ Sequence.prototype = {
         console.assert(
             $compare(this.doc.node.src, this.get_src())
         );
-
-        if (!this.player) {
-            this.player = new sequence_viewer(this.session, doc);
-            document.body.appendChild(this.player.element);
-            this.player.play();
-        }
     },
 
     on_scroll: function(event) {
@@ -1300,6 +1294,7 @@ var UI = {
     },
 
     init: function() {
+        window.addEventListener('keypress', UI.on_keypress);
         UI.bucket = $('bucket');
         UI.thumbnails = new couch.Database('thumbnails');
         var id = window.location.hash.slice(1);
@@ -1341,6 +1336,17 @@ var UI = {
     destroy_roughcut: function() {
         UI.roughcut.destroy();
         UI.roughcut = null;
+    },
+
+    on_keypress: function(event) {
+        if (event.keyCode == 32) {
+            $halt(event);
+            if (!UI.player) {
+                UI.player = new sequence_viewer(UI.session, UI.sequence.doc);
+                document.body.appendChild(UI.player.element);
+                UI.player.play();
+            }
+        }
     },
 }
 
