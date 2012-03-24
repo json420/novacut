@@ -66,9 +66,7 @@ class App(BaseApp):
 
     proxy_bus = 'org.freedesktop.Dmedia'
 
-    maximize = False
-    width = 1280
-    height = 720
+    maximize = True
 
     signals = {
         'create_project': ['title'],
