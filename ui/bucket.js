@@ -778,6 +778,12 @@ Sequence.prototype = {
         console.assert(
             $compare(this.doc.node.src, this.get_src())
         );
+
+        if (!this.player) {
+            this.player = new sequence_viewer(this.session, doc);
+            document.body.appendChild(this.player.element);
+            this.player.play();
+        }
     },
 
     on_scroll: function(event) {
@@ -1206,8 +1212,38 @@ Clips.prototype = {
                 UI.copy_clips([id]);
                 UI.create_slice(id);
             }
+            img.onmousedown = function(event) {
+                self.on_mousedown(id, event);
+            }
             this.div.appendChild(img);
         }, this);
+    },
+
+    on_mousedown: function(id, event) {
+        this.target = id;
+        this.dnd = new DragEvent(event);
+        this.dnd.ondragcancel = $bind(this.on_dragcancel, this);
+        this.dnd.ondragstart = $bind(this.on_dragstart, this);
+    },
+
+    on_dragcancel: function(dnd) {
+        console.log('dragcancel' + this.target);
+        delete this.dnd;
+    },
+
+    on_dragstart: function(dnd) {
+        console.log('dragstart' + this.target);
+        this.dnd.ondrag = $bind(this.on_drag, this);
+        this.dnd.ondrop = $bind(this.on_drop, this);
+    },
+
+    on_drag: function(dnd) {
+        console.log('dragcancel' + this.target);
+    },
+
+    on_drop: function(dnd) {
+        console.log('drop');
+        delete this.dnd;
     },
 
     att_url: function(doc_or_id, name) {

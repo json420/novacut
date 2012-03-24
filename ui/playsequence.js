@@ -42,7 +42,7 @@ sequence_viewer.prototype = {
         this.doc = doc;
         this.slices = [];
         this.doc.node.src.forEach($bind(function(src){
-            var slicedoc = session.get_doc(src);
+            var slicedoc = this.session.get_doc(src);
             this.slices.push(slicedoc._id);
         }, this));
     },
