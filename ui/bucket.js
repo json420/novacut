@@ -960,29 +960,6 @@ VideoFrame.prototype = {
 }
 
 
-function create_node(node) {
-    return {
-        '_id': couch.random_id(),
-        'ver': 0,
-        'type': 'novacut/node',
-        'time': couch.time(),
-        'node': node,
-    }
-}
-
-
-function create_slice(src, frame_count) {
-    var node = {
-        'type': 'slice',
-        'src': src,
-        'start': {'frame': 0},
-        'stop': {'frame': frame_count},
-        'stream': 'video',
-    }
-    return create_node(node);
-}
-
-
 var RoughCut = function(session) {
     this.session = session;
     this.active = false;
@@ -1044,12 +1021,12 @@ RoughCut.prototype = {
         $hide(this.element);
     },
 
-    show: function(clip, x, y) {
+    show: function(id) {
         this.count = 0;
-        this.x = x;
-        this.y = y;
+        this.x = 0;
+        this.y = 0;
         this.active = true;
-        this.clip = clip;
+        this.clip = this.session.get_doc(id);
         this.frames = this.clip.duration.frames;
         this.startvideo.set_clip(this.clip);
         this.endvideo.set_clip(this.clip);
@@ -1319,6 +1296,9 @@ Clips.prototype = {
     on_change: function(doc) {
         console.log('Clips.on_change');
         this.doc = doc;
+        if (!this.doc.selected_clips) {
+            this.doc.selected_clips = {};
+        }
         var id = doc.dmedia_project_id;
         this.dropdown.value = id;
         if (this.load(id)) {
@@ -1422,8 +1402,8 @@ Clips.prototype = {
     },
 
     on_dblclick: function(id, event) {
-        var clip = this.db.get_sync(id);
-        UI.create_slice(clip);
+        UI.copy_clip(id);
+        UI.create_slice(id);
     },
 
     select: function(id) {
@@ -1479,8 +1459,14 @@ var UI = {
         }
     },
 
-    copy_clips: function(ids) {
-        Hub.send('copy_docs', UI.clips.db.name, UI.db.name, ids);
+    copy_clip: function(id) {
+        try {
+            UI.session.get_doc(id);
+        }
+        catch (e) {
+            console.log('copying ' + id);
+            Hub.send('copy_docs', UI.clips.db.name, UI.db.name, [id]);
+        }
     },
 
     selected: null,
@@ -1512,6 +1498,13 @@ var UI = {
         UI.db = new couch.Database(doc.db_name);
         UI.doc = UI.db.get_sync(id);
         UI.project_id = id;
+        if (!UI.doc.root_id) {
+            console.log('creating default sequence');
+            var seq = create_sequence();
+            UI.doc.root_id = seq._id;
+            UI.db.save(UI.doc);
+            UI.db.save(seq);
+        }
         UI.session = new couch.Session(UI.db, UI.on_new_doc);
         UI.session.start();
         UI.clips = new Clips(dmedia);
@@ -1548,9 +1541,8 @@ var UI = {
         return UI._roughcut;
     },
 
-    create_slice: function(clip) {
-        var pos = $position(clip._id);
-        UI.roughcut.show(clip, pos.left, pos.top);
+    create_slice: function(id) {
+        UI.roughcut.show(id);
         UI.roughcut.create_slice();
     },
 

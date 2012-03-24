@@ -19,3 +19,38 @@ function set_title(id, value) {
     return el;
 }
 
+
+function create_node(node) {
+    return {
+        '_id': couch.random_id(),
+        'ver': 0,
+        'type': 'novacut/node',
+        'time': couch.time(),
+        'node': node,
+    }
+}
+
+
+function create_slice(src, frame_count) {
+    var node = {
+        'type': 'slice',
+        'src': src,
+        'start': {'frame': 0},
+        'stop': {'frame': frame_count},
+        'stream': 'video',
+    }
+    return create_node(node);
+}
+
+
+function create_sequence() {
+    var node = {
+        'type': 'sequence',
+        'src': [],
+    }
+    var doc = create_node(node);
+    doc.doodle = [];
+    return doc;
+}
+
+
