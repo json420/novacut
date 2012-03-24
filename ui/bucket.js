@@ -156,6 +156,7 @@ function $unparent(id) {
 
 
 function $position(element) {
+    element = $(element);
     var pos = {
         left: element.offsetLeft,
         top: element.offsetTop,
@@ -375,6 +376,12 @@ Slice.prototype = {
     },
 
     on_change: function(doc) {
+        if (doc._deleted) {
+            console.log('deleted ' + doc._id);
+            $unparent(this.element);
+            UI.sequence.do_reorder();
+            return;
+        }
         this.doc = doc;
         var node = doc.node;
         this.start.set_index(node.start.frame);
@@ -750,7 +757,9 @@ Sequence.prototype = {
             child = this.element.children[i];
             if (!child || child.id != _id) {
                 element = UI.get_slice(_id);
-                this.element.insertBefore(element, child);
+                if (element) {
+                    this.element.insertBefore(element, child);
+                }
             }
         }
 
@@ -764,11 +773,15 @@ Sequence.prototype = {
             child = this.bucket.children[i];
             if (!child || child.id != obj.id) {
                 element = UI.get_slice(obj.id);
-                this.bucket.insertBefore(element, child);
+                if (element) {
+                    this.bucket.insertBefore(element, child);
+                }
                 child = element;
             }
-            child.style.left = obj.x + 'px';
-            child.style.top = obj.y + 'px';
+            if (child) {
+                child.style.left = obj.x + 'px';
+                child.style.top = obj.y + 'px';
+            }
         }
 
         UI.select(doc.selected);
@@ -876,11 +889,13 @@ VideoFrame.prototype = {
     },
 
     play: function() {
+        this.video.classList.add('player');
         this.video.play();
     },
 
     pause: function() {
         this.video.pause();
+        this.video.classList.remove('player');
     },
 
     seek: function(index, now) {
@@ -953,10 +968,15 @@ var RoughCut = function(session) {
         UI.hide_roughcut();
     }
 
-    this.startvideo = new VideoFrame('start');
+    this.create_button = $el('button', {textContent: 'New Slice'});
+    this.element.appendChild(this.create_button);
+    this.create_button.onclick = $bind(this.create_slice, this);
+
     this.endvideo = new VideoFrame('end hide');
-    this.element.appendChild(this.startvideo.video);
     this.element.appendChild(this.endvideo.video);
+
+    this.startvideo = new VideoFrame('start');
+    this.element.appendChild(this.startvideo.video);
 
     this.scrubber = $el('div', {'class': 'scrubber'});
     this.element.appendChild(this.scrubber);
@@ -997,11 +1017,13 @@ RoughCut.prototype = {
         $hide(this.element);
     },
 
-    show: function(clip_id) {
+    show: function(clip_id, x, y) {
+        this.count = 0;
+        this.x = x;
+        this.y = y;
         this.active = true;
         this.clip = this.session.get_doc(clip_id);
         this.frames = this.clip.duration.frames;
-        this.reset();
         this.startvideo.set_clip(this.clip);
         this.endvideo.set_clip(this.clip);
         $show(this.element);
@@ -1109,6 +1131,7 @@ RoughCut.prototype = {
 
     create_slice: function() {
         console.log('create_slice');
+        this.count += 1;
         this.mode = 'create';
         this.endvideo.hide();
         this.reset();    
@@ -1225,7 +1248,7 @@ RoughCut.prototype = {
         }
         this.update_bar();
     },
- 
+
     on_drop: function(dnd) {
         delete this.dnd;
         if (this.playing) {
@@ -1234,7 +1257,10 @@ RoughCut.prototype = {
         }
         if (this.mode == 'create') {
             this.save_to_slice();
-            UI.sequence.doc.doodle.push({id: this.slice._id, x: 16, y: 9});
+            var d = (this.count * 25);
+            var x = this.x + d;
+            var y = this.y + d;
+            UI.sequence.doc.doodle.push({id: this.slice._id, x: x, y: y});
             UI.sequence.doc.selected = this.slice._id;
             this.session.save(UI.sequence.doc);
             this.session.commit();
@@ -1319,6 +1345,7 @@ Clips.prototype = {
         rows.forEach(function(row) {
             var id = row.id;
             var img = new Image();
+            img.id = id;
             img.src = this.att_url(id);
             img.ondblclick = function(event) {
                 UI.copy_clips([id]);
@@ -1431,7 +1458,13 @@ var UI = {
             console.log(_id);
             return element;
         }
-        var slice = new Slice(UI.session, UI.session.get_doc(_id));
+        try {
+            var doc = UI.session.get_doc(_id);
+        }
+        catch (e) {
+            return null;
+        }
+        var slice = new Slice(UI.session, doc);
         return slice.element;
     },
 
@@ -1449,9 +1482,10 @@ var UI = {
         }
         return UI._roughcut;
     },
-    
+
     create_slice: function(id) {
-        UI.roughcut.show(id);
+        var pos = $position(id);
+        UI.roughcut.show(id, pos.left, pos.top);
         UI.roughcut.create_slice();
     },
 
@@ -1465,6 +1499,7 @@ var UI = {
     },
 
     on_keypress: function(event) {
+        console.log(event.keyCode);
         if (event.keyCode == 32) {
             $halt(event);
             if (UI.roughcut.active) {
@@ -1474,6 +1509,19 @@ var UI = {
                 UI.player = new sequence_viewer(UI.session, UI.sequence.doc);
                 document.body.appendChild(UI.player.element);
                 UI.player.play();
+            }
+        }
+        else if (event.keyCode == 127) {
+            // Delete key
+            if (UI.selected && UI.selected.id) {
+                try {
+                    var doc = UI.session.get_doc(UI.selected.id);
+                    doc._deleted = true;
+                    UI.session.save(doc);
+                }
+                catch (e) {
+                    return;
+                }
             }
         }
     },

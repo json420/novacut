@@ -234,25 +234,32 @@ Interesting 16:9 thumbnail sizes we might want to use:
     background-color: black;
     z-index: 100;
 }
+ 
+
+#roughcut video {
+    position: absolute;
+    bottom: 32px;
+}
 
 #roughcut .start {
-    position: absolute;
-    bottom: 40px;
     left: 0;
     width: 50%;
 }
-
+ 
 #roughcut .end {
-    position: absolute;
-    bottom: 40px;
     right: 0;
     width: 50%;
 }
 
+
+#roughcut .player {
+    width: 100% !important;
+}
+ 
 #roughcut .scrubber {
     position: absolute;
     bottom: 0;
-    height: 40px;
+    height: 32px;
     left: 0;
     right: 0;
     background-color: #999;
