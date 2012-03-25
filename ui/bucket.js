@@ -426,7 +426,7 @@ Slice.prototype = {
         if (start != proposed) {
             this.doc.node.start.frame = proposed;
             this.session.save(this.doc);
-            this.session.commit();
+            this.session.delayed_commit();
         }   
     },
 
@@ -439,7 +439,7 @@ Slice.prototype = {
         if (stop != proposed) {
             this.doc.node.stop.frame = proposed;
             this.session.save(this.doc);
-            this.session.commit();
+            this.session.delayed_commit();
         }   
     },
 
