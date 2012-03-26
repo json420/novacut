@@ -150,7 +150,7 @@ SlicePlayer.prototype = {
     },
 
     set_timeout: function(duration) {
-        console.assert(this.timeout_id == null);
+        this.clear_timeout();
         var callback = $bind(this.on_ended, this);
         this.timeout_id = setTimeout(callback, duration);
     },
@@ -165,7 +165,7 @@ SlicePlayer.prototype = {
     },
 
     play: function() {
-        if (!this.ready) {
+        if (this.playing || !this.ready) {
             return;
         }
         this.playing = true;
@@ -178,7 +178,7 @@ SlicePlayer.prototype = {
         this.video.play();
     },
 
-    pause: function(frame) {
+    pause: function() {
         if (!this.ready) {
             return;
         }
@@ -187,15 +187,18 @@ SlicePlayer.prototype = {
         this.clear_timeout();
         this.video.pause();
     },
-
-    load_slice: function(clip, slice) {
+    
+    stop: function() {
         this.video.style.visibility = 'hidden';
         this.video.pause();
         this.clear_timeout();
         this.ended = false;
         this.ready = false;
         this.playing = false;
+    },
 
+    load_slice: function(clip, slice) {
+        this.stop();
         this.clip = clip;
         this.slice = slice;
         this.video.src = 'dmedia:' + this.clip._id;
@@ -213,8 +216,7 @@ function SequencePlayer(session, doc) {
     this.session = session;
     this.doc = doc;
 
-    this.element = $el('div', {id: 'player'});
-    document.body.appendChild(this.element);
+    this.element = $el('div', {'id': 'player', 'class': 'hide'});
 
     this.player1 = new SlicePlayer();
     this.player1.i = 0;
@@ -229,12 +231,33 @@ function SequencePlayer(session, doc) {
         player.onended = on_ended;
         this.element.appendChild(player.video);
     }, this);
- 
+
     this.ready = false;
     this.playing = false;
+    this.active = false;
+
+    document.body.appendChild(this.element);
 
 }
 SequencePlayer.prototype = {
+    show: function() {
+        console.log('show');
+        if (this.doc.node.src.length == 0) {
+            return;
+        }
+        $show(this.element);
+        this.active = true;
+        this.playing = true;
+        this.play_from_slice(UI.selected);
+    },
+
+    hide: function() {
+        console.log('hide');
+        $hide(this.element);
+        this.active = false;
+        this.stop();
+    },
+
     playpause: function() {
         if (this.playing) {
             this.pause();  
@@ -242,6 +265,13 @@ SequencePlayer.prototype = {
         else {
             this.play();
         }
+    },
+
+    stop: function() {
+        this.players.forEach(function(player) {
+            player.stop();
+        });
+        this.target = null;
     },
 
     play: function() {
@@ -255,8 +285,14 @@ SequencePlayer.prototype = {
     },
 
     play_from_slice: function(slice_id) {
+        if (this.doc.node.src.length == 0) {
+            return;
+        }
+        if (!slice_id) {
+            slice_id = UI.selected;
+        }
         console.log('play_from_slice ' + slice_id);
-        var index = this.doc.node.src.indexOf(slice_id);
+        var index = Math.max(0, this.doc.node.src.indexOf(slice_id));
         this.ready = false;
         this.target = null;
         this.load_slice(this.player1, index);
@@ -303,6 +339,7 @@ SequencePlayer.prototype = {
         else {
             this.target.pause();
         }
+        UI.select(this.target.slice._id);
     },
 
     swap: function() {
@@ -310,10 +347,9 @@ SequencePlayer.prototype = {
         var next = this.get_player(current.i + 1);
         if (next.ready) {
             this.target = next;
-            this.activate_target();
             var index = this.next_slice_index(next);
+            this.activate_target();
             this.load_slice(current, index);
-            UI.select(next.slice._id);
         } 
     },
 

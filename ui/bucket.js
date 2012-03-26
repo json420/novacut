@@ -174,6 +174,23 @@ function $position(element) {
 }
 
 
+function $hscroll(child) {
+    child = $(child);
+    if (!child.parentNode) {
+        return;
+    }
+    var parent = child.parentNode
+    var mid = child.offsetLeft + (child.offsetWidth - parent.clientWidth) / 2;
+    if (child.offsetLeft < parent.scrollLeft) {
+        parent.scrollLeft = mid;
+    }
+    else if (child.offsetLeft + child.offsetWidth > parent.scrollLeft + parent.clientWidth) {
+        parent.scrollLeft = mid;
+    }
+}
+
+
+
 var DragEvent = function(event, element) {
     $halt(event);
     this.x = event.clientX;
@@ -444,10 +461,12 @@ Slice.prototype = {
     },
 
     on_mousedown: function(event) {
-        UI.select(this.element);
-        UI.player.play_from_slice(this.doc._id);
-        $halt(event);
-        return;
+        UI.select(this.doc._id);
+        if (UI.player.active) {
+            $halt(event);
+            UI.player.play_from_slice(this.doc._id);
+            return;
+        }
         this.pos = $position(this.element);
         this.dnd = new DragEvent(event, this.element);
         this.dnd.ondragcancel = $bind(this.on_dragcancel, this);
@@ -458,6 +477,9 @@ Slice.prototype = {
 
     on_dblclick: function(event) {
         $halt(event);
+        if (UI.player.active) {
+            return;
+        }
         UI.edit_slice(this.doc);
     },
 
@@ -867,12 +889,7 @@ Sequence.prototype = {
         var doodle = this.get_doodle();
         this.doc.node.src = src;
         this.doc.doodle = doodle;
-        if (UI.selected) {
-            this.doc.selected = UI.selected.id;
-        }
-        else {
-            this.doc.selected = null;
-        }
+        this.doc.selected = UI.selected;
         this.session.save(this.doc, true);  // no_emit=true
         this.session.commit();
     },
@@ -1486,19 +1503,17 @@ var UI = {
 
     selected: null,
 
-    select: function(element) {
+    select: function(id) {
         $unselect(UI.selected);
-        UI.selected = $select(element);
-        if (UI.selected && UI.selected.parentNode.id == 'sequence') {
-            var child = UI.selected;
-            var seq = child.parentNode;
-            if (child.offsetLeft < seq.scrollLeft) {
-                seq.scrollLeft = child.offsetLeft;
+        var element = $select(id);
+        if (element) {
+            UI.selected = id;
+            if (element.parentNode.id == 'sequence') {
+                $hscroll(element);
             }
-            else if (child.offsetLeft + child.offsetWidth > seq.scrollLeft + seq.clientWidth) {
-                seq.scrollLeft = child.offsetLeft + child.offsetWidth - seq.clientWidth;
-                
-            }
+        }
+        else {
+            UI.selected = null;
         }
     },
 
@@ -1533,12 +1548,11 @@ var UI = {
             }
 
             UI.sequence = new Sequence(UI.session, UI.session.get_doc(UI.doc.root_id));
-            //UI.clips = new Clips(dmedia);
-            
+            UI.clips = new Clips(dmedia);
             UI.player= new SequencePlayer(UI.session, UI.sequence.doc);
         }
     },
-    
+
     _roughcut: null,
 
     get roughcut() {
@@ -1570,19 +1584,19 @@ var UI = {
                 UI.roughcut.playpause();
             }
             else {
-                UI.player.playpause();
+                if (UI.player.active) {
+                    UI.player.playpause();
+                }
+                else {
+                    UI.player.show();
+                }
             }
-//            else if (!UI.player) {
-//                UI.player = new sequence_viewer(UI.session, UI.sequence.doc);
-//                document.body.appendChild(UI.player.element);
-//                UI.player.play();
-//            }
         }
         else if (event.keyCode == 127) {
             // Delete key
-            if (UI.selected && UI.selected.id) {
+            if (UI.selected != null) {
                 try {
-                    var doc = UI.session.get_doc(UI.selected.id);
+                    var doc = UI.session.get_doc(UI.selected);
                     doc._deleted = true;
                     UI.session.save(doc);
                 }
@@ -1590,6 +1604,12 @@ var UI = {
                     return;
                 }
             }
+        }
+        else if (event.keyCode == 27) {
+            // Escape key
+            if (UI.player.active) {
+                UI.player.hide();
+            }  
         }
     },
 }
