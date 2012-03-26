@@ -445,6 +445,9 @@ Slice.prototype = {
 
     on_mousedown: function(event) {
         UI.select(this.element);
+        UI.player.play_from_slice(this.doc._id);
+        $halt(event);
+        return;
         this.pos = $position(this.element);
         this.dnd = new DragEvent(event, this.element);
         this.dnd.ondragcancel = $bind(this.on_dragcancel, this);
@@ -1490,11 +1493,9 @@ var UI = {
             var child = UI.selected;
             var seq = child.parentNode;
             if (child.offsetLeft < seq.scrollLeft) {
-                console.log('scrolling left');
                 seq.scrollLeft = child.offsetLeft;
             }
             else if (child.offsetLeft + child.offsetWidth > seq.scrollLeft + seq.clientWidth) {
-                console.log('scrolling right');
                 seq.scrollLeft = child.offsetLeft + child.offsetWidth - seq.clientWidth;
                 
             }
@@ -1532,7 +1533,9 @@ var UI = {
             }
 
             UI.sequence = new Sequence(UI.session, UI.session.get_doc(UI.doc.root_id));
-            UI.clips = new Clips(dmedia);
+            //UI.clips = new Clips(dmedia);
+            
+            UI.player= new SequencePlayer(UI.session, UI.sequence.doc);
         }
     },
     
@@ -1566,11 +1569,14 @@ var UI = {
             if (UI.roughcut.active) {
                 UI.roughcut.playpause();
             }
-            else if (!UI.player) {
-                UI.player = new sequence_viewer(UI.session, UI.sequence.doc);
-                document.body.appendChild(UI.player.element);
-                UI.player.play();
+            else {
+                UI.player.playpause();
             }
+//            else if (!UI.player) {
+//                UI.player = new sequence_viewer(UI.session, UI.sequence.doc);
+//                document.body.appendChild(UI.player.element);
+//                UI.player.play();
+//            }
         }
         else if (event.keyCode == 127) {
             // Delete key

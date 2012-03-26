@@ -93,17 +93,16 @@ function SlicePlayer() {
     this.video.addEventListener('ended',
         $bind(this.on_ended, this)
     );
+
     this.timeout_id = null;
-    this.state = 'stop';
+
+    this.playing = false;
     this.ready = false;
-    this.seeking = false;
-    this.repeat = false;
-    this.video.onclick = $bind(this.playpause, this);
+    this.ended = false;
 
     this.onready = null;
-    
+    this.onended = null;
 }
-
 SlicePlayer.prototype = {
     log_event: function(name, point) {
         var frame = seconds_to_frame(this.video.currentTime, this.clip.framerate);
@@ -116,79 +115,31 @@ SlicePlayer.prototype = {
     },
 
     on_seeked: function(event) {
-        this.seeking = false;
-        this.log_event('seeked', this.slice.node.start.frame);
+        //this.log_event('seeked', this.slice.node.start.frame);
         if (!this.ready) {
             this.ready = true;
             if (this.onready) {
                 this.onready(this);
             }
         }
-        this._restore();
     },
 
     on_ended: function(event) {
-        this._pause();
-        this.log_event('ended', this.slice.node.stop.frame);
-        if (this.repeat) {
-            this.seek(this.slice.node.start.frame);
+        this.video.pause();
+        this.clear_timeout();
+        //this.log_event('ended', this.slice.node.stop.frame);
+        this.ended = true;
+        if (this.onended) {
+            this.onended(this);
         }
     },
 
     seek: function(frame) {
-        this.seeking = true;
-        this._pause();
         this.video.currentTime = this.frame_to_seconds(frame);
     },
 
     frame_to_seconds: function(frame) {
         return frame_to_seconds(frame, this.clip.framerate);
-    },
-
-    playpause: function() {
-        if (this.state == 'playing') {
-            this.pause();
-        }
-        else {
-            this.play();
-        }
-    },
-
-    play: function() {
-        this.set_state('playing');
-    },
-
-    pause: function() {
-        this.set_state('paused');
-    },
-
-    stop: function() {
-        this.state = 'stopped';
-        this._stop();
-    },
-
-    set_state: function(state) {
-        console.log('set_state ' + state);
-        this.state = state;
-        if (this.seeking || !this.ready) {
-            return;
-        }
-        if (this.state == 'paused') {
-            this._pause();
-        }
-        else {
-            this._play();
-        }
-    },
-
-    _restore: function() {
-        if (this.state == 'stop') {
-            return;
-        }
-        this.video.style.visibility = 'visible';
-        if (this.state == 'playing') {
-            this._play();
-        }
     },
 
     clear_timeout: function() {
@@ -204,7 +155,21 @@ SlicePlayer.prototype = {
         this.timeout_id = setTimeout(callback, duration);
     },
 
-    _play: function(frame) {
+    playpause: function() {
+        if (this.playing) {
+            this.pause();
+        }
+        else {
+            this.play();
+        }
+    },
+
+    play: function() {
+        if (!this.ready) {
+            return;
+        }
+        this.playing = true;
+        this.video.style.visibility = 'visible';
         if (this.slice.node.stop.frame != this.clip.duration.frames) {     
             var stop = this.frame_to_seconds(this.slice.node.stop.frame);
             var duration = 1000 * (stop - this.video.currentTime);
@@ -213,38 +178,148 @@ SlicePlayer.prototype = {
         this.video.play();
     },
 
-    _pause: function(frame) {
+    pause: function(frame) {
+        if (!this.ready) {
+            return;
+        }
+        this.playing = false;
+        this.video.style.visibility = 'visible';
         this.clear_timeout();
         this.video.pause();
-    },
-
-    _stop: function() {
-        this.clear_timeout();
-        this.video.pause();
-        this.video.style.visibility = 'hidden';
-        this.ready = false;
-        this.seeking = false;
     },
 
     load_slice: function(clip, slice) {
-        this._stop();
+        this.video.style.visibility = 'hidden';
+        this.video.pause();
+        this.clear_timeout();
+        this.ended = false;
+        this.ready = false;
+        this.playing = false;
+
         this.clip = clip;
         this.slice = slice;
-        this.video.src = 'dmedia:' + clip._id;
+        this.video.src = 'dmedia:' + this.clip._id;
+        //setTimeout($bind(this.do_load, this), 50);
     },
 
-    play_slice: function(clip, slice) {
-        this.load_slice(clip, slice);
+    do_load: function() {
+        this.video.src = 'dmedia:' + this.clip._id;
     },
 }
 
 
 
-function SequencePlayer() {
+function SequencePlayer(session, doc) {
+    this.session = session;
+    this.doc = doc;
+
+    this.element = $el('div', {id: 'player'});
+    document.body.appendChild(this.element);
+
+    this.player1 = new SlicePlayer();
+    this.player1.i = 0;
+    this.player2 = new SlicePlayer();
+    this.player2.i = 1;
+
+    this.players = [this.player1, this.player2];
+    var on_ready = $bind(this.on_ready, this);
+    var on_ended = $bind(this.on_ended, this);
+    this.players.forEach(function(player) {
+        player.onready = on_ready;
+        player.onended = on_ended;
+        this.element.appendChild(player.video);
+    }, this);
+ 
+    this.ready = false;
+    this.playing = false;
 
 }
 SequencePlayer.prototype = {
-    
+    playpause: function() {
+        if (this.playing) {
+            this.pause();  
+        }
+        else {
+            this.play();
+        }
+    },
+
+    play: function() {
+        this.playing = true;
+        this.activate_target();
+    },
+
+    pause: function() {
+        this.playing = false;
+        this.activate_target();
+    },
+
+    play_from_slice: function(slice_id) {
+        console.log('play_from_slice ' + slice_id);
+        var index = this.doc.node.src.indexOf(slice_id);
+        this.ready = false;
+        this.target = null;
+        this.load_slice(this.player1, index);
+        this.load_slice(this.player2, index + 1);
+    },
+
+    get_player: function(i) {
+        return this.players[i % this.players.length];
+    },
+
+    next_slice_index: function(player) {
+        return this.doc.node.src.indexOf(player.slice._id) + 1;
+    },
+
+    load_slice: function(player, index) {
+        var src = this.doc.node.src;
+        var slice_id = src[index % src.length];
+        var slice = this.session.get_doc(slice_id);
+        var clip = this.session.get_doc(slice.node.src);
+        player.load_slice(clip, slice);
+    },
+
+    on_ready: function(player) {
+        if (!this.ready) {
+            if (this.player1.ready && this.player2.ready) {
+                console.log('now ready');
+                this.ready = true;
+                this.target = this.players[0];
+                this.activate_target();
+            }
+        }
+        else if (this.target.ended) {
+            this.swap();
+        }
+    },
+
+    activate_target: function() {
+        if (!this.target) {
+            return;
+        }
+        if (this.playing) {
+            this.target.play();
+        }
+        else {
+            this.target.pause();
+        }
+    },
+
+    swap: function() {
+        var current = this.target;
+        var next = this.get_player(current.i + 1);
+        if (next.ready) {
+            this.target = next;
+            this.activate_target();
+            var index = this.next_slice_index(next);
+            this.load_slice(current, index);
+            UI.select(next.slice._id);
+        } 
+    },
+
+    on_ended: function(player) {
+        this.swap();
+    },
 }
 
 

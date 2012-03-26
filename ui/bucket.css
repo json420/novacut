@@ -308,4 +308,5 @@ Interesting 16:9 thumbnail sizes we might want to use:
     position: absolute;
     bottom: 0;
     width: 100%;
+    height: 100%;
 }
