@@ -174,18 +174,20 @@ function $position(element) {
 }
 
 
-function $hscroll(child) {
+function $hscroll(child, center) {
     child = $(child);
     if (!child.parentNode) {
         return;
     }
     var parent = child.parentNode
     var mid = child.offsetLeft + (child.offsetWidth - parent.clientWidth) / 2;
+    var left = child.offsetLeft;
+    var right = child.offsetLeft + child.offsetWidth - parent.clientWidth;
     if (child.offsetLeft < parent.scrollLeft) {
-        parent.scrollLeft = mid;
+        parent.scrollLeft = (center) ? mid : left;
     }
     else if (child.offsetLeft + child.offsetWidth > parent.scrollLeft + parent.clientWidth) {
-        parent.scrollLeft = mid;
+        parent.scrollLeft = (center) ? mid : right;
     }
 }
 
@@ -463,9 +465,7 @@ Slice.prototype = {
     on_mousedown: function(event) {
         UI.select(this.doc._id);
         if (UI.player.active) {
-            $halt(event);
             UI.player.play_from_slice(this.doc._id);
-            return;
         }
         this.pos = $position(this.element);
         this.dnd = new DragEvent(event, this.element);
@@ -500,6 +500,9 @@ Slice.prototype = {
 
     on_dragstart: function(dnd) {
         console.log('dragstart');
+        if (UI.player.active) {
+            UI.player.hold();
+        }
         this.offsetX = this.dnd.offsetX;
         this.offsetY = this.dnd.offsetY;
         this.offsetWidth = this.element.offsetWidth;
@@ -546,7 +549,7 @@ Slice.prototype = {
             }
         }
         else {
-            if (y < top - height * f) {
+            if (y < top - height * f && !UI.player.active) {
                 this.move_into_bucket(dnd);
             }
         }
@@ -761,6 +764,9 @@ Slice.prototype = {
             }
         }
         UI.sequence.do_reorder();
+        if (UI.player.active) {
+            UI.player.resume(this.doc._id);
+        }
     },
 }
 
@@ -1503,13 +1509,13 @@ var UI = {
 
     selected: null,
 
-    select: function(id) {
+    select: function(id, center) {
         $unselect(UI.selected);
         var element = $select(id);
         if (element) {
             UI.selected = id;
             if (element.parentNode.id == 'sequence') {
-                $hscroll(element);
+                $hscroll(element, center);
             }
         }
         else {

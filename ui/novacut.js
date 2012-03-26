@@ -235,6 +235,8 @@ function SequencePlayer(session, doc) {
     this.ready = false;
     this.playing = false;
     this.active = false;
+    
+    this.element.onclick = $bind(this.playpause, this);
 
     document.body.appendChild(this.element);
 
@@ -267,10 +269,21 @@ SequencePlayer.prototype = {
         }
     },
 
+    hold: function() {
+        this.was_playing = this.playing;
+        this.pause();
+    },
+
+    resume: function(slice_id) {
+        this.playing = this.was_playing;
+        this.play_from_slice(slice_id);
+    },
+
     stop: function() {
         this.players.forEach(function(player) {
             player.stop();
         });
+        this.ready = false;
         this.target = null;
     },
 
@@ -288,13 +301,12 @@ SequencePlayer.prototype = {
         if (this.doc.node.src.length == 0) {
             return;
         }
+        this.stop();
         if (!slice_id) {
             slice_id = UI.selected;
         }
         console.log('play_from_slice ' + slice_id);
         var index = Math.max(0, this.doc.node.src.indexOf(slice_id));
-        this.ready = false;
-        this.target = null;
         this.load_slice(this.player1, index);
         this.load_slice(this.player2, index + 1);
     },
@@ -339,7 +351,7 @@ SequencePlayer.prototype = {
         else {
             this.target.pause();
         }
-        UI.select(this.target.slice._id);
+        UI.select(this.target.slice._id, true);
     },
 
     swap: function() {
