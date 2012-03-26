@@ -180,14 +180,12 @@ function $hscroll(child, center) {
         return;
     }
     var parent = child.parentNode
-    var mid = child.offsetLeft + (child.offsetWidth - parent.clientWidth) / 2;
-    var left = child.offsetLeft;
-    var right = child.offsetLeft + child.offsetWidth - parent.clientWidth;
+    //var mid = child.offsetLeft + (child.offsetWidth - parent.clientWidth) / 2;
     if (child.offsetLeft < parent.scrollLeft) {
-        parent.scrollLeft = (center) ? mid : left;
+        parent.scrollLeft = child.offsetLeft;
     }
     else if (child.offsetLeft + child.offsetWidth > parent.scrollLeft + parent.clientWidth) {
-        parent.scrollLeft = (center) ? mid : right;
+        parent.scrollLeft = child.offsetLeft + child.offsetWidth - parent.clientWidth;
     }
 }
 
