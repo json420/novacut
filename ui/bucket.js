@@ -794,7 +794,7 @@ var Sequence = function(session, doc) {
 }
 Sequence.prototype = {
     get top() {
-        return this.element.offsetTop + 29;
+        return this.element.offsetTop + 24;
     },
 
     on_change: function(doc) {
