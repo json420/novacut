@@ -261,7 +261,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
 #roughcut .player {
     width: 100% !important;
 }
- 
+
 #roughcut .scrubber {
     position: absolute;
     bottom: 0;
@@ -294,3 +294,18 @@ Interesting 16:9 thumbnail sizes we might want to use:
     */
 }
 
+#player {
+    position: fixed;
+    z-index: 100;
+    background-color: black;
+    top: 0;
+    bottom: 250px;
+    left: 0;
+    right: 0;
+}
+
+#player video {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+}
