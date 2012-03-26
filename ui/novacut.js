@@ -20,6 +20,22 @@ function set_title(id, value) {
 }
 
 
+function project_db(base, ver, project_id) {
+    var name = [base, ver, project_id.toLowerCase()].join('-');
+    return new couch.Database(name);
+}
+
+
+function novacut_project_db(project_id) {
+    return project_db('novacut', 0, project_id);
+}
+
+
+function dmedia_project_db(project_id) {
+    return project_db('dmedia', 0, project_id);
+}
+
+
 function create_node(node) {
     return {
         '_id': couch.random_id(),

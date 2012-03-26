@@ -65,7 +65,7 @@ var Thumbs = {
         }
         Thumbs.q[frame.file_id][frame.key] = frame;
     },
-    
+
     frozen: false,
 
     freeze: function() {
@@ -763,7 +763,7 @@ var Sequence = function(session, doc) {
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
     this.on_change(doc);
-    
+
     this.element.onmousedown = $bind(this.on_mousedown, this);
     this.element.onscroll = $bind(this.on_scroll, this);
 }
@@ -1280,8 +1280,7 @@ RoughCut.prototype = {
 }
 
 
-function Clips(coredb) {
-    this.coredb = coredb;
+function Clips() {
     this.selected = null;
     this.dropdown = $('dmedia_project');
     this.dropdown.onchange = $bind(this.on_dropdown_change, this);
@@ -1289,9 +1288,9 @@ function Clips(coredb) {
     this.session = UI.session;
     this.doc = this.session.get_doc(UI.project_id);
     this.session.subscribe(this.doc._id, this.on_change, this);
-    this.load_projects();
     this.id = null;
     this.db = null;
+    this.load_projects();
 }
 Clips.prototype = {
     on_change: function(doc) {
@@ -1330,47 +1329,43 @@ Clips.prototype = {
 
     load: function(id) {
         console.log('load ' + id);
+        if (!id) {
+            this.id = null;
+            this.db = null;
+            return false;
+        }
         if (id == this.id) {
             return false;
         }
         this.id = id;
-        var doc = this.coredb.get_sync(id);
-        this.db = new couch.Database(doc['db_name']);
+        this.db = dmedia_project_db(id);
         return true;
-    },
-
-    load_recent: function() {
-        var rows = this.coredb.view_sync('project', 'atime',
-               {limit: 1, descending: true}
-        )['rows'];
-        if (rows.length >= 1) {
-            this.load(rows[0].id);
-        }
-        else {
-            this.load(null);
-        }
     },
 
     load_projects: function() {
         var callback = $bind(this.on_projects, this);
-        this.coredb.view(callback, 'project', 'title');
+        dmedia.view(callback, 'project', 'title');
     },
 
     on_projects: function(req) {
         var rows = req.read().rows;
         this.dropdown.innerHTML = null;
-        this.dropdown.appendChild($el('option'));
+        this.placeholder = $el('option');
+        this.dropdown.appendChild(this.placeholder);
         rows.forEach(function(row) {
             var option = $el('option', {textContent: row.key, value: row.id});
             this.dropdown.appendChild(option);
         }, this);
-        this.on_change(this.doc);
     },
 
     on_dropdown_change: function(event) {
+        if (this.placeholder) {
+            $unparent(this.placeholder);
+            delete this.placeholder;
+        }
         this.doc.dmedia_project_id = this.dropdown.value;
         this.session.save(this.doc);
-        this.session.commit();
+        this.session.delayed_commit();
     },
 
     load_clips: function() {
@@ -1414,7 +1409,7 @@ Clips.prototype = {
         }
         this.doc.selected_clips[this.id] = id;
         this.session.save(this.doc);
-        this.session.commit();
+        this.session.delayed_commit();
     },
 
     next: function() {
@@ -1448,6 +1443,22 @@ Clips.prototype = {
 
 
 var UI = {
+    init: function() {
+        // Figure out what project we're in:
+        var parts = parse_hash();
+        UI.project_id = parts[0];
+        UI.db = novacut_project_db(UI.project_id);
+
+        // Bit of UI setup
+        window.addEventListener('keypress', UI.on_keypress);
+        UI.bucket = $('bucket');
+
+        // Create and start the CouchDB session 
+        UI.session = new couch.Session(UI.db, UI.on_new_doc);       
+        UI.session.start();
+        
+    },
+
     animated: null,
 
     animate: function(element) {
@@ -1490,27 +1501,6 @@ var UI = {
         }
     },
 
-    init: function() {
-        window.addEventListener('keypress', UI.on_keypress);
-        UI.bucket = $('bucket');
-        UI.thumbnails = new couch.Database('thumbnails');
-        var id = window.location.hash.slice(1);
-        var doc = novacut.get_sync(id);
-        UI.db = new couch.Database(doc.db_name);
-        UI.doc = UI.db.get_sync(id);
-        UI.project_id = id;
-        if (!UI.doc.root_id) {
-            console.log('creating default sequence');
-            var seq = create_sequence();
-            UI.doc.root_id = seq._id;
-            UI.db.save(UI.doc);
-            UI.db.save(seq);
-        }
-        UI.session = new couch.Session(UI.db, UI.on_new_doc);
-        UI.session.start();
-        UI.clips = new Clips(dmedia);
-    },
-
     get_slice: function(_id) {
         var element = $unparent(_id);
         if (element) {
@@ -1528,8 +1518,21 @@ var UI = {
     },
 
     on_new_doc: function(doc) {
-        if (doc._id == UI.doc.root_id) {
-            UI.sequence = new Sequence(UI.session, doc);
+        if (doc._id == UI.project_id) {
+            UI.doc = doc;
+
+            // FIXME: create default sequence if needed
+            if (!UI.doc.root_id) {
+                console.log('creating default sequence');
+                var seq = create_sequence();
+                UI.doc.root_id = seq._id;
+                UI.session.save(UI.doc, true);
+                UI.session.save(seq, true);
+                UI.session.delayed_commit();
+            }
+
+            UI.sequence = new Sequence(UI.session, UI.session.get_doc(UI.doc.root_id));
+            UI.clips = new Clips(dmedia);
         }
     },
     
