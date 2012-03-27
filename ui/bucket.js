@@ -565,7 +565,7 @@ Slice.prototype = {
             }
         }
         else {
-            if (y < top - height * f && !UI.player.active) {
+            if (y < top - height * f) {
                 this.move_into_bucket(dnd);
             }
         }
@@ -578,6 +578,9 @@ Slice.prototype = {
     },
 
     move_into_sequence: function(dnd) {
+        if (UI.player.active) {
+            UI.player.soft_show();
+        }
         if (!this.frombucket) {
             this.clear_over();
             UI.sequence.reset();
@@ -619,6 +622,9 @@ Slice.prototype = {
     },
 
     move_into_bucket: function(dnd) {
+        if (UI.player.active) {
+            UI.player.soft_hide();
+        }
         this.stop_scrolling();
         $unparent(this.element);
         $('bucket').appendChild(this.element);
@@ -752,6 +758,9 @@ Slice.prototype = {
         this.clear_over();
         UI.sequence.reset();
         if (this.inbucket) {
+            if (UI.player.active) {
+                UI.player.hide();
+            }
             if (UI.bucket.lastChild != this.element) {
                 $unparent(this.element);
                 UI.bucket.appendChild(this.element);
@@ -1610,7 +1619,7 @@ var UI = {
                 UI.session.save(UI.doc, true);
                 UI.session.save(seq, true);
                 UI.session.delayed_commit();
-            }
+            } 
 
             UI.sequence = new Sequence(UI.session, UI.session.get_doc(UI.doc.root_id));
             UI.clips = new Clips(dmedia);

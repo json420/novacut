@@ -255,6 +255,16 @@ SequencePlayer.prototype = {
         this.play_from_slice(UI.selected);
     },
 
+    soft_hide: function() {
+        $hide(this.element);
+        console.assert(!this.playing);
+    },
+
+    soft_show: function() {
+        $show(this.element);
+        console.assert(!this.playing);
+    },
+
     hide: function() {
         console.log('hide');
         $hide(this.element);
