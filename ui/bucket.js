@@ -443,7 +443,7 @@ Slice.prototype = {
         clearTimeout(this.timeout_id);
         this.timeout_id = setTimeout($bind(this.on_timeout, this), 750);
     },
-
+ 
     on_timeout: function() {
         console.log('timeout');
         this.timeout_id = null;
@@ -513,10 +513,6 @@ Slice.prototype = {
             console.log('moving to end of bucket');
             $unparent(this.element);
             UI.bucket.appendChild(this.element);
-            UI.sequence.do_reorder();
-        }
-        else if (UI.sequence.doc.selected != this.element.id) {
-            console.log('updating selected element');
             UI.sequence.do_reorder();
         }
     },
@@ -689,7 +685,7 @@ Slice.prototype = {
         }
         this.do_mousemove_sequence();
     },
-   
+
     do_mousemove_sequence: function() {
         var x = this.dnd.x - this.offsetX;
         var parent = UI.sequence.element;
@@ -915,7 +911,6 @@ Sequence.prototype = {
         var doodle = this.get_doodle();
         this.doc.node.src = src;
         this.doc.doodle = doodle;
-        this.doc.selected = UI.selected;
         this.session.save(this.doc, true);  // no_emit=true
         this.session.commit();
     },
@@ -1312,7 +1307,6 @@ RoughCut.prototype = {
             var x = this.x + d;
             var y = this.y + d;
             UI.sequence.doc.doodle.push({id: this.slice._id, x: x, y: y});
-            UI.sequence.doc.selected = this.slice._id;
             this.session.save(UI.sequence.doc);
             this.session.commit();
             this.edit_slice(this.slice);
@@ -1547,6 +1541,15 @@ var UI = {
         }
         else {
             UI.selected = null;
+        }
+        if (UI.sequence) {
+            var doc = UI.sequence.doc;
+            if (doc.selected != UI.selected) {
+                console.log('saving selection');
+                doc.selected = UI.selected;
+                UI.session.save(doc, true);  // No local emit
+                UI.session.delayed_commit();
+            }
         }
     },
 
