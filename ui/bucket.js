@@ -1458,10 +1458,10 @@ Clips.prototype = {
         this.session.delayed_commit();
     },
 
-    next: function() {
+    first: function() {
         var el = $(this.selected);
-        if (el && el.nextSibling) {
-            this.select(el.nextSibling.id);
+        if (el && el.parentNode) {
+            this.select(el.parentNode.children[0].id);
         }
     },
 
@@ -1469,6 +1469,13 @@ Clips.prototype = {
         var el = $(this.selected);
         if (el && el.previousSibling) {
             this.select(el.previousSibling.id);
+        }
+    },
+
+    next: function() {
+        var el = $(this.selected);
+        if (el && el.nextSibling) {
+            this.select(el.nextSibling.id);
         }
     },
 
@@ -1496,7 +1503,7 @@ var UI = {
         UI.db = novacut_project_db(UI.project_id);
 
         // Bit of UI setup
-        window.addEventListener('keypress', UI.on_keypress);
+        window.addEventListener('keyup', UI.on_keyup);
         UI.bucket = $('bucket');
 
         // Create and start the CouchDB session 
@@ -1540,6 +1547,35 @@ var UI = {
         }
         else {
             UI.selected = null;
+        }
+    },
+
+    first: function() {
+        var element = $(UI.selected);
+        if (element && element.parentNode) {
+            UI.select(element.parentNode.children[0].id);
+        }
+    },
+
+    previous: function() {
+        var element = $(UI.selected);
+        if (element && element.previousSibling) {
+            UI.select(element.previousSibling.id);
+        }
+    },
+
+    next: function() {
+        var element = $(UI.selected);
+        if (element && element.nextSibling) {
+            UI.select(element.nextSibling.id);
+        }
+    },
+
+    last: function() {
+        var element = $(UI.selected);
+        if (element && element.parentNode) {
+            var i = element.parentNode.children.length - 1;
+            UI.select(element.parentNode.children[i].id);
         }
     },
 
@@ -1602,10 +1638,44 @@ var UI = {
         UI.roughcut.hide();
     },
 
-    on_keypress: function(event) {
-        console.log(event.keyCode);
-        if (event.keyCode == 32) {
-            $halt(event);
+    // Key bindings
+    actions: {
+        // Left arrow
+        'Left': function(event) {
+            if (event.shiftKey) {
+                UI.first();
+            }
+            else {
+                UI.previous();
+            }
+        },
+
+        // Right arrow
+        'Right': function(event) {
+            if (event.shiftKey) {
+                UI.last();
+            }
+            else {
+                UI.next();
+            }
+        },
+
+        // Delete
+        'U+007F': function(event) {
+            if (UI.selected != null) {
+                try {
+                    var doc = UI.session.get_doc(UI.selected);
+                    doc._deleted = true;
+                    UI.session.save(doc);
+                }
+                catch (e) {
+                    return;
+                }
+            }
+        },
+
+        // SpaceBar
+        'U+0020': function(event) {
             if (UI.roughcut.active) {
                 UI.roughcut.playpause();
             }
@@ -1617,25 +1687,22 @@ var UI = {
                     UI.player.show();
                 }
             }
-        }
-        else if (event.keyCode == 127) {
-            // Delete key
-            if (UI.selected != null) {
-                try {
-                    var doc = UI.session.get_doc(UI.selected);
-                    doc._deleted = true;
-                    UI.session.save(doc);
-                }
-                catch (e) {
-                    return;
-                }
-            }
-        }
-        else if (event.keyCode == 27) {
-            // Escape key
+        },
+   
+        // Escape
+        'U+001B': function(event) {
             if (UI.player.active) {
                 UI.player.hide();
-            }  
+            } 
+        },
+    },
+
+    on_keyup: function(event) {
+        console.log('keyup ' + event.keyIdentifier);
+        var action = UI.actions[event.keyIdentifier];
+        if (action) {
+            $halt(event);
+            action(event);
         }
     },
 }
