@@ -343,6 +343,7 @@ function wheel_delta(event) {
 }
 
 
+
 var Slice = function(session, doc) {
     session.subscribe(doc._id, this.on_change, this);
     this.session = session;
@@ -371,7 +372,7 @@ var Slice = function(session, doc) {
     this.over = null;
     this.width = 192 + 2;
     this.threshold = this.width * 0.65;
-    
+    this.timeout_id = null;
 }
 Slice.prototype = {
     destroy: function() {
@@ -434,8 +435,26 @@ Slice.prototype = {
         Thumbs.flush();
     },
 
+    reset_adjustment_ux: function() {
+        if (this.timeout_id == null) {
+            UI.player.hold();
+            UI.select(this.doc._id);
+        }
+        clearTimeout(this.timeout_id);
+        this.timeout_id = setTimeout($bind(this.on_timeout, this), 750);
+    },
+
+    on_timeout: function() {
+        console.log('timeout');
+        this.timeout_id = null;
+        UI.player.resume(this.doc._id);
+    },
+
     on_mousewheel_start: function(event) {
         $halt(event);
+        if (UI.player.active) {
+            this.reset_adjustment_ux();
+        }
         var delta = wheel_delta(event);
         var start = this.doc.node.start.frame;
         var stop = this.doc.node.stop.frame;
@@ -449,6 +468,9 @@ Slice.prototype = {
 
     on_mousewheel_end: function(event) {
         $halt(event);
+        if (UI.player.active) {
+            this.reset_adjustment_ux();
+        }
         var delta = wheel_delta(event);
         var start = this.doc.node.start.frame;
         var stop = this.doc.node.stop.frame;
