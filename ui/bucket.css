@@ -3,26 +3,36 @@
     font-size: 14px;
 }
 
-#clips {
+#clips_outer {
     position: fixed;
     top: 0px;
-    height: 107px;
+    height: 132px;
     left: 0;
     right: 0;
     background-color: black;
+}
 
-    overflow-y: hidden;
-    overflow-x: scroll;
+.grid_row {
+    font-size: 0;
+    white-space: nowrap;
+    font-size: 0;
+}
+
+
+#clips {
+    width: 100%;
+    overflow: hidden;
     white-space: nowrap;
     font-size: 0;
     line-height: 0;
+    height: 92px;
 }
 
 #clips img {
     width: 160px;
     height: 90px;
     display: inline-block;
-    border: 2px solid #333;
+    border: 1px solid #333;
     -webkit-user-select: none;
 }
 
@@ -30,17 +40,9 @@
     border-color: #e81f3b;
 }
 
-#dmedia_project {
-    display: block;
-    position: absolute;
-    left: 0;
-    top: 107px;
-    z-index: 2;
-}
-
 #bucket {
     position: fixed;
-    top: 107px;
+    top: 132px;
     bottom: 246px;
     left: 0;
     right: 0;
@@ -239,7 +241,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
 
 #roughcut {
     position: fixed;
-    top: 150px;
+    top: 132px;
     bottom: 0;
     left: 0;
     right: 0;

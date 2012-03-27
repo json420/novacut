@@ -1016,14 +1016,12 @@ var RoughCut = function(session) {
 
     this.element = $('roughcut');
 
-    this.done = $el('button', {textContent: 'Done'});
-    this.element.appendChild(this.done);
+    this.done = $('close_roughcut');
     this.done.onclick = function() {
         UI.hide_roughcut();
     }
 
-    this.create_button = $el('button', {textContent: 'New Slice'});
-    this.element.appendChild(this.create_button);
+    this.create_button = $('create_slice');
     this.create_button.onclick = $bind(this.create_slice, this);
 
     this.endvideo = new VideoFrame('end hide');
@@ -1354,26 +1352,6 @@ Clips.prototype = {
             this.div.innerHTML = null;
             this.load_clips();
         }
-        else {
-            this.do_select();
-        }
-    },
-
-    do_select: function() {
-        var id = this.doc.selected_clips[this.id];
-        $unselect(this.selected);
-        this.selected = id;
-        var el = $select(id);
-        if (!el) {
-            return;
-        }
-        var div = this.div;
-        if (el.offsetLeft < div.scrollLeft) {
-            div.scrollLeft = el.offsetLeft;
-        }
-        else if (el.offsetLeft + el.offsetWidth > div.scrollLeft + div.clientWidth) {
-            div.scrollLeft = el.offsetLeft + el.offsetWidth - div.clientWidth;
-        }
     },
 
     load: function(id) {
@@ -1439,47 +1417,18 @@ Clips.prototype = {
             }
             this.div.appendChild(img);
         }, this);
-        this.do_select();
+        UI.select(this.doc.selected_clips[this.id]);
     },
 
     on_click: function(id, event) {
-        this.select(id);
+        this.doc.selected_clips[this.id] = id;
+        this.session.save(this.doc, true);
+        UI.select(id);
     },
 
     on_dblclick: function(id, event) {
         UI.copy_clip(id);
         UI.create_slice(id);
-    },
-
-    select: function(id) {
-        if (id == this.doc.selected_clips[this.id]) {
-            console.log('no change');
-            return;
-        }
-        this.doc.selected_clips[this.id] = id;
-        this.session.save(this.doc);
-        this.session.delayed_commit();
-    },
-
-    first: function() {
-        var el = $(this.selected);
-        if (el && el.parentNode) {
-            this.select(el.parentNode.children[0].id);
-        }
-    },
-
-    previous: function() {
-        var el = $(this.selected);
-        if (el && el.previousSibling) {
-            this.select(el.previousSibling.id);
-        }
-    },
-
-    next: function() {
-        var el = $(this.selected);
-        if (el && el.nextSibling) {
-            this.select(el.nextSibling.id);
-        }
     },
 
     att_url: function(doc_or_id, name) {
@@ -1544,7 +1493,7 @@ var UI = {
         var element = $select(id);
         if (element) {
             UI.selected = id;
-            if (element.parentNode.id == 'sequence') {
+            if (element.parentNode.id == 'sequence' || element.parentNode.id == 'clips') {
                 $hscroll(element, center);
             }
         }
