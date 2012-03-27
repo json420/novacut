@@ -1391,6 +1391,7 @@ Clips.prototype = {
             delete this.placeholder;
         }
         this.doc.dmedia_project_id = this.dropdown.value;
+        this.dropdown.blur();
         this.session.save(this.doc);
         this.session.delayed_commit();
     },
@@ -1666,6 +1667,10 @@ var UI = {
 
     on_keyup: function(event) {
         console.log('keyup ' + event.keyIdentifier);
+        if (document.activeElement != document.body) {
+            console.log('document body not focused');
+            return;
+        }
         var action = UI.actions[event.keyIdentifier];
         if (action) {
             $halt(event);
