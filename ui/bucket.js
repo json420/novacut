@@ -638,7 +638,6 @@ Slice.prototype = {
     update_offset: function() {
         this.offsetX = Math.round(this.dnd.offsetX * this.element.offsetWidth / this.offsetWidth);
         this.offsetY = Math.round(this.dnd.offsetY * this.element.offsetHeight / this.offsetHeight);
-        console.log(this.offsetX + ',' + this.offsetY);
     },
 
     on_mousemove_bucket: function(dnd) {
@@ -647,21 +646,18 @@ Slice.prototype = {
     },
 
     start_scrolling: function(direction) {
-        console.log(direction);
         this.direction = direction;
         this.scrolling = true;
         this.interval_id = setInterval($bind(this.on_interval, this), 300);
     },
 
     stop_scrolling: function() {
-        console.log('stop');
         this.scrolling = false;
         clearInterval(this.interval_id);
         this.interval_id = null;
     },
 
     on_interval: function() {
-        console.log('interval');
         var d = (this.direction == 'left') ? -1 : 1;
         UI.sequence.element.scrollLeft += (d * this.width);
         this.do_mousemove_sequence();
@@ -1179,7 +1175,6 @@ RoughCut.prototype = {
         this.slice.node.start.frame = this.start;
         this.slice.node.stop.frame = this.stop;
         this.session.save(this.slice);
-        console.log(JSON.stringify(this.slice));
     },
 
     create_slice: function() {
@@ -1504,7 +1499,6 @@ var UI = {
         if (UI.sequence) {
             var doc = UI.sequence.doc;
             if (doc.selected != UI.selected) {
-                console.log('saving selection');
                 doc.selected = UI.selected;
                 UI.session.save(doc, true);  // No local emit
                 UI.session.delayed_commit();
