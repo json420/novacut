@@ -235,7 +235,9 @@ function SequencePlayer(session, doc) {
     this.ready = false;
     this.playing = false;
     this.active = false;
-    
+
+    this.timeout_id == null
+
     this.element.onclick = $bind(this.playpause, this);
 
     document.body.appendChild(this.element);
@@ -275,13 +277,28 @@ SequencePlayer.prototype = {
         this.activate_target(true);
     },
 
-    resume: function(slice_id) {
+    hold_and_resume: function() {
+        if (this.timeout_id == null) {
+            console.log('first hold');
+            this.hold();
+        }
+        clearTimeout(this.timeout_id);
+        this.timeout_id = setTimeout($bind(this.on_timeout, this), 500);
+    },
+ 
+    on_timeout: function() {
+        console.log('timeout');
+        this.timeout_id = null;
+        this.resume();
+    },
+
+    resume: function() {
         this.playing = this.was_playing;
-        if (slice_id) {
-            this.play_from_slice(slice_id);
+        if (UI.selected) {
+            this.play_from_slice(UI.selected);
         }
         else {
-            this.activate_target();
+            this.activate_target(true);
         }
     },
 

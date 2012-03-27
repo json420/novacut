@@ -447,7 +447,7 @@ Slice.prototype = {
     on_timeout: function() {
         console.log('timeout');
         this.timeout_id = null;
-        UI.player.resume(this.doc._id);
+        UI.player.resume();
     },
 
     on_mousewheel_start: function(event) {
@@ -506,7 +506,7 @@ Slice.prototype = {
     on_dragcancel: function(dnd) {
         console.log('dragcancel');
         if (UI.player.active) {
-            UI.player.resume(this.doc._id);
+            UI.player.resume();
         }
         this.stop_scrolling();
         if (this.inbucket && UI.bucket.lastChild != this.element) {
@@ -781,7 +781,7 @@ Slice.prototype = {
         }
         UI.sequence.do_reorder();
         if (UI.player.active) {
-            UI.player.resume(this.doc._id);
+            UI.player.resume();
         }
     },
 }
@@ -1651,6 +1651,9 @@ var UI = {
             else {
                 UI.previous();
             }
+            if (UI.player.active) {
+                UI.player.hold_and_resume();
+            }
         },
 
         // Right arrow
@@ -1660,6 +1663,9 @@ var UI = {
             }
             else {
                 UI.next();
+            }
+            if (UI.player.active) {
+                UI.player.hold_and_resume();
             }
         },
 
