@@ -271,12 +271,18 @@ SequencePlayer.prototype = {
 
     hold: function() {
         this.was_playing = this.playing;
-        this.pause();
+        this.playing = false;
+        this.activate_target(true);
     },
 
     resume: function(slice_id) {
         this.playing = this.was_playing;
-        this.play_from_slice(slice_id);
+        if (slice_id) {
+            this.play_from_slice(slice_id);
+        }
+        else {
+            this.activate_target();
+        }
     },
 
     stop: function() {
@@ -341,7 +347,7 @@ SequencePlayer.prototype = {
         }
     },
 
-    activate_target: function() {
+    activate_target: function(no_select) {
         if (!this.target) {
             return;
         }
@@ -351,7 +357,9 @@ SequencePlayer.prototype = {
         else {
             this.target.pause();
         }
-        UI.select(this.target.slice._id, true);
+        if (!no_select) {
+            UI.select(this.target.slice._id, true);
+        }
     },
 
     swap: function() {

@@ -463,7 +463,7 @@ Slice.prototype = {
     on_mousedown: function(event) {
         UI.select(this.doc._id);
         if (UI.player.active) {
-            UI.player.play_from_slice(this.doc._id);
+            UI.player.hold();
         }
         this.pos = $position(this.element);
         this.dnd = new DragEvent(event, this.element);
@@ -483,6 +483,9 @@ Slice.prototype = {
 
     on_dragcancel: function(dnd) {
         console.log('dragcancel');
+        if (UI.player.active) {
+            UI.player.resume(this.doc._id);
+        }
         this.stop_scrolling();
         if (this.inbucket && UI.bucket.lastChild != this.element) {
             console.log('moving to end of bucket');
@@ -498,9 +501,6 @@ Slice.prototype = {
 
     on_dragstart: function(dnd) {
         console.log('dragstart');
-        if (UI.player.active) {
-            UI.player.hold();
-        }
         this.offsetX = this.dnd.offsetX;
         this.offsetY = this.dnd.offsetY;
         this.offsetWidth = this.element.offsetWidth;
