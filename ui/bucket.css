@@ -3,6 +3,39 @@
     font-size: 14px;
 }
 
+img {
+    -webkit-user-select: none;
+}
+
+#logo {
+    position: fixed;
+    z-index: 5;
+    right: 6px;
+    top: 6px;
+    width: 48px;
+    height: 48px;
+    -webkit-transition: -webkit-transform 300ms ease-in-out;
+}
+
+#logo.open {
+    -webkit-transform: rotate(-180deg);   
+}
+
+#flyout {
+    position: fixed;
+    z-index: 4;
+    top: 18px;
+    right: 18px;
+    width: 800px;
+    height: 450px;
+    background-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0px 0px 6px 0px #e81f3b;
+    border-radius: 12px;
+    font-family: Ubuntu;
+    font-size: 15px;
+    color: black;
+}
+
 #clips_outer {
     position: fixed;
     top: 0px;
@@ -42,7 +75,7 @@
 
 #bucket {
     position: fixed;
-    top: 132px;
+    top: 0px;
     bottom: 246px;
     left: 0;
     right: 0;
@@ -246,7 +279,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
     left: 0;
     right: 0;
     background-color: black;
-    z-index: 100;
+    z-index: 3;
 }
  
 
@@ -304,7 +337,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
 
 #player {
     position: fixed;
-    z-index: 100;
+    z-index: 3;
     background-color: black;
     top: 0;
     bottom: 246px;

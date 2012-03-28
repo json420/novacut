@@ -1443,6 +1443,32 @@ Clips.prototype = {
 }
 
 
+var LoveOrb = function() {
+    this.logo = $el('img', {'id': 'logo', 'src': 'novacut.png'});
+    this.flyout = $el('div', {'id': 'flyout', 'class': 'hide'});  
+    document.body.appendChild(this.logo);
+    document.body.appendChild(this.flyout);
+    this.logo.onmousedown = $bind(this.on_mousedown, this);
+    this.logo.onclick = $bind(this.on_click, this);
+}
+LoveOrb.prototype = {
+    on_mousedown: function(event) {
+        // Needed to prevent annoying drag behavior
+        $halt(event);
+    },
+
+    on_click: function(event) {
+        $halt(event);
+        if(this.flyout.classList.toggle('hide')) {
+            this.logo.classList.remove('open');
+        }
+        else {
+            this.logo.classList.add('open');
+        }
+    },
+}
+
+
 var UI = {
     init: function() {
         // Figure out what project we're in:
@@ -1453,6 +1479,7 @@ var UI = {
         // Bit of UI setup
         window.addEventListener('keyup', UI.on_keyup);
         UI.bucket = $('bucket');
+        UI.orb = new LoveOrb();
 
         // Create and start the CouchDB session 
         UI.session = new couch.Session(UI.db, UI.on_new_doc);       
