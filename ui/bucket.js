@@ -1446,19 +1446,20 @@ Clips.prototype = {
 var LoveOrb = function() {
     this.logo = $el('img', {'id': 'logo', 'src': 'novacut.png'});
     document.body.appendChild(this.logo);
-    //this.flyout = $el('div', {'id': 'flyout', 'class': 'hide'}); 
-    //document.body.appendChild(this.flyout);
+    this.capture = $('flyout_capture');
     this.flyout = $('flyout');
     this.logo.onmousedown = $bind(this.on_mousedown, this);
     this.logo.onclick = $bind(this.on_click, this);
+    this.capture.onclick = $bind(this.on_capture_click, this);
+    this.flyout.onclick = $bind(this.on_flyout_click, this);
 }
 LoveOrb.prototype = {
     get active() {
-        return !this.flyout.classList.contains('hide');
+        return !this.capture.classList.contains('hide');
     },
 
     toggle: function() {
-        if(this.flyout.classList.toggle('hide')) {
+        if(this.capture.classList.toggle('hide')) {
             this.logo.classList.remove('open');
         }
         else {
@@ -1474,6 +1475,17 @@ LoveOrb.prototype = {
     on_click: function(event) {
         $halt(event);
         this.toggle();
+    },
+
+    on_capture_click: function(event) {
+        console.log('capture click');
+        $halt(event);
+        this.toggle();
+    },
+
+    on_flyout_click: function(event) {
+        console.log('flyout click');
+        $halt(event);
     },
 }
 
