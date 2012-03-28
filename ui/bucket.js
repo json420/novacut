@@ -1485,7 +1485,7 @@ LoveOrb.prototype = {
 
     on_flyout_click: function(event) {
         console.log('flyout click');
-        $halt(event);
+        event.stopPropagation();
     },
 }
 
