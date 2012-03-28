@@ -1480,6 +1480,10 @@ LoveOrb.prototype = {
 
 var UI = {
     init: function() {
+        Hub.connect('edit_hashed', UI.on_edit_hashed);
+        Hub.connect('job_hashed', UI.on_job_hashed);
+        Hub.connect('job_rendered', UI.on_job_rendered);
+
         // Figure out what project we're in:
         var parts = parse_hash();
         UI.project_id = parts[0];
@@ -1689,10 +1693,7 @@ var UI = {
    
         // Escape
         'U+001B': function(event) {
-            if (UI.orb.active) {
-                UI.orb.toggle();
-            }
-            else if (UI.player.active) {
+            if (UI.player.active) {
                 UI.player.hide();
             } 
         },
@@ -1704,11 +1705,41 @@ var UI = {
             console.log('document body not focused');
             return;
         }
+        if (UI.orb.active) {
+            if (event.keyIdentifier == 'U+001B') {
+                UI.orb.toggle();
+            }
+            return;
+        }
         var action = UI.actions[event.keyIdentifier];
         if (action) {
             $halt(event);
             action(event);
         }
+    },
+
+    render: function() {
+        $("render-btn").disabled = true;
+        console.log('render');
+        Hub.send('hash_edit', UI.doc._id, UI.doc.root_id);
+    },
+
+    on_edit_hashed: function(project_id, node_id, intrinsic_id) {
+        console.log(['edit_hashed', project_id, node_id, intrinsic_id].join(' '));
+        // null for default settings_id:
+        Hub.send('hash_job', intrinsic_id, null);
+    },
+
+    on_job_hashed: function(intrinsic_id, settings_id, job_id) {
+        console.log(['job_hashed', intrinsic_id, settings_id, job_id].join(' '));
+        Hub.send('render_job', job_id);
+    },
+
+    on_job_rendered: function(job_id, file_id) {
+        console.log(['job_rendered', job_id, file_id].join(' '));
+        //UI.player.src = 'dmedia:' + file_id;
+        //UI.player.play();
+        $("render-btn").disabled = false;
     },
 }
 
