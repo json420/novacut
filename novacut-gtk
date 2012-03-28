@@ -60,7 +60,7 @@ class App(BaseApp):
     name = 'novacut'
     dbname = schema.DB_NAME
     version = novacut.__version__
-    title = 'Novacut'
+    title = 'Novacut Video Editor'
     splash = 'splash.html'
     page = 'projects.html'
 

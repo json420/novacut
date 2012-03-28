@@ -1,6 +1,6 @@
 * {
-    font-family: Ubuntu, sans-sarif;
-    font-size: 14px;
+    font-family: Ubuntu;
+    line-height: 24px;
 }
 
 img {
@@ -14,11 +14,84 @@ img {
     top: 6px;
     width: 48px;
     height: 48px;
-    -webkit-transition: -webkit-transform 300ms ease-in-out;
+    -webkit-transition: -webkit-transform 250ms linear;
 }
 
 #logo.open {
     -webkit-transform: rotate(-180deg);   
+}
+
+.fgrid_row {
+    white-space: nowrap;
+    font-size: 0;
+    line-height: 0;
+}
+
+.fgrid_row > * {
+    font-size: 15px;
+    display: inline-block;
+    margin: 8px;
+    box-sizing: border-box !important;
+    vertical-align: top;
+}
+
+
+.fgrid_cell > * {
+    display: block;
+    width: 100%;
+    box-sizing: border-box !important;
+}
+
+.fgrid_1 {
+    width: 50px;
+}
+
+.fgrid_2 {
+    width: 116px;
+}
+
+.fgrid_3 {
+    width: 182px;
+}
+
+.fgrid_4 {
+    width: 248px;
+}
+
+.fgrid_5 {
+    width: 314px;
+}
+
+.fgrid_6 {
+    width: 380px;
+}
+
+.fgrid_7 {
+    width: 446px;
+}
+
+.fgrid_8 {
+    width: 512px;
+}
+
+.fgrid_9 {
+    width: 578px;
+}
+
+.fgrid_10 {
+    width: 644px;
+}
+
+.fgrid_11 {
+    width: 710px;
+}
+
+.fgrid_12 {
+    width: 776px;
+}
+
+#flyout .version {
+    text-shadow: 0px 0px 10px #e81f3b;
 }
 
 #flyout {
@@ -27,13 +100,22 @@ img {
     top: 18px;
     right: 18px;
     width: 800px;
-    height: 450px;
-    background-color: rgba(255, 255, 255, 0.8);
-    box-shadow: 0px 0px 6px 0px #e81f3b;
+    height: 448px;
+    background-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0px 0px 8px 0px #e81f3b;
     border-radius: 12px;
-    font-family: Ubuntu;
-    font-size: 15px;
+    font-size: 16px;
     color: black;
+    box-sizing: border-box !important;
+    padding: 4px;
+}
+
+#flyout a {
+    color: black;
+}
+
+#flyout a:hover {
+    background-color: white;
 }
 
 #clips_outer {

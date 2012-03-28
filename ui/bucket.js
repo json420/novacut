@@ -1445,13 +1445,27 @@ Clips.prototype = {
 
 var LoveOrb = function() {
     this.logo = $el('img', {'id': 'logo', 'src': 'novacut.png'});
-    this.flyout = $el('div', {'id': 'flyout', 'class': 'hide'});  
     document.body.appendChild(this.logo);
-    document.body.appendChild(this.flyout);
+    //this.flyout = $el('div', {'id': 'flyout', 'class': 'hide'}); 
+    //document.body.appendChild(this.flyout);
+    this.flyout = $('flyout');
     this.logo.onmousedown = $bind(this.on_mousedown, this);
     this.logo.onclick = $bind(this.on_click, this);
 }
 LoveOrb.prototype = {
+    get active() {
+        return !this.flyout.classList.contains('hide');
+    },
+
+    toggle: function() {
+        if(this.flyout.classList.toggle('hide')) {
+            this.logo.classList.remove('open');
+        }
+        else {
+            this.logo.classList.add('open');
+        }
+    },
+
     on_mousedown: function(event) {
         // Needed to prevent annoying drag behavior
         $halt(event);
@@ -1459,12 +1473,7 @@ LoveOrb.prototype = {
 
     on_click: function(event) {
         $halt(event);
-        if(this.flyout.classList.toggle('hide')) {
-            this.logo.classList.remove('open');
-        }
-        else {
-            this.logo.classList.add('open');
-        }
+        this.toggle();
     },
 }
 
@@ -1680,7 +1689,10 @@ var UI = {
    
         // Escape
         'U+001B': function(event) {
-            if (UI.player.active) {
+            if (UI.orb.active) {
+                UI.orb.toggle();
+            }
+            else if (UI.player.active) {
                 UI.player.hide();
             } 
         },
