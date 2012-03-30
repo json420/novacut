@@ -1327,12 +1327,15 @@ function Clips() {
     this.dropdown = $('dmedia_project');
     this.dropdown.onchange = $bind(this.on_dropdown_change, this);
     this.div = $('clips');
+    this.container = $('clips_outer');
     this.session = UI.session;
     this.doc = this.session.get_doc(UI.project_id);
     this.session.subscribe(this.doc._id, this.on_change, this);
     this.id = null;
     this.db = null;
     this.load_projects();
+    this.open = $('open_clips');
+    this.open.onclick = $bind(this.on_open_click, this);
 }
 Clips.prototype = {
     on_change: function(doc) {
@@ -1414,6 +1417,15 @@ Clips.prototype = {
             this.div.appendChild(img);
         }, this);
         UI.select(this.doc.selected_clips[this.id]);
+    },
+
+    on_open_click: function(event) {
+        if (!this.container.classList.toggle('open')) {
+            var element = $(UI.selected);
+            if (element && element.parentNode.id == 'clips') {
+                UI.select(null);
+            }
+        }
     },
 
     on_click: function(id, event) {

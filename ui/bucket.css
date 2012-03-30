@@ -7,20 +7,6 @@ img {
     -webkit-user-select: none;
 }
 
-#logo {
-    position: fixed;
-    z-index: 5;
-    right: 6px;
-    top: 6px;
-    width: 48px;
-    height: 48px;
-    -webkit-transition: -webkit-transform 250ms linear;
-}
-
-#logo.open {
-    -webkit-transform: rotate(-180deg);   
-}
-
 .fgrid_row {
     white-space: nowrap;
     font-size: 0;
@@ -128,13 +114,54 @@ img {
     background-color: white;
 }
 
-#clips_outer {
+#logo {
     position: fixed;
-    top: 0px;
+    z-index: 5;
+    right: 6px;
+    top: 6px;
+    width: 48px;
+    height: 48px;
+    -webkit-transition: -webkit-transform 250ms linear;
+}
+
+#logo.open {
+    -webkit-transform: rotate(-180deg);   
+}
+
+#open_clips {
+    z-index: 3;
+    position: fixed;
+    top: 0;
+    right: 50%;
+    width: 80px;
+    background-color: white;
+    color: black;
+    padding-left: 6px;
+    padding-right: 6px;
+    cursor: default;
+    box-shadow: 0px 1px 4px 0px rgba(0,0,0,0.6);
+    text-align: center;
+    -webkit-user-select: none;
+    border-radius: 0 0 6px 6px;
+    background: -webkit-linear-gradient(top, #666, #555);
+}
+
+#clips_outer {
+    z-index: 2;
+    position: fixed;
+    top: -134px;
     height: 132px;
     left: 0;
     right: 0;
-    background-color: black;
+    background: -webkit-linear-gradient(top, #333, #111);
+    overflow: hidden;
+    -webkit-transition: top 250ms ease-in-out;
+    box-shadow: 0px 2px 6px 0px rgba(0,0,0,0.6);
+}
+
+
+#clips_outer.open {
+    top: 0px;
 }
 
 .grid_row {
@@ -167,7 +194,7 @@ img {
 
 #bucket {
     position: fixed;
-    top: 132px;
+    top: 0px;
     bottom: 246px;
     left: 0;
     right: 0;
@@ -360,7 +387,6 @@ Interesting 16:9 thumbnail sizes we might want to use:
 .grabbed {
     -webkit-transition-property: none !important;
     position: fixed !important;
-    z-index: 1;
 }
 
 
@@ -371,7 +397,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
     left: 0;
     right: 0;
     background-color: black;
-    z-index: 3;
+    z-index: 4;
 }
  
 
@@ -429,7 +455,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
 
 #player {
     position: fixed;
-    z-index: 3;
+    z-index: 6;
     background-color: black;
     top: 0;
     bottom: 246px;
