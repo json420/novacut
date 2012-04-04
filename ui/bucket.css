@@ -88,6 +88,7 @@ img {
     right: 0;
     bottom: 0;
     left: 0;
+    background: rgba(0,0,0,0.5);
 }
 
 
@@ -97,21 +98,23 @@ img {
     right: 18px;
     width: 800px;
     height: 448px;
-    background-color: rgba(255, 255, 255, 0.9);
-    box-shadow: 0px 0px 8px 0px #e81f3b;
-    border-radius: 12px;
+    background: -webkit-linear-gradient(top, #333, #2a2a2a);
+    box-shadow: 0px 2px 5px 1px rgba(0,0,0,0.2);
+    border-radius: 3px;
     font-size: 16px;
-    color: black;
+    color: #ddd;
     box-sizing: border-box !important;
     padding: 4px;
 }
 
 #flyout a {
-    color: black;
+    color: #e81f3b;
+    text-decoration: none;
 }
 
 #flyout a:hover {
-    background-color: white;
+    color: #f82f4b;
+    text-decoration: underline;
 }
 
 #logo {
@@ -134,16 +137,19 @@ img {
     top: 0;
     right: 50%;
     width: 80px;
-    background-color: white;
-    color: black;
+    color: #ddd;
     padding-left: 6px;
     padding-right: 6px;
     cursor: default;
     box-shadow: 0px 1px 4px 0px rgba(0,0,0,0.6);
     text-align: center;
     -webkit-user-select: none;
-    border-radius: 0 0 6px 6px;
-    background: -webkit-linear-gradient(top, #666, #555);
+    border-radius: 0 0 2px 2px;
+    border:1px solid transparent;
+    border-top:none;
+    border-bottom:1px solid #383838;
+    background: -webkit-linear-gradient(top, #444, #333);
+    text-shadow: 0px -1px 0px rgba(0,0,0,0.5);
 }
 
 #clips_outer {
@@ -153,7 +159,6 @@ img {
     height: 134px;
     left: 0;
     right: 0;
-    background: -webkit-linear-gradient(top, #333, #111);
     overflow: hidden;
     -webkit-transition: top 250ms ease-in-out;
     box-shadow: 0px 2px 6px 0px rgba(0,0,0,0.6);
@@ -206,7 +211,7 @@ img {
     bottom: 246px;
     left: 0;
     right: 0;
-    background-color: #301438;
+    background: #333;
     overflow: hidden;
 }
 
@@ -243,12 +248,15 @@ img {
     line-height: 0;
 
     padding-top: 25px;
-    background-image: url(grip-short.png);
+    background-image: url(grip-short.png), -webkit-linear-gradient(top, #222, #333);
     background-repeat: repeat-x;
 }
 
 .slice {
-    border: 1px solid #333;
+    border-top: 1px solid #666;
+    border-left: 1px solid #555;
+    border-right: 1px solid #444;
+    border-bottom:1px solid #333;
 }
 
 .slice.selected {
