@@ -57,6 +57,10 @@ import gobject
 from dc3lib.microfiber import Database, NotFound
 
 
+gobject.threads_init()
+session = dbus.SessionBus()
+Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
+
 KEYFRAME = 15
 FLOAT_SECOND = float(gst.SECOND)
 
@@ -69,16 +73,36 @@ def ns_to_frame(ns, num, denom):
     return int(round(ns * num / denom / FLOAT_SECOND))
 
 
-gobject.threads_init()
-session = dbus.SessionBus()
-Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
-db = Database('thumbnails', json.loads(Dmedia.GetEnv()))
+def get_filename(doc):
+    if doc.get('proxies'):
+        for _id in doc['proxies']:
+            try:
+                return Dmedia.Resolve(_id)
+            except Exception:
+                pass
+    return Dmedia.Resolve(doc['_id']) 
+
+
+env = json.loads(Dmedia.GetEnv())
+
+
+# See if file is available locally, preferring proxy files:
+dmedia_0 = Database('dmedia-0', env)
+doc = dmedia_0.get(_id)
+try:
+    filename = get_filename(doc)
+except Exception:
+    print('not local:', _id)
+    sys.exit(0)
+print(filename)
+
+# Thumbnail DB
+db = Database('thumbnails', env)
 db.ensure()
 
 
 class Thumbnailer(object):
-    def __init__(self, _id, frames):
-        filename = Dmedia.Resolve(_id)
+    def __init__(self, _id, frames, filename):
         try:
             self.doc = db.get(_id)
         except NotFound:
@@ -213,7 +237,7 @@ class Thumbnailer(object):
         self.kill()
         sys.exit(2)
 
-thumbnailer = Thumbnailer(_id, frames)
+thumbnailer = Thumbnailer(_id, frames, filename)
 thumbnailer.run()
 if thumbnailer.changed:
     print('saving changes')
