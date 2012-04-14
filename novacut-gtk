@@ -70,9 +70,9 @@ class App(BaseApp):
 
     # For using gtk-recordmydesktop with the select window option:
     # This results in a video that's 1280x720
-#    maximize = False
-#    width = 1264
-#    height = 672
+    maximize = False
+    width = 1264
+    height = 672
 
     signals = {
         'create_project': ['title'],
@@ -97,23 +97,24 @@ class App(BaseApp):
     @property
     def Renderer(self):
         if self.__Renderer is None:
-            self.__Renderer = session.get('com.novacut.Renderer', '/')
-            self.__Renderer.connect('g-signal', self.on_g_signal)
+            self.__Renderer = session.get_object('com.novacut.Renderer', '/')
+            self.__Renderer.connect_to_signal('ThumbnailFinished', self.on_ThumbnailFinished)
+            self.__Renderer.connect_to_signal('EditHashed', self.on_EditHashed)
+            self.__Renderer.connect_to_signal('JobHashed', self.on_JobHashed)
+            self.__Renderer.connect_to_signal('JobRendered', self.on_JobRendered)
         return self.__Renderer
 
-    def on_g_signal(self, proxy, sender, signal, params):
-        if signal == 'ThumbnailFinished':
-            (file_id,) = params.unpack()
-            self.hub.send('thumbnail_finished', file_id)
-        elif signal == 'EditHashed':
-            (project_id, node_id, intrinsic_id) = params.unpack()
-            self.hub.send('edit_hashed', project_id, node_id, intrinsic_id)
-        elif signal == 'JobHashed':
-            (intrinsic_id, settings_id, job_id) = params.unpack()
-            self.hub.send('job_hashed', intrinsic_id, settings_id, job_id)
-        elif signal == 'JobRendered':
-            (job_id, file_id) = params.unpack()
-            self.hub.send('job_rendered', job_id, file_id)
+    def on_ThumbnailFinished(self, file_id):
+        self.hub.send('thumbnail_finished', file_id)
+
+    def on_EditHashed(self, project_id, node_id, intrinsic_id):
+        self.hub.send('edit_hashed', project_id, node_id, intrinsic_id)
+
+    def on_JobHashed(self, intrinsic_id, settings_id, job_id):
+        self.hub.send('job_hashed', intrinsic_id, settings_id, job_id)
+
+    def on_JobRendered(self, job_id, file_id):
+        self.hub.send('job_rendered', job_id, file_id)
 
     def connect_hub_signals(self, hub):
         hub.connect('create_project', self.on_create_project)
@@ -128,7 +129,7 @@ class App(BaseApp):
         views.init_views(self.db, views.novacut_main)
 
     def dmedia_resolver(self, uri):
-        return self.proxy.ResolveURI('(s)', uri)
+        return self.proxy.ResolveURI(uri)
 
     def on_create_project(self, hub, title):
         print('create_project', title)
@@ -156,11 +157,11 @@ class App(BaseApp):
         self.server.post({'docs': docs}, dst_db, '_bulk_docs')
 
     def on_thumbnail(self, hub, file_id, frames):
-        self.Renderer.Thumbnail('(sai)', file_id, frames)
+        self.Renderer.Thumbnail(file_id, frames)
 
     def on_hash_edit(self, hub, project_id, root_id):
         print('hash_edit', project_id, root_id)
-        self.Renderer.HashEdit('(ss)', project_id, root_id)
+        self.Renderer.HashEdit(project_id, root_id)
 
     def on_hash_job(self, hub, intrinsic_id, settings_id):
         print('hash_job', intrinsic_id, settings_id)
@@ -171,7 +172,7 @@ class App(BaseApp):
                 self.db.save(settings)
             except Conflict:
                 pass
-        self.Renderer.HashJob('(ss)', intrinsic_id, settings_id)
+        self.Renderer.HashJob(intrinsic_id, settings_id)
 
     def on_render_job(self, hub, job_id):
         print('render_job', job_id)
@@ -181,7 +182,7 @@ class App(BaseApp):
             print('using existing render', file_id)
             self.hub.send('job_rendered', job_id, file_id)
             return
-        self.Renderer.RenderJob('(s)', job_id)
+        self.Renderer.RenderJob(job_id)
 
 app = App()
 app.run()
