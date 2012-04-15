@@ -28,6 +28,8 @@ Depends: ${misc:Depends}, python3 (>= 3.2), python (>= 2.7),
     gstreamer0.10-plugins-ugly,
     gstreamer0.10-ffmpeg,
     gstreamer0.10-gnonlin,
+    ttf-lato-font-family,
+    ttf-ubuntu-font-family,
 Recommends: gstreamer0.10-plugins-ugly, gstreamer0.10-plugins-bad
 Description: Collaborative editor for professional TV and movie production.
  FIXME.
