@@ -70,9 +70,9 @@ class App(BaseApp):
 
     # For using gtk-recordmydesktop with the select window option:
     # This results in a video that's 1280x720
-    maximize = False
-    width = 1264
-    height = 672
+#    maximize = False
+#    width = 1264
+#    height = 672
 
     signals = {
         'create_project': ['title'],
