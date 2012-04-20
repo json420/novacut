@@ -934,14 +934,12 @@ Sequence.prototype = {
     },
 }
 
-
-function frame_to_seconds(frame, framerate) {
-    return frame * framerate.denom / framerate.num;
-}
-
-
 var VideoFrame = function(which) {
-    this.video = $el('video', {'class': which});
+    this.element = $el('div', {'class': 'videoframe ' + which});
+    this.video = $el('video');
+    this.element.appendChild(this.video);
+    this.info = $el('div');
+    this.element.appendChild(this.info);
     this.ready = false;
     this.pending = null;
     this.video.addEventListener('canplaythrough',
@@ -952,8 +950,12 @@ var VideoFrame = function(which) {
     );
 }
 VideoFrame.prototype = {
+    set_index: function(index) {
+        this.info.textContent = index + 1;
+        this.seek(index);
+    },
+
     on_canplaythrough: function(event) {
-        console.log('canplaythrough ' + this.index);
         this.ready = true;
         this.do_seek();
     },
@@ -973,18 +975,15 @@ VideoFrame.prototype = {
     },
 
     play: function() {
-        //this.video.classList.add('player');
         this.video.play();
     },
 
     pause: function() {
         this.video.pause();
-        //this.video.classList.remove('player');
     },
 
     seek: function(index) {
-        this.index = Math.max(0, Math.min(index, this.frames - 1));
-        this.pending = frame_to_seconds(this.index, this.framerate);
+        this.pending = frame_to_seconds(index, this.framerate);
         if (this.ready && ! this.video.seeking) {
             this.do_seek();
         }
@@ -997,12 +996,12 @@ VideoFrame.prototype = {
     },
 
     show: function() {
-        this.video.classList.remove('hide');
+        this.element.classList.remove('hide');
     },
 
     hide: function() {
         this.video.pause();
-        this.video.classList.add('hide');
+        this.element.classList.add('hide');
     },
 
     get_x: function(width) {
@@ -1020,6 +1019,8 @@ var RoughCut = function(session) {
     this.active = false;
 
     this.element = $('roughcut');
+    this.frames = $el('div', {'class': 'frames'});
+    this.element.appendChild(this.frames);
 
     this.done = $('close_roughcut');
     this.done.onclick = function() {
@@ -1029,11 +1030,11 @@ var RoughCut = function(session) {
     this.create_button = $('create_slice');
     this.create_button.onclick = $bind(this.create_slice, this);
 
-    this.endvideo = new VideoFrame('end hide');
-    this.element.appendChild(this.endvideo.video);
-
     this.startvideo = new VideoFrame('start');
-    this.element.appendChild(this.startvideo.video);
+    this.frames.appendChild(this.startvideo.element);
+
+    this.endvideo = new VideoFrame('end hide');
+    this.frames.appendChild(this.endvideo.element);
 
     this.scrubber = $el('div', {'class': 'scrubber'});
     this.element.appendChild(this.scrubber);
@@ -1052,10 +1053,10 @@ var RoughCut = function(session) {
         $bind(this.on_timeupdate, this)
     );
 
-    this.startvideo.video.addEventListener('mousewheel',
+    this.startvideo.element.addEventListener('mousewheel',
         $bind(this.on_mousewheel_start, this)
     );
-    this.endvideo.video.addEventListener('mousewheel',
+    this.endvideo.element.addEventListener('mousewheel',
         $bind(this.on_mousewheel_end, this)
     );
 } 
@@ -1113,7 +1114,7 @@ RoughCut.prototype = {
 
     set start(value) {
         this._start = Math.max(0, Math.min(value, this._stop - 1));
-        this.startvideo.seek(this._start);
+        this.startvideo.set_index(this._start);
     },
 
     get start() {
@@ -1122,7 +1123,7 @@ RoughCut.prototype = {
 
     set stop(value) {
         this._stop = Math.max(this._start + 1, Math.min(value, this.frames));
-        this.endvideo.seek(this._stop - 1);
+        this.endvideo.set_index(this._stop - 1);
     },
 
     get stop() {
@@ -1218,7 +1219,8 @@ RoughCut.prototype = {
         this.count += 1;
         this.mode = 'create';
         this.endvideo.hide();
-        this.reset();    
+        this.reset();
+        this.start = 0; 
         this.bar.style.left = this.left + 'px';
         this.bar.style.width = '1px';
         this.slice = create_slice(this.clip._id, this.frames);
