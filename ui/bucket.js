@@ -1046,7 +1046,6 @@ var RoughCut = function(session) {
     this.scrubber.appendChild(this.playhead);
 
     this.scrubber.onmouseover = $bind(this.on_mouseover, this);
-    this.scrubber.onmouseout = $bind(this.on_mouseout, this);
     this.scrubber.onmousedown = $bind(this.on_mousedown, this);
 
     this.startvideo.video.addEventListener('timeupdate',
@@ -1244,13 +1243,6 @@ RoughCut.prototype = {
     on_mouseover: function(event) {
         if (this.mode == 'create' && !this.playing && !this.dnd) {
             $show(this.bar);
-        }
-    },
-
-    on_mouseout: function(event) {
-        if (this.mode == 'create' && !this.playing && !this.dnd) {
-            $hide(this.bar);
-            this.start = 0;
         }
     },
 

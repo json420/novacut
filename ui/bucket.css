@@ -431,6 +431,8 @@ Interesting 16:9 thumbnail sizes we might want to use:
     left: 0;
     right: 0;
     bottom: 30px;
+    font-size: 0px;
+    line-height: 0px;
 }
 
 .videoframe {
@@ -444,6 +446,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
     pointer-events: none;
     width: 100%;
     margin: 0;
+    display: block;
 }
 
 .videoframe div {
