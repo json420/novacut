@@ -1051,6 +1051,13 @@ var RoughCut = function(session) {
     this.startvideo.video.addEventListener('timeupdate',
         $bind(this.on_timeupdate, this)
     );
+
+    this.startvideo.video.addEventListener('mousewheel',
+        $bind(this.on_mousewheel_start, this)
+    );
+    this.endvideo.video.addEventListener('mousewheel',
+        $bind(this.on_mousewheel_end, this)
+    );
 } 
 RoughCut.prototype = {
     on_timeupdate: function() {
@@ -1128,6 +1135,28 @@ RoughCut.prototype = {
 
     get right() {
         return this.get_x(this._stop);
+    },
+
+    on_mousewheel_start: function(event) {
+        $halt(event);
+        var orig = this._start;       
+        this.start = orig + wheel_delta(event);
+        if (this.start != orig) {
+            this.save_to_slice();
+            this.session.delayed_commit();
+            this.update_bar();
+        }   
+    },
+
+    on_mousewheel_end: function(event) {
+        $halt(event);
+        var orig = this._stop;       
+        this.stop = orig + wheel_delta(event);
+        if (this.stop != orig) {
+            this.save_to_slice();
+            this.session.delayed_commit();
+            this.update_bar();
+        }
     },
 
     playpause: function() {
