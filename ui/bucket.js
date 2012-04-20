@@ -353,7 +353,7 @@ var Slice = function(session, doc) {
 
     this.start = new Frame(file_id, doc._id + '.start');
     this.element.appendChild(this.start.element);
-    
+
     this.indicator = new SliceIndicator();
     this.element.appendChild(this.indicator.element);
 
@@ -1259,7 +1259,7 @@ RoughCut.prototype = {
             this.sync_from_slice();
         }
     },
- 
+
     on_dragstart: function(dnd) {
         this.dnd.ondrag = $bind(this.on_drag, this);
         this.dnd.ondrop = $bind(this.on_drop, this);
@@ -1408,8 +1408,8 @@ Clips.prototype = {
             var img = new Image();
             img.id = id;
             img.src = this.att_url(id);
-            img.onclick = function(event) {
-                self.on_click(id, event);
+            img.onmousedown = function(event) {
+                self.on_mousedown(id, event);
             }
             img.ondblclick = function(event) {
                 self.on_dblclick(id, event);
@@ -1428,10 +1428,55 @@ Clips.prototype = {
         }
     },
 
-    on_click: function(id, event) {
+    on_mousedown: function(id, event) {
         this.doc.selected_clips[this.id] = id;
         this.session.save(this.doc, true);
         UI.select(id);
+        this.dnd = new DragEvent(event);
+        this.dnd.id = id;
+        this.dnd.ondragcancel = $bind(this.on_dragcancel, this);
+        this.dnd.ondragstart = $bind(this.on_dragstart, this);
+    },
+
+    on_dragcancel: function(dnd) {
+        delete this.dnd;
+    },
+
+    on_dragstart: function(dnd) {
+        this.dnd.ondrag = $bind(this.on_drag, this);
+        this.dnd.ondrop = $bind(this.on_drop, this);
+    },
+
+    on_drag: function(dnd) {
+        if (dnd.sliced) {
+            if (dnd.slice) {
+                this.position_slice(dnd);
+            }
+        }
+        else {
+            if (dnd.dy > 50) {
+                console.log('creating ' + dnd.dy);
+                dnd.sliced = true;
+                UI.copy_clip(dnd.id);
+                var clip = this.session.get_doc(dnd.id);
+                var doc = create_slice(clip._id, clip.duration.frames);
+                this.session.save(doc, true);
+                dnd.slice = new Slice(UI.session, doc);
+                UI.bucket.appendChild(dnd.slice.element);
+                UI.select(doc._id);
+                this.position_slice(dnd);
+            }
+        }
+    },
+
+    position_slice: function(dnd) {
+        dnd.slice.x = dnd.x - 64;
+        dnd.slice.y = dnd.y - 36;
+    },
+
+    on_drop: function(dnd) {
+        delete this.dnd;
+        UI.sequence.do_reorder();
     },
 
     on_dblclick: function(id, event) {
@@ -1542,7 +1587,9 @@ var UI = {
         }
         catch (e) {
             console.log('copying ' + id);
-            Hub.send('copy_docs', UI.clips.db.name, UI.db.name, [id]);
+            var doc = UI.clips.db.get_sync(id, {attachments: true});
+            delete doc._rev;
+            UI.session.save(doc, true);
         }
     },
 
