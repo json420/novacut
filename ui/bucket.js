@@ -1070,7 +1070,7 @@ RoughCut.prototype = {
             this.startvideo.seek(this.start, true);
             frame = this.start;
         }
-        this.playhead.style.left = this.get_x(frame) + 'px';
+        this.pframe = frame;
     },
 
     hide: function() {
@@ -1096,9 +1096,10 @@ RoughCut.prototype = {
         delete this.dnd;
         this._start = 0;
         this._stop = this.frames;
+        this.pframe = null;
         this.scrubber.onmousemove = null;
     },
-
+ 
     get_x: function(frame) {
         return Math.round(this.scrubber.clientWidth * frame / this.frames);
     },
@@ -1137,6 +1138,21 @@ RoughCut.prototype = {
         return this.get_x(this._stop);
     },
 
+    set pframe(value) {
+        this._pframe = value
+        if (value == null) {
+            this.playhead.classList.add('hide');
+        }
+        else {
+            this.playhead.classList.remove('hide');
+            this.playhead.style.left = this.get_x(value) + 'px';  
+        }
+    },
+
+    get pframe() {
+        return this._pframe;
+    },
+
     on_mousewheel_start: function(event) {
         $halt(event);
         var orig = this._start;       
@@ -1167,19 +1183,21 @@ RoughCut.prototype = {
             this.play();
         }
     },
- 
+
     play: function() {
         this.playing = true;
-        $show(this.playhead);
         this.scrubber.onmousemove = null;
+        if (this._pframe == null) {
+            this.pframe = this.start;
+        }
+        this.startvideo.seek(this.pframe);
         this.startvideo.play();
     },
- 
+
     pause: function() {
         this.startvideo.pause();
         this.startvideo.seek(this.start);
         this.playing = false;
-        $hide(this.playhead);
         if (this.mode == 'create') {
             this.bind_mousemove();
         }

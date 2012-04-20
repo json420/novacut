@@ -84,7 +84,7 @@ img {
 
 #flyout_capture {
     position: fixed;
-    z-index: 4;
+    z-index: 10;
     top: 0;
     right: 0;
     bottom: 0;
@@ -125,7 +125,7 @@ img {
 
 #logo {
     position: fixed;
-    z-index: 5;
+    z-index: 11;
     right: 6px;
     top: 6px;
     width: 48px;
@@ -458,7 +458,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
     cursor: default;
     text-align: right;
     font-family: "Ubuntu Mono";
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1.6em;
     font-weight: bold;
     color: white;
@@ -501,7 +501,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
 
 #player {
     position: fixed;
-    z-index: 6;
+    z-index: 20;
     background-color: black;
     top: 0;
     bottom: 246px;
