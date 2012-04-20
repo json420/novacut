@@ -88,7 +88,9 @@ img {
     right: 0;
     bottom: 0;
     left: 0;
+    /*
     background: rgba(0,0,0,0.5);
+    */
 }
 
 
@@ -98,9 +100,12 @@ img {
     right: 18px;
     width: 800px;
     height: 448px;
+    /*
     background: -webkit-linear-gradient(top, #333, #2a2a2a);
-    box-shadow: 0px 2px 5px 1px rgba(0,0,0,0.2);
-    border-radius: 3px;
+    */
+    background-color: rgba(0, 0, 0, 0.9);
+    box-shadow: 0px 0px 10px 0px #e81f3b;
+    border-radius: 12px;
     font-size: 16px;
     color: #ddd;
     box-sizing: border-box !important;
@@ -248,7 +253,10 @@ img {
     line-height: 0;
 
     padding-top: 25px;
+    background-image: url(grip-short.png);
+    /*
     background-image: url(grip-short.png), -webkit-linear-gradient(top, #222, #333);
+    */
     background-repeat: repeat-x;
 }
 
