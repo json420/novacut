@@ -942,8 +942,14 @@ function frame_to_seconds(frame, framerate) {
 
 var VideoFrame = function(which) {
     this.video = $el('video', {'class': which});
-    var callback = $bind(this.on_canplaythrough, this);
-    this.video.addEventListener('canplaythrough', callback);
+    this.ready = false;
+    this.pending = null;
+    this.video.addEventListener('canplaythrough',
+        $bind(this.on_canplaythrough, this)
+    );
+    this.video.addEventListener('seeked',
+        $bind(this.on_seeked, this)
+    );
 }
 VideoFrame.prototype = {
     on_canplaythrough: function(event) {
@@ -952,14 +958,18 @@ VideoFrame.prototype = {
         this.do_seek();
     },
 
+    on_seeked: function(event) {
+        if (this.pending != null) {
+            this.do_seek();
+        }
+    },
+
     set_clip: function(clip) {
         this.ready = false;
         this.framerate = clip.framerate;
         this.frames = clip.duration.frames;
-        this.pending = 0;
-        this.current = null;
+        this.pending = null;
         this.video.src = 'dmedia:' + clip._id;
-        this.video.load();
     },
 
     play: function() {
@@ -972,20 +982,18 @@ VideoFrame.prototype = {
         //this.video.classList.remove('player');
     },
 
-    seek: function(index, now) {
+    seek: function(index) {
         this.index = Math.max(0, Math.min(index, this.frames - 1));
         this.pending = frame_to_seconds(this.index, this.framerate);
-        if (now) {
-            this.current = null;
+        if (this.ready && ! this.video.seeking) {
             this.do_seek();
         }
     },
 
     do_seek: function() {
-        if (this.ready && this.pending != this.current) {
-            this.current = this.pending;
-            this.video.currentTime = this.pending;
-        }
+        var t = this.pending;
+        this.pending = null;
+        this.video.currentTime = t;
     },
 
     show: function() {
@@ -1029,7 +1037,7 @@ var RoughCut = function(session) {
 
     this.scrubber = $el('div', {'class': 'scrubber'});
     this.element.appendChild(this.scrubber);
-    
+
     this.bar = $el('div', {'class': 'bar hide'});
     this.scrubber.appendChild(this.bar);
 
@@ -1039,28 +1047,27 @@ var RoughCut = function(session) {
     this.scrubber.onmouseover = $bind(this.on_mouseover, this);
     this.scrubber.onmouseout = $bind(this.on_mouseout, this);
     this.scrubber.onmousedown = $bind(this.on_mousedown, this);
+
+    this.startvideo.video.addEventListener('timeupdate',
+        $bind(this.on_timeupdate, this)
+    );
 } 
 RoughCut.prototype = {
-    on_interval: function() {
-        if (this.playing) {
-            if (this.dnd) {
-                this.startvideo.do_seek();
-            }
-            var frame = this.startvideo.get_frame();
-            if (frame >= this.stop - 1) {
-                console.log('stop');
-                this.startvideo.seek(this.start, true);
-                frame = this.start;
-            }
-            this.playhead.style.left = this.get_x(frame) + 'px';
+    on_timeupdate: function() {
+        if (! this.playing) {
+            return;
         }
-        this.startvideo.do_seek();
-        this.endvideo.do_seek();
+        var frame = this.startvideo.get_frame();
+        if (frame >= this.stop - 1) {
+            console.log('stop');
+            this.startvideo.seek(this.start, true);
+            frame = this.start;
+        }
+        this.playhead.style.left = this.get_x(frame) + 'px';
     },
 
     hide: function() {
         this.active = false;
-        clearInterval(this.interval_id);
         this.mode = null;
         this.pause(); 
         $hide(this.element);
@@ -1076,7 +1083,6 @@ RoughCut.prototype = {
         this.startvideo.set_clip(this.clip);
         this.endvideo.set_clip(this.clip);
         $show(this.element);
-        this.interval_id = setInterval($bind(this.on_interval, this), 100);
     },
 
     reset: function() {
@@ -1142,7 +1148,7 @@ RoughCut.prototype = {
  
     pause: function() {
         this.startvideo.pause();
-        this.startvideo.seek(this.start, true);
+        this.startvideo.seek(this.start);
         this.playing = false;
         $hide(this.playhead);
         if (this.mode == 'create') {
@@ -1218,7 +1224,7 @@ RoughCut.prototype = {
     },
 
     on_mousemove: function(event) {
-        this.start = this.get_frame(event.clientX, true);
+        this.start = this.get_frame(event.clientX);
         this.bar.style.left = this.left + 'px';
     },
 
@@ -1236,7 +1242,7 @@ RoughCut.prototype = {
         else if (this.mode == 'edit') {
             var mid = (this.left + this.right) / 2;
             this.point = (event.clientX <= mid) ? 'left' : 'right';
-            var frame = this.get_frame(event.clientX, true);
+            var frame = this.get_frame(event.clientX);
             if (this.point == 'left') {
                 this.start = frame;
             }
@@ -1257,7 +1263,8 @@ RoughCut.prototype = {
             this.bindmousemove();
         }
         else {
-            this.sync_from_slice();
+            this.save_to_slice();
+            this.session.delayed_commit();
         }
     },
 
@@ -1271,7 +1278,7 @@ RoughCut.prototype = {
     },
 
     on_drag: function(dnd) {
-        var frame = this.get_frame(dnd.x, true);
+        var frame = this.get_frame(dnd.x);
         if (this.playing) {
             frame = Math.max(this.start, Math.min(frame, this.stop - 1));
             this.startvideo.seek(frame);
@@ -1311,12 +1318,12 @@ RoughCut.prototype = {
             var y = this.y + d;
             UI.sequence.doc.doodle.push({id: this.slice._id, x: x, y: y});
             this.session.save(UI.sequence.doc);
-            this.session.commit();
+            this.session.delayed_commit();
             this.edit_slice(this.slice);
         }
         else {
             this.save_to_slice();
-            this.session.commit();
+            this.session.delayed_commit();
         }
     },
 
