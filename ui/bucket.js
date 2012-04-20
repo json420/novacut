@@ -32,6 +32,7 @@ var Thumbs = {
         Thumbs.need_init = false;
         var ids = Object.keys(Thumbs.q);
         if (ids.length == 0) {
+            Thumbs.frozen = false;
             return;
         }
         Thumbs.db.post(Thumbs.on_docs, {keys: ids}, '_all_docs', {include_docs: true});
@@ -443,7 +444,7 @@ Slice.prototype = {
         clearTimeout(this.timeout_id);
         this.timeout_id = setTimeout($bind(this.on_timeout, this), 750);
     },
- 
+
     on_timeout: function() {
         console.log('timeout');
         this.timeout_id = null;
@@ -1448,35 +1449,23 @@ Clips.prototype = {
     },
 
     on_drag: function(dnd) {
-        if (dnd.sliced) {
-            if (dnd.slice) {
-                this.position_slice(dnd);
-            }
+        if (dnd.dy > 50) {
+            console.log('creating ' + dnd.dy);
+            dnd.ondrag = null;
+            UI.copy_clip(dnd.id);
+            var clip = this.session.get_doc(dnd.id);
+            var doc = create_slice(clip._id, clip.duration.frames);
+            this.session.save(doc, true);
+            var slice = new Slice(UI.session, doc);
+            slice.x = dnd.x - 64;
+            slice.y = dnd.y - 36;
+            UI.bucket.appendChild(slice.element);
+            slice.on_mousedown(dnd.event);
         }
-        else {
-            if (dnd.dy > 50) {
-                console.log('creating ' + dnd.dy);
-                dnd.sliced = true;
-                UI.copy_clip(dnd.id);
-                var clip = this.session.get_doc(dnd.id);
-                var doc = create_slice(clip._id, clip.duration.frames);
-                this.session.save(doc, true);
-                dnd.slice = new Slice(UI.session, doc);
-                UI.bucket.appendChild(dnd.slice.element);
-                UI.select(doc._id);
-                this.position_slice(dnd);
-            }
-        }
-    },
-
-    position_slice: function(dnd) {
-        dnd.slice.x = dnd.x - 64;
-        dnd.slice.y = dnd.y - 36;
     },
 
     on_drop: function(dnd) {
         delete this.dnd;
-        UI.sequence.do_reorder();
     },
 
     on_dblclick: function(id, event) {
