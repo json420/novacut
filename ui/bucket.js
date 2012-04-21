@@ -1064,7 +1064,13 @@ var RoughCut = function(session) {
 } 
 RoughCut.prototype = {
     on_ended: function() {
-        console.log('ended');
+        if (! this.playing) {
+            return;
+        }
+        var frame = (this.mode == 'edit' && this.inside) ? this.start : 0;
+        this.startvideo.seek(frame);
+        this.startvideo.video.play();
+        this.pframe = frame;
     },
 
     on_timeupdate: function() {
@@ -1075,8 +1081,7 @@ RoughCut.prototype = {
             return;
         }
         var frame = this.startvideo.get_frame();
-        if (this.mode == 'edit' && frame >= this.stop - 1) {
-            console.log('stop');
+        if (this.mode == 'edit' && this.inside && frame >= this.stop - 1) {
             this.startvideo.seek(this.start, true);
             frame = this.start;
         }
@@ -1265,6 +1270,7 @@ RoughCut.prototype = {
     edit_slice: function(slice) {
         console.log('edit_slice ' + slice._id);
         this.mode = 'edit';
+        this.inside = true;
         this.slice = slice;
         this.endvideo.show();
         this.reset();
@@ -1313,6 +1319,12 @@ RoughCut.prototype = {
 
     scrub_playhead: function(dnd) {
         var frame = this.get_frame(dnd.x);
+        if (this.start <= frame && frame < this.stop) {
+            this.inside = true;
+        }
+        else {
+            this.inside = false;
+        }
         this.pframe = frame;
         this.startvideo.seek(frame);
     },
