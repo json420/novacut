@@ -1051,6 +1051,9 @@ var RoughCut = function(session) {
     this.startvideo.video.addEventListener('timeupdate',
         $bind(this.on_timeupdate, this)
     );
+    this.startvideo.video.addEventListener('ended',
+        $bind(this.on_ended, this)
+    );
 
     this.startvideo.element.addEventListener('mousewheel',
         $bind(this.on_mousewheel_start, this)
@@ -1060,12 +1063,19 @@ var RoughCut = function(session) {
     );
 } 
 RoughCut.prototype = {
+    on_ended: function() {
+        console.log('ended');
+    },
+
     on_timeupdate: function() {
         if (! this.playing) {
             return;
         }
+        if (this.dnd) {
+            return;
+        }
         var frame = this.startvideo.get_frame();
-        if (frame >= this.stop - 1) {
+        if (this.mode == 'edit' && frame >= this.stop - 1) {
             console.log('stop');
             this.startvideo.seek(this.start, true);
             frame = this.start;
@@ -1097,9 +1107,11 @@ RoughCut.prototype = {
         this._start = 0;
         this._stop = this.frames;
         this.pframe = null;
+        this.startvideo.pause();
+        this.playing = false;
         this.scrubber.onmousemove = null;
     },
- 
+
     get_x: function(frame) {
         return Math.round(this.scrubber.clientWidth * frame / this.frames);
     },
@@ -1139,13 +1151,14 @@ RoughCut.prototype = {
     },
 
     set pframe(value) {
-        this._pframe = value
         if (value == null) {
+            this._pframe = null;
             this.playhead.classList.add('hide');
         }
         else {
+            this._pframe = Math.max(0, Math.min(value, this.frames - 1));
             this.playhead.classList.remove('hide');
-            this.playhead.style.left = this.get_x(value) + 'px';  
+            this.playhead.style.left = this.get_x(this._pframe) + 'px';  
         }
     },
 
@@ -1160,7 +1173,12 @@ RoughCut.prototype = {
         if (this.start != orig) {
             this.save_to_slice();
             this.session.delayed_commit();
-            this.update_bar();
+            if (this.mode == 'create') {
+                this.bar.style.left = this.left + 'px';
+            }
+            else {
+                this.update_bar();
+            }
         }   
     },
 
@@ -1202,7 +1220,7 @@ RoughCut.prototype = {
             this.bind_mousemove();
         }
     },
- 
+
     update_bar: function() {
         var left = this.left;
         var width = Math.max(2, this.right - left);
@@ -1277,10 +1295,9 @@ RoughCut.prototype = {
 
         if (this.playing) {
             this.startvideo.pause();
-            var frame = Math.max(this.start, Math.min(this.get_frame(this.dnd.x), this.stop - 1));
-            this.startvideo.seek(frame, true);
+            return this.scrub_playhead(this.dnd);
         }
-        else if (this.mode == 'edit') {
+        if (this.mode == 'edit') {
             var mid = (this.left + this.right) / 2;
             this.point = (event.clientX <= mid) ? 'left' : 'right';
             var frame = this.get_frame(event.clientX);
@@ -1292,6 +1309,12 @@ RoughCut.prototype = {
             }
             this.update_bar();
         }
+    },
+
+    scrub_playhead: function(dnd) {
+        var frame = this.get_frame(dnd.x);
+        this.pframe = frame;
+        this.startvideo.seek(frame);
     },
 
     on_dragcancel: function(dnd) {
@@ -1321,9 +1344,7 @@ RoughCut.prototype = {
     on_drag: function(dnd) {
         var frame = this.get_frame(dnd.x);
         if (this.playing) {
-            frame = Math.max(this.start, Math.min(frame, this.stop - 1));
-            this.startvideo.seek(frame);
-            return;
+            return this.scrub_playhead(dnd);
         }
         if (this.mode == 'create') {
             if (frame < this.orig_start) {
