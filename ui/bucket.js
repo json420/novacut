@@ -819,10 +819,16 @@ var Sequence = function(session, doc) {
 
     this.element.onmousedown = $bind(this.on_mousedown, this);
     this.element.onscroll = $bind(this.on_scroll, this);
+    this.element.onchildselect = $bind(this.on_childselect, this);
 }
 Sequence.prototype = {
     get top() {
         return this.element.offsetTop + 24;
+    },
+
+    on_childselect: function(id) {
+        console.log('childselect ' + id);
+        $hscroll($(id));
     },
 
     on_change: function(doc) {
@@ -1400,7 +1406,6 @@ RoughCut.prototype = {
             this.session.delayed_commit();
         }
     },
-
 }
 
 
@@ -1418,8 +1423,20 @@ function Clips() {
     this.load_projects();
     this.open = $('open_clips');
     this.open.onclick = $bind(this.on_open_click, this);
+
+    this.div.onchildselect = $bind(this.on_childselect, this);
 }
 Clips.prototype = {
+    on_childselect: function(id) {
+        console.log('childselect ' + id);
+        $hscroll($(id));
+        if (this.doc.selected_clips[this.id] != id) {
+            this.doc.selected_clips[this.id] = id;
+            this.session.save(this.doc, true);
+            this.session.delayed_commit();
+        }
+    },
+
     on_change: function(doc) {
         console.log('Clips.on_change');
         this.doc = doc;
@@ -1511,8 +1528,6 @@ Clips.prototype = {
     },
 
     on_mousedown: function(id, event) {
-        this.doc.selected_clips[this.id] = id;
-        this.session.save(this.doc, true);
         UI.select(id);
         this.dnd = new DragEvent(event);
         this.dnd.id = id;
@@ -1665,13 +1680,13 @@ var UI = {
 
     selected: null,
 
-    select: function(id, center) {
+    select: function(id) {
         $unselect(UI.selected);
         var element = $select(id);
         if (element) {
             UI.selected = id;
-            if (element.parentNode.id == 'sequence' || element.parentNode.id == 'clips') {
-                $hscroll(element, center);
+            if (element.parentNode && element.parentNode.onchildselect) {
+                element.parentNode.onchildselect(id);
             }
         }
         else {
