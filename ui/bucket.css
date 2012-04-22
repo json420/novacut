@@ -104,7 +104,7 @@ img {
     /*
     background: -webkit-linear-gradient(top, #333, #2a2a2a);
     */
-    background-color: rgba(0, 0, 0, 0.9);
+    background-color: rgba(15, 15, 15, 0.9);
     box-shadow: 0px 0px 10px 0px #e81f3b;
     border-radius: 12px;
     font-size: 16px;
@@ -216,7 +216,10 @@ img {
     bottom: 246px;
     left: 0;
     right: 0;
+    /*
     background: #333;
+    */
+    background: #301438;
     overflow: hidden;
 }
 
@@ -245,7 +248,7 @@ img {
     bottom: 0;
     left: 0;
     right: 0;
-    background-color: white;
+    background-color: #eee;
     
     overflow: hidden;
     white-space: nowrap;
