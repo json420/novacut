@@ -1892,6 +1892,8 @@ var UI = {
 
     render: function() {
         $("render-btn").disabled = true;
+        $("render-btn").blur();
+        UI.orb.toggle();
         console.log('render');
         Hub.send('hash_edit', UI.doc._id, UI.doc.root_id);
     },
@@ -1907,8 +1909,8 @@ var UI = {
         Hub.send('render_job', job_id);
     },
 
-    on_job_rendered: function(job_id, file_id) {
-        console.log(['job_rendered', job_id, file_id].join(' '));
+    on_job_rendered: function(job_id, file_id, link) {
+        console.log(['job_rendered', job_id, file_id, link].join(' '));
         //UI.player.src = 'dmedia:' + file_id;
         //UI.player.play();
         $("render-btn").disabled = false;
