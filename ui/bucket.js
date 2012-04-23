@@ -1030,6 +1030,7 @@ var RoughCut = function(session) {
 
     this.done = $('close_roughcut');
     this.done.onclick = function() {
+        this.blur();
         UI.hide_roughcut();
     }
 
@@ -1262,6 +1263,7 @@ RoughCut.prototype = {
 
     create_slice: function() {
         console.log('create_slice');
+        this.create_button.blur();
         this.count += 1;
         this.mode = 'create';
         this.endvideo.hide();
