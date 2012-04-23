@@ -73,7 +73,8 @@ class Worker(object):
         dst = self.Dmedia.AllocateTmp()
         renderer = Renderer(root, settings['node'], builder, dst)
         renderer.run()
-        _id = self.Dmedia.HashAndMove(dst, 'render')
+        d = self.Dmedia.HashAndMove(dst, 'render')
+        _id = d['file_id']
         doc = self.dmedia.get(_id)
         doc['render_of'] = job_id
         self.dmedia.save(doc)
@@ -82,7 +83,4 @@ class Worker(object):
             'time': doc['time'],
         }
         self.novacut.save(job)
-        return _id
-        return self.Dmedia.Resolve(_id)
-        
-        
+        return d

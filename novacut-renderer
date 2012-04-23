@@ -26,11 +26,13 @@ Script to fire-off a render.
 """
 
 import optparse
-import novacut2
+import json
 
 import gobject
 import dbus
 from dbus.mainloop.glib import DBusGMainLoop
+
+import novacut2
 
 
 gobject.threads_init()
@@ -46,5 +48,5 @@ job_id = args[0]
 
 from novacut2.worker import Worker
 worker = Worker()
-_id = worker.run(job_id)
-print(_id)
+d = worker.run(job_id)
+print(json.dumps(d, sort_keys=True, indent=4))

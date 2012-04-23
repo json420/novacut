@@ -132,8 +132,18 @@ class Service(dbus.service.Object):
 
     def render_job(self, job_id):
         cmd = [renderer, job_id]
-        file_id = subprocess.check_output(cmd).decode('utf-8')
-        return (self.JobRendered, job_id, file_id)
+        obj = json.loads(subprocess.check_output(cmd).decode('utf-8'))
+        name = path.join(
+            'Novacut',
+            '{}.ogv'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        )
+        link = path.join(HOME, name)
+        d = path.dirname(link)
+        if not path.isdir(d):
+            os.mkdir(d)
+        target = obj['file_path']
+        os.symlink(target, link)
+        return (self.JobRendered, job_id, obj['file_id'], name)
 
     def hash_edit(self, project_id, node_id):
         db = Database(schema.DB_NAME, self.env)
@@ -212,24 +222,12 @@ class Service(dbus.service.Object):
         key = ('render_job', job_id)
         return self.start_worker(key, job_id)
 
-    @dbus.service.signal(IFACE, signature='ss')
-    def JobRendered(self, job_id, file_id):
-        log.info('@JobRendered(%r, %r)', job_id, file_id)
-        print(type(file_id))
-        name = path.join(
-            'Novacut',
-            '{}.ogv'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-        )
-        link = path.join(HOME, name)
-        d = path.dirname(link)
-        if not path.isdir(d):
-            os.mkdir(d)
-        time.sleep(2)
-        target = self.Dmedia.Resolve(file_id)
-        os.symlink(target, link)
+    @dbus.service.signal(IFACE, signature='sss')
+    def JobRendered(self, job_id, file_id, link):
+        log.info('@JobRendered(%r, %r, %r)', job_id, file_id, link)
         if Notify is None:
             return
-        n = Notify.Notification.new('Render Complete', name, None)
+        n = Notify.Notification.new('Render Complete', link, None)
         n.show()
 
     @dbus.service.method(IFACE, in_signature='sai', out_signature='b')
