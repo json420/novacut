@@ -35,7 +35,6 @@ from os import path
 from threading import Thread
 import subprocess
 import logging
-from datetime import datetime
 
 import dbus
 import dbus.service
@@ -55,7 +54,6 @@ except ImportError:
 
 BUS = 'com.novacut.Renderer'
 IFACE = BUS
-HOME = path.abspath(os.environ['HOME'])
 
 GObject.threads_init()
 DBusGMainLoop(set_as_default=True)
@@ -133,17 +131,7 @@ class Service(dbus.service.Object):
     def render_job(self, job_id):
         cmd = [renderer, job_id]
         obj = json.loads(subprocess.check_output(cmd).decode('utf-8'))
-        name = path.join(
-            'Novacut',
-            '{}.ogv'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-        )
-        link = path.join(HOME, name)
-        d = path.dirname(link)
-        if not path.isdir(d):
-            os.mkdir(d)
-        target = obj['file_path']
-        os.symlink(target, link)
-        return (self.JobRendered, job_id, obj['file_id'], name)
+        return (self.JobRendered, job_id, obj['file_id'], obj['link'])
 
     def hash_edit(self, project_id, node_id):
         db = Database(schema.DB_NAME, self.env)

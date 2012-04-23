@@ -23,7 +23,10 @@
 Higher level worker that executes a render.
 """
 
+import os
+from os import path
 import json
+from datetime import datetime
 
 import dbus
 from dbus.mainloop.glib import DBusGMainLoop
@@ -36,6 +39,7 @@ from renderer import Builder, Renderer
 gobject.threads_init()
 DBusGMainLoop(set_as_default=True)
 session = dbus.SessionBus()
+HOME = path.abspath(os.environ['HOME'])
 
 
 class LiveBuilder(Builder):
@@ -73,14 +77,32 @@ class Worker(object):
         dst = self.Dmedia.AllocateTmp()
         renderer = Renderer(root, settings['node'], builder, dst)
         renderer.run()
-        d = self.Dmedia.HashAndMove(dst, 'render')
-        _id = d['file_id']
+
+        obj = self.Dmedia.HashAndMove(dst, 'render')
+        _id = obj['file_id']
         doc = self.dmedia.get(_id)
         doc['render_of'] = job_id
+
+        # Create the symlink
+        ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        if settings['node'].get('ext'):
+            ts += '.' + settings['node']['ext']
+        name = path.join('Novacut', ts)
+        link = path.join(HOME, name)
+        d = path.dirname(link)
+        if not path.isdir(d):
+            os.mkdir(d)
+        target = obj['file_path']
+        os.symlink(target, link)
+        doc['link'] = name
+
         self.dmedia.save(doc)
         job['renders'][_id] = {
             'bytes': doc['bytes'],
             'time': doc['time'],
+            'link': name,
         }
         self.novacut.save(job)
-        return d
+        
+        obj['link'] = name
+        return obj

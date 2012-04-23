@@ -30,26 +30,47 @@ from novacut import views
 
 
 def default_settings():
+#    node = {
+#        'muxer': {'name': 'oggmux'},
+#        'ext': 'ogv',
+#        'video': {
+#            'encoder': {
+#                'name': 'theoraenc',
+#                'props': {
+#                    'speed-level': 2,
+#                },
+#            },
+#            'filter': {
+#                'mime': 'video/x-raw-yuv',
+#                'caps': {
+#                    'width': 960,
+#                    'height': 540,
+#                },
+#            },
+#        },
+#        'audio': {
+#            'encoder': {
+#                'name': 'vorbisenc',
+#            },
+#        },
+#    }
     node = {
-        'muxer': {'name': 'oggmux'},
+        'muxer': {'name': 'avimux'},
+        'ext': 'avi',
         'video': {
             'encoder': {
-                'name': 'theoraenc',
+                'name': 'x264enc',
                 'props': {
-                    'speed-level': 2,
+                    'pass': 4,  # Quality-based encoding
+                    'quantizer': 18,  # Lower means higher-quality, default=21
                 },
             },
             'filter': {
                 'mime': 'video/x-raw-yuv',
                 'caps': {
-                    'width': 960,
-                    'height': 540,
+                    'width': 1280,
+                    'height': 720,
                 },
-            },
-        },
-        'audio': {
-            'encoder': {
-                'name': 'vorbisenc',
             },
         },
     }
