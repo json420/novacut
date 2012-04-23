@@ -30,10 +30,12 @@ start_time = time.time()
 
 import optparse
 import json
+import os
 from os import path
 from threading import Thread
 import subprocess
 import logging
+from datetime import datetime
 
 import dbus
 import dbus.service
@@ -44,9 +46,16 @@ from microfiber import Database, NotFound
 import novacut
 from novacut import schema
 
+try:
+    from gi.repository import Notify
+    Notify.init('novacut')
+except ImportError:
+    Notify = None
+
 
 BUS = 'com.novacut.Renderer'
 IFACE = BUS
+HOME = path.abspath(os.environ['HOME'])
 
 GObject.threads_init()
 DBusGMainLoop(set_as_default=True)
@@ -206,6 +215,22 @@ class Service(dbus.service.Object):
     @dbus.service.signal(IFACE, signature='ss')
     def JobRendered(self, job_id, file_id):
         log.info('@JobRendered(%r, %r)', job_id, file_id)
+        print(type(file_id))
+        name = path.join(
+            'Novacut',
+            '{}.ogv'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        )
+        link = path.join(HOME, name)
+        d = path.dirname(link)
+        if not path.isdir(d):
+            os.mkdir(d)
+        time.sleep(2)
+        target = self.Dmedia.Resolve(file_id)
+        os.symlink(target, link)
+        if Notify is None:
+            return
+        n = Notify.Notification.new('Render Complete', name, None)
+        n.show()
 
     @dbus.service.method(IFACE, in_signature='sai', out_signature='b')
     def Thumbnail(self, file_id, frames):

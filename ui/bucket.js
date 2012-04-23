@@ -1820,6 +1820,20 @@ var UI = {
             }
         },
 
+        // The David Fulde key
+        'U+0008': function(event) {
+            if (UI.selected != null) {
+                try {
+                    var doc = UI.session.get_doc(UI.selected);
+                    doc._deleted = true;
+                    UI.session.save(doc);
+                }
+                catch (e) {
+                    return;
+                }
+            }
+        },
+
         // Delete
         'U+007F': function(event) {
             if (UI.selected != null) {
@@ -1848,7 +1862,7 @@ var UI = {
                 }
             }
         },
-   
+
         // Escape
         'U+001B': function(event) {
             if (UI.player.active) {
