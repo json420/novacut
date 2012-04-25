@@ -21,6 +21,8 @@
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
+import time
+
 from userwebkit import BaseApp, session
 from microfiber import Conflict, NotFound
 
@@ -164,6 +166,10 @@ class App(BaseApp):
         #self.hub.send('project_created', doc['_id'])
 
     def on_load_project(self, hub, project_id):
+        print('load_project', project_id)
+        doc = self.db.get(project_id)
+        doc['atime'] = time.time()
+        self.db.save(doc)
         db = self.server.database(schema.project_db_name(project_id))
         views.init_views(db, views.novacut_projects)
         self.load_page('bucket.html#' + project_id)
