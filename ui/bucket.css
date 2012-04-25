@@ -207,6 +207,17 @@ img {
     */
 }
 
+::-webkit-scrollbar{
+    width:5px;
+    height:5px;
+    background:#222;
+}
+
+::-webkit-scrollbar-thumb{
+    border-radius:2px;
+    background:#999;
+}
+
 #clips img {
     width: 160px;
     height: 90px;
