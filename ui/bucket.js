@@ -1103,9 +1103,18 @@ RoughCut.prototype = {
     },
 
     show: function(id) {
-        this.count = 0;
-        this.x = 0;
+        console.log('show ' + id);
+        if (! this.element.classList.contains('hide')) {
+            this.x = this.x + 130 + 10 + (this.xf * 3);
+            if (this.x > document.body.clientWidth - 130) {
+                this.x = 0;
+            }
+        }
+        else {    
+            this.x = 0;
+        }
         this.y = 0;
+        this.count = 0;
         this.active = true;
         this.clip = this.session.get_doc(id);
         this.frames = this.clip.duration.frames;
@@ -1387,6 +1396,10 @@ RoughCut.prototype = {
         this.update_bar();
     },
 
+    xf: 25,
+
+    yf: 50,
+
     on_drop: function(dnd) {
         delete this.dnd;
         if (this.playing) {
@@ -1395,9 +1408,8 @@ RoughCut.prototype = {
         }
         if (this.mode == 'create') {
             this.save_to_slice();
-            var d = (this.count * 25);
-            var x = this.x + d;
-            var y = this.y + d;
+            var x = this.x + (this.count * this.xf);
+            var y = this.y + (this.count * this.yf);
             UI.sequence.doc.doodle.push({id: this.slice._id, x: x, y: y});
             this.session.save(UI.sequence.doc);
             this.session.delayed_commit();
