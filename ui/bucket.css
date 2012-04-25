@@ -160,8 +160,8 @@ img {
 #clips_outer {
     z-index: 2;
     position: fixed;
-    top: -136px;
-    height: 134px;
+    top: -140px;
+    height: 139px;
     left: 0;
     right: 0;
     overflow: hidden;
@@ -196,7 +196,7 @@ img {
     white-space: nowrap;
     font-size: 0;
     line-height: 0;
-    height: 92px;
+    height: 97px;
     
     /*
     Dear James, you are looking especially tall today, and tough and handsome.
@@ -439,7 +439,7 @@ Interesting 16:9 thumbnail sizes we might want to use:
 
 #roughcut {
     position: fixed;
-    top: 134px;
+    top: 139px;
     bottom: 0;
     left: 0;
     right: 0;
