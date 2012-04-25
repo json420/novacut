@@ -1716,6 +1716,25 @@ var UI = {
         }
     },
 
+    delete_selected: function() {
+        var element = $(UI.selected);
+        if (element) {
+            if (element.parentNode && element.parentNode.id == 'clips') {
+                console.log('no delete in clips browser');
+                return;
+            }
+            try {
+                var doc = UI.session.get_doc(element.id);
+                UI.previous();
+                doc._deleted = true;
+                UI.session.save(doc);
+            }
+            catch (e) {
+                return;
+            }
+        }
+    },
+
     first: function() {
         var element = $(UI.selected);
         if (element && element.parentNode) {
@@ -1833,31 +1852,14 @@ var UI = {
         },
 
         // The David Fulde key
+        // aka Backspace aka Big Delete on a mac keyboard
         'U+0008': function(event) {
-            if (UI.selected != null) {
-                try {
-                    var doc = UI.session.get_doc(UI.selected);
-                    doc._deleted = true;
-                    UI.session.save(doc);
-                }
-                catch (e) {
-                    return;
-                }
-            }
+            UI.delete_selected();
         },
 
         // Delete
         'U+007F': function(event) {
-            if (UI.selected != null) {
-                try {
-                    var doc = UI.session.get_doc(UI.selected);
-                    doc._deleted = true;
-                    UI.session.save(doc);
-                }
-                catch (e) {
-                    return;
-                }
-            }
+            UI.delete_selected();
         },
 
         // SpaceBar
