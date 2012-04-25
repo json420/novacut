@@ -191,11 +191,20 @@ img {
 
 #clips {
     width: 100%;
-    overflow: hidden;
+    overflow-y: hidden;
+    overflow-x: scroll;
     white-space: nowrap;
     font-size: 0;
     line-height: 0;
     height: 92px;
+    
+    /*
+    Dear James, you are looking especially tall today, and tough and handsome.
+    Could you please make this scrollbar less horible looking?
+    
+    Love,
+    Jason
+    */
 }
 
 #clips img {
