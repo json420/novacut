@@ -302,11 +302,10 @@ img {
 #bucket .slice {
     position: absolute;
     box-shadow: 0px 2px 5px 1px rgba(0,0,0,0.5);
-    /*
+    
     -webkit-transition-timing-function: ease;
-    -webkit-transition-duration: 200ms;
+    -webkit-transition-duration: 250ms;
     -webkit-transition-property: left, top;
-    */
 }
 
 #sequence .slice {
