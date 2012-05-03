@@ -23,12 +23,16 @@
 
 import time
 
-from userwebkit import BaseApp, session
+from userwebkit import BaseApp
 from microfiber import Conflict, NotFound
+import dbus
 
 import novacut
 from novacut import schema
 from novacut import views
+
+
+session = dbus.SessionBus()
 
 
 def default_settings():
