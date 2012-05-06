@@ -61,8 +61,8 @@ def default_settings():
 #        },
 #    }
     node = {
-        'muxer': {'name': 'qtmux'},
-        'ext': 'mov',
+        'muxer': {'name': 'avimux'},
+        'ext': 'avi',
         'video': {
             'encoder': {
                 'name': 'x264enc',
