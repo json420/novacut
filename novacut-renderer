@@ -27,6 +27,10 @@ Script to fire-off a render.
 
 import optparse
 import json
+import os
+
+# We run at a fairly low priority, so the UI stays responsive:
+os.nice(10)
 
 import gobject
 import dbus
