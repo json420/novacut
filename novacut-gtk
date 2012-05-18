@@ -79,6 +79,14 @@ def default_settings():
                 },
             },
         },
+        'audio': {
+            'encoder': {
+                'name': 'ffenc_ac3',
+                'props': {
+                    'bitrate': 256000,
+                },
+            },
+        },
     }
     return schema.create_settings(node)
 
