@@ -81,10 +81,10 @@ def default_settings():
         },
         'audio': {
             'encoder': {
-                'name': 'ffenc_ac3',
-                'props': {
-                    'bitrate': 256000,
-                },
+                'name': 'identity',
+            },
+            'filter': {
+                'mime': 'audio/x-raw-int',
             },
         },
     }
