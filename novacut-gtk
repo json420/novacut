@@ -125,6 +125,7 @@ class App(BaseApp):
 
         'render_job': ['job_id'],
         'job_rendered': ['job_id', 'file_id', 'link'],
+ 	'delete_project': ['project_id'],
     }
 
     __Renderer = None
@@ -159,6 +160,7 @@ class App(BaseApp):
         hub.connect('hash_edit', self.on_hash_edit)
         hub.connect('hash_job', self.on_hash_job)
         hub.connect('render_job', self.on_render_job)
+        hub.connect('delete_project', self.on_delete_project)
 
     def post_env_init(self):
         views.init_views(self.db, views.novacut_main)
@@ -176,6 +178,15 @@ class App(BaseApp):
         views.init_views(project, views.novacut_projects)
         self.load_page('bucket.html#' + doc['_id'])
         #self.hub.send('project_created', doc['_id'])
+
+    def on_delete_project(self, hub, project_id):
+        print('delete_project', project_id)
+        doc = self.db.get(project_id)
+        print(doc)
+        db = self.server.database(schema.project_db_name(project_id))
+        db.delete()
+        db = self.server
+        db.delete('novacut-0',project_id,rev=doc['_rev'])
 
     def on_load_project(self, hub, project_id):
         print('load_project', project_id)

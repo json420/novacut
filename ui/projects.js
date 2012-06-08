@@ -58,8 +58,18 @@ var UI = {
 
                 li.appendChild(thumb);
                 li.appendChild(info);
-
-                li.onclick = function() {
+		var del=document.createElement("img");
+		del.setAttribute('src', 'delete.png');
+		del.setAttribute('align', 'right');
+		del.onclick = function(){
+		    this.parentNode.parentNode.parentNode.removeChild(this.parentNode.parentNode);
+ 		    Hub.send('delete_project', row.id)
+		}
+		li.appendChild(del);
+                thumb.onclick = function() {
+                    Hub.send('load_project', row.id)
+                }
+                info.onclick = function() {
                     Hub.send('load_project', row.id)
                 }
 
