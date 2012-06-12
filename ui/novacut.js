@@ -2,7 +2,7 @@
 
 var novacut = new couch.Database('novacut-0');
 var dmedia = new couch.Database('dmedia-0');
-
+var history = new couch.Database('history')
 function parse_hash() {
     return window.location.hash.slice(1).split('/');
 }

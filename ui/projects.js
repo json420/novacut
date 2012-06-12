@@ -23,6 +23,48 @@ var UI = {
     load_items: function() {
         console.log('load_items');
         novacut.view(UI.on_items, 'project', 'title');
+        history.view(UI.on_history, 'project', 'title');
+    },
+
+    on_history: function(req){
+	var rows = req.read().rows;
+	console.log(rows.length);
+	var his = new Items('list');
+	his.replace(rows,
+		function(row, items) {
+		var pdb = new couch.Database("novacut-0-" + row.id.toLowerCase());
+		try{
+		    var filecount = pdb.view_sync('doc', 'type', {key: 'dmedia/file'}).rows[0].value;
+		}
+		catch(e){
+		    var filecount = 0;
+		}
+            
+                var li = $el('li', {'class': 'project', 'id': row.id});
+		li.setAttribute('draggable', 'true');
+		li.setAttribute('ondragstart', 'dragstart(event)');
+                var thumb = $el('div', {'class': 'thumbnail'});
+                thumb.style.backgroundImage = "url(/_apps/dmedia/novacut-avatar-192.png)";//novacut.att_css_url(row.id);
+
+                var info = $el('div', {'class': 'info'});
+                info.appendChild(
+                    $el('p', {'textContent': row.key, 'class': 'title'})
+                );
+
+                info.appendChild(
+                    $el('p', {'textContent': format_date(row.value)})
+                );
+
+                info.appendChild(
+                    $el('p', {'textContent': filecount + ' files'})
+                );
+
+                li.appendChild(thumb);
+                li.appendChild(info);
+
+                return li;
+            }
+        );
     },
 
     on_items: function(req) {
@@ -39,7 +81,6 @@ var UI = {
                 }
             
                 var li = $el('li', {'class': 'project', 'id': row.id});
-
                 var thumb = $el('div', {'class': 'thumbnail'});
                 thumb.style.backgroundImage = "url(/_apps/dmedia/novacut-avatar-192.png)";//novacut.att_css_url(row.id);
 
@@ -62,8 +103,9 @@ var UI = {
 		del.setAttribute('src', 'delete.png');
 		del.setAttribute('align', 'right');
 		del.onclick = function(){
-		    this.parentNode.parentNode.parentNode.removeChild(this.parentNode.parentNode);
+		    this.parentNode.parentNode.removeChild(this.parentNode);
  		    Hub.send('delete_project', row.id)
+		    UI.load_items();
 		}
 		li.appendChild(del);
                 thumb.onclick = function() {

@@ -9,16 +9,106 @@
         <script src="/_apps/dmedia/common.js"></script>
         <script src="novacut.js"></script>
         <script src="projects.js"></script>
+	<script>
+	function dragstart(ev){
+   		ev.dataTransfer.setData("Text", ev.target.id);
+		ev.dataTransfer.effectAllowed = 'move';
+	}
+	function enter(ev){
+		ev.target.setAttribute("style","background-color: rgba(255,255,255,0.15); height: 2000px;width = 2000px;");
+		return false;
+	}
+	function leave(ev){
+		ev.target.setAttribute("style","height: 2000px;width = 2000px");
+		return false;
+	}
+	function d(ev){
+	        ev.preventDefault();
+		ev.target.setAttribute("style","height: 2000px;width = 2000px;");
+		var data=ev.dataTransfer.getData("Text");
+		Hub.send('sos_project', data);
+		UI.load_items();
+		return false;
+	}
+	function over(ev){
+           ev.preventDefault();
+	}
+	</script>
+	<style>
+	.el{
+		cursor: move;
+	}
+#menu{
+	float: right;
+	padding: 3px 8px 0 0;
+        list-style: none;
+	cursor: default;
+}
+
+#menu li{
+        float: left;
+        padding: 0 0 10px 0;
+        position: relative;
+}
+
+#menu li:hover > a{
+        color: #fafafa;
+}
+#menu li:hover > ul{
+        display: block;
+}
+
+#menu ul{ /*container*/
+    min-width: 320px;
+    min-height: 26px;
+    list-style: none;
+    margin: 0px -269px;
+    padding: 4px;
+    display: none;
+    position: absolute;
+    top: 35px;
+    left: 0;
+    z-index: 99999;
+    background: #444;
+    border-radius: 10px;
+    box-shadow: 1px 1px 10px rgba(0,0,0,0.5);
+}
+#menu ul li{ /* projects*/
+    float: none;
+    margin: 10px;
+    padding: 0;
+    display: block;
+    cursor: move;
+}
+#menu ul:after{
+    content: '';
+    position: absolute;
+    left: 284px;
+    top: -15px;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 15px solid;
+}
+
+#menu ul:after{
+    border-bottom-color: #444;
+}
+
+	</style>
     </head>
     <body>
         <form id="new_project" class="head">
             <div class="grid_row">
                 <input placeholder="New project name" type="text" class="grid_4" autofocus>
                 <button class="grid_4" disabled>Create Project</button>
+                <ul id="menu"><li>
+                <a>History</a>
+  		<ul id="list"></ul>
+		</li></ul>
             </div>
         </form>
-
-        <ul id="projects"></ul>
-
+<ul style="height: 200px;width = 200px;" id="projects" ondragenter="enter(event)" ondragleave="leave(event)" ondrop="d(event)" ondragover="over(event);"></ul>
     </body>
 </html>
