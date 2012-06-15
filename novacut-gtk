@@ -81,7 +81,7 @@ def default_settings():
         },
         'audio': {
             'encoder': {
-                'name': 'vorbisenc',
+                'name': 'identity',
             },
             'filter': {
                 'mime': 'audio/x-raw-int',
