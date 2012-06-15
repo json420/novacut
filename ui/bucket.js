@@ -1735,6 +1735,19 @@ var UI = {
         }
     },
 
+    duplicate_selected: function(dnd) {
+	var element = $(UI.selected);
+	var doc = UI.session.get_doc(element.id);
+	var ndoc = create_slice(doc.node.src,doc.node.stop.frame);
+	ndoc.node.start.frame = doc.node.start.frame;
+	UI.session.save(ndoc);
+	var slice = new Slice(UI.session, ndoc);
+	slice.x = 64;
+	slice.y = 36;
+	UI.bucket.appendChild(slice.element);
+        UI.sequence.do_reorder();
+    },
+
     first: function() {
         var element = $(UI.selected);
         if (element && element.parentNode) {
@@ -1849,6 +1862,9 @@ var UI = {
             if (UI.player.active) {
                 UI.player.hold_and_resume();
             }
+        },
+ 	'U+0044': function(event) {
+           UI.duplicate_selected(event);
         },
 
         // The David Fulde key
