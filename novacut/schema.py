@@ -370,6 +370,7 @@ def create_project(title=''):
         'atime': ts,
         'db_name': project_db_name(_id),
         'title': title,
+	'isdeleted': False,
     }
 
 

@@ -184,20 +184,14 @@ class App(BaseApp):
     def on_delete_project(self, hub, project_id):
         print('delete_project', project_id)
         doc = self.db.get(project_id)		
-        db = self.server
-        db.delete('novacut-0',project_id,rev=doc['_rev'])
-        db = self.server.database('history')
-        doc.pop('_rev')
-        db.post(doc)
-        views.init_views(db, views.novacut_main)
+       	doc['isdeleted'] = True
+        self.db.post(doc)
 
     def on_sos_project(self,hub,project_id):
         print('sos_project', project_id)
-        db = self.server.database('history')
-        doc = db.get(project_id)
-        db = self.server
-        db.delete('history',project_id,rev=doc['_rev'])
-        doc.pop('_rev')
+        doc = self.db.get(project_id)
+        print(doc)
+       	doc['isdeleted'] = False
         self.db.post(doc)
 	
 

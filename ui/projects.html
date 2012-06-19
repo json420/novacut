@@ -27,7 +27,10 @@
 		ev.target.setAttribute("style","height: 2000px;width = 2000px;");
 		var data=ev.dataTransfer.getData("Text");
 		Hub.send('sos_project', data);
-		UI.load_items();
+		element = document.getElementById(data);
+		element.parentNode.removeChild(element);
+		var doc = novacut.get_sync(data)		
+		UI.add_item(data,doc.title,doc.time,countFiles(data));
 		return false;
 	}
 	function over(ev){
