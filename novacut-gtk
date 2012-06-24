@@ -67,7 +67,7 @@ def default_settings():
             'encoder': {
                 'name': 'x264enc',
                 'props': {
-                    'pass': 4,  # Quality-based encoding
+                    'pass': 5,  # Quality-based encoding
                     'quantizer': 18,  # Lower means higher-quality, default=21
                 },
             },
