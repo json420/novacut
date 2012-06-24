@@ -61,15 +61,11 @@ def default_settings():
 #        },
 #    }
     node = {
-        'muxer': {'name': 'avimux'},
-        'ext': 'avi',
+        'muxer': {'name': 'oggmux'},
+        'ext': 'ogv',
         'video': {
             'encoder': {
-                'name': 'x264enc',
-                'props': {
-                    'pass': 5,  # Quality-based encoding
-                    'quantizer': 18,  # Lower means higher-quality, default=21
-                },
+                'name': 'theoraenc',
             },
             'filter': {
                 'mime': 'video/x-raw-yuv',
@@ -81,10 +77,7 @@ def default_settings():
         },
         'audio': {
             'encoder': {
-                'name': 'identity',
-            },
-            'filter': {
-                'mime': 'audio/x-raw-int',
+                'name': 'vorbisenc',
             },
         },
     }

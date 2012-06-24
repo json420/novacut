@@ -139,12 +139,15 @@ def build_slice(builder, doc, offset=0):
     start = to_gst_time(node['start'], clip)
     stop = to_gst_time(node['stop'], clip)
     duration = stop - start
-    
+
     if node['stream'] == 'both':
         streams = ['video', 'audio']
     else:
         streams = [node['stream']]
-        
+
+    #streams = ['video', 'audio']
+    #streams = ['audio']
+
     for stream in streams:
         # Create the element, set the URI, and select the stream
         element = gst.element_factory_make('gnlurisource')
@@ -327,6 +330,7 @@ class Renderer(object):
         for src in self.sources:
             self.pipeline.add(src)
             src.connect('pad-added', self.on_pad_added)
+            src.connect('no-more-pads', self.on_no_more_pads)
         self.pipeline.add(self.mux, self.sink)
 
         # Set properties
@@ -364,14 +368,20 @@ class Renderer(object):
         return el
 
     def on_pad_added(self, element, pad):
-        name = pad.get_caps()[0].get_name()
-        log.debug('pad-added: %r', name)
-        if name.startswith('audio/'):
-            assert self.audio is None
-            self.audio = self.link_pad(pad, name, 'audio')
-        elif name.startswith('video/'):
-            assert self.video is None
-            self.video = self.link_pad(pad, name, 'video')
+        try:
+            string = pad.get_caps().to_string()
+            log.debug('pad-added: %r', string)
+            if string.startswith('audio/'):
+                assert self.audio is None
+                self.audio = self.link_pad(pad, string, 'audio')
+            elif string.startswith('video/'):
+                assert self.video is None
+                self.video = self.link_pad(pad, string, 'video')
+        except Exception as e:
+            log.exception('Error in Renderer.on_pad_added():')
+
+    def on_no_more_pads(self, element):
+        log.info('no more pads')
 
     def on_eos(self, bus, msg):
         log.info('eos')

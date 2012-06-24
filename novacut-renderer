@@ -50,6 +50,8 @@ parser = optparse.OptionParser(
 (options, args) = parser.parse_args()
 job_id = args[0]
 
+novacut2.configure_logging()
+
 from novacut2.worker import Worker
 worker = Worker()
 d = worker.run(job_id)
