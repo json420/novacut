@@ -161,6 +161,8 @@ def build_slice(builder, doc, offset=0):
         # These properties are about the position of the slice in the composition
         element.set_property('start', offset)
         element.set_property('duration', duration)
+        
+        log.info('%s %d:%d %s', stream, start, duration, clip['_id'])
 
         builder.add(element, stream)
         
@@ -236,6 +238,7 @@ class EncoderBin(gst.Bin):
         self._d = d
 
         # Create elements
+        self._identity = self._make('identity', {'single-segment': True})
         self._q1 = self._make('queue')
         self._q2 = self._make('queue')
         self._q3 = self._make('queue')
@@ -245,6 +248,7 @@ class EncoderBin(gst.Bin):
         self._caps = make_caps(d.get('filter'))
 
         # Link elements
+        self._identity.link(self._q1)
         if self._caps is None:
             self._q2.link(self._enc)
         else:
@@ -253,7 +257,7 @@ class EncoderBin(gst.Bin):
 
         # Ghost Pads
         self.add_pad(
-            gst.GhostPad('sink', self._q1.get_pad('sink'))
+            gst.GhostPad('sink', self._identity.get_pad('sink'))
         )
         self.add_pad(
             gst.GhostPad('src', self._q3.get_pad('src'))
@@ -295,10 +299,9 @@ class VideoEncoder(EncoderBin):
         # Create elements:
         self._scale = self._make('ffvideoscale', {'method': 10})
         self._color = self._make('ffmpegcolorspace')
-        self._rate = self._make('videorate')
 
         # Link elements:
-        gst.element_link_many(self._q1, self._scale, self._color, self._rate, self._q2)
+        gst.element_link_many(self._q1, self._scale, self._color, self._q2)
 
 
 class Renderer(object):
