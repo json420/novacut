@@ -61,11 +61,16 @@ def default_settings():
 #        },
 #    }
     node = {
-        'muxer': {'name': 'oggmux'},
-        'ext': 'ogv',
+        'muxer': {'name': 'avimux'},
+        'ext': 'avi',
         'video': {
             'encoder': {
-                'name': 'theoraenc',
+                'name': 'x264enc',
+                'props': {
+                    'pass': 5,  # Quality-based encoding
+                    'quantizer': 15,  # Lower means higher-quality, default=21
+                    'psy-tune': 5,  # Tune for SSIM
+                },
             },
             'filter': {
                 'mime': 'video/x-raw-yuv',
@@ -75,9 +80,20 @@ def default_settings():
                 },
             },
         },
+#        'audio': {
+#            'encoder': {
+#                'name': 'identity',
+#            },
+#            'filter': {
+#                'mime': 'audio/x-raw-int',
+#            },
+#        },
         'audio': {
             'encoder': {
-                'name': 'vorbisenc',
+                'name': 'ffenc_aac',
+                'props': {
+                    'bitrate': 256000,
+                },
             },
         },
     }
