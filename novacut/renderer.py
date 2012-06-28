@@ -29,12 +29,12 @@ Build GnonLin composition from Novacut edit description.
 
 import logging
 
+import gi
+gi.require_version('Gst', '1.0')
 from gi.repository import GObject, Gst
-
 
 GObject.threads_init()
 Gst.init(None)
-SECOND = 1000000000  # FIXME: Workaround for broken Gst.SECOND
 log = logging.getLogger()
 
 
@@ -63,6 +63,7 @@ def make_element(desc):
 
     """
     el = Gst.ElementFactory.make(desc['name'], None)
+    assert el is not None
     if desc.get('props'):
         for (key, value) in desc['props'].items():
             el.set_property(key, value)
@@ -126,10 +127,10 @@ def to_gst_time(spec, doc):
     if 'frame' in spec:
         num = doc['framerate']['num']
         denom = doc['framerate']['denom']
-        return spec['frame'] * SECOND * denom // num
+        return spec['frame'] * Gst.SECOND * denom // num
     if 'sample' in spec:
         rate = doc['samplerate']
-        return spec['sample'] * SECOND // rate
+        return spec['sample'] * Gst.SECOND // rate
     raise ValueError('invalid time spec: {!r}'.format(spec))
 
 
@@ -206,10 +207,10 @@ class EncoderBin(Gst.Bin):
 
         # Ghost Pads
         self.add_pad(
-            Gst.GhostPad.new('sink', self._q1.get_pad('sink'))
+            Gst.GhostPad.new('sink', self._q1.get_static_pad('sink'))
         )
         self.add_pad(
-            Gst.GhostPad.new('src', self._q3.get_pad('src'))
+            Gst.GhostPad.new('src', self._q3.get_static_pad('src'))
         )
 
     def __repr__(self):
@@ -247,8 +248,8 @@ class VideoEncoder(EncoderBin):
         super(VideoEncoder, self).__init__(d)
 
         # Create elements:
-        self._scale = self._make('ffvideoscale', {'method': 10})
-        self._color = self._make('ffmpegcolorspace')
+        self._scale = self._make('videoscale', {'method': 10})
+        self._color = self._make('videoconvert')
         self._rate = self._make('videorate')
 
         # Link elements:
