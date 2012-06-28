@@ -325,18 +325,22 @@ class Renderer(object):
         self.bus.connect('message::error', self.on_error)
 
         # Create elements
-        self.sources = builder.build_root(root)
         self.mux = make_element(settings['muxer'])
         self.sink = gst.element_factory_make('filesink')
 
-        self.recieved = set()
-        self.expected = set(self.sources)
+        self.pipeline.add(self.mux)
+        self.pipeline.add(self.sink)
+
         # Add elements to pipeline
-        for src in self.sources:
+        self.sources = builder.build_root(root)
+        self.encoders = {}
+        for key in ('video', 'audio'):
+            src = getattr(builder, key)
+            if src is None:
+                continue
+            self.encoders[key] = self.create_encoder(key)
+            src.connect('pad-added', self.on_pad_added, key)
             self.pipeline.add(src)
-            src.connect('pad-added', self.on_pad_added)
-            src.connect('no-more-pads', self.on_no_more_pads)
-        self.pipeline.add(self.mux, self.sink)
 
         # Set properties
         self.sink.set_property('location', dst)
@@ -349,7 +353,7 @@ class Renderer(object):
         self.video = None
  
     def run(self):
-        self.pipeline.set_state(gst.STATE_PAUSED)
+        self.pipeline.set_state(gst.STATE_PLAYING)
         self.mainloop.run()
 
     def kill(self):
@@ -357,40 +361,26 @@ class Renderer(object):
         self.pipeline.get_state()
         self.mainloop.quit()
 
-    def link_pad(self, pad, name, key):
-        log.info('link_pad: %r, %r, %r', pad, name, key)
+    def create_encoder(self, key):
         if key in self.settings:
             klass = {'audio': AudioEncoder, 'video': VideoEncoder}[key]
             el = klass(self.settings[key])
         else:
             el = gst.element_factory_make('fakesink')
         self.pipeline.add(el)
-        log.info('Linking pad %r with %r', name, el)
-        pad.link(el.get_compatible_pad(pad, pad.get_caps()))
         if key in self.settings:
+            log.info(el)
             el.link(self.mux)
-        el.set_state(gst.STATE_PLAYING)
         return el
 
-    def on_pad_added(self, element, pad):
+    def on_pad_added(self, element, pad, key):
         try:
             string = pad.get_caps().to_string()
-            log.debug('pad-added: %r', string)
-            if string.startswith('audio/'):
-                assert self.audio is None
-                self.audio = self.link_pad(pad, string, 'audio')
-            elif string.startswith('video/'):
-                assert self.video is None
-                self.video = self.link_pad(pad, string, 'video')
+            log.info('pad-added: %r %r', key, string)
+            enc = self.encoders[key]
+            pad.link(enc.get_compatible_pad(pad, pad.get_caps()))
         except Exception as e:
             log.exception('Error in Renderer.on_pad_added():')
-
-    def on_no_more_pads(self, element):
-        log.info('no more pads')
-        self.recieved.add(element)
-        if self.recieved == self.expected:
-            log.info('all pads recieved, going to STATE_PLAYING')
-            self.pipeline.set_state(gst.STATE_PLAYING)
 
     def on_eos(self, bus, msg):
         log.info('eos')
