@@ -329,6 +329,8 @@ class Renderer(object):
         self.mux = make_element(settings['muxer'])
         self.sink = gst.element_factory_make('filesink')
 
+        self.recieved = set()
+        self.expected = set(self.sources)
         # Add elements to pipeline
         for src in self.sources:
             self.pipeline.add(src)
@@ -345,9 +347,9 @@ class Renderer(object):
 
         self.audio = None
         self.video = None
-
+ 
     def run(self):
-        self.pipeline.set_state(gst.STATE_PLAYING)
+        self.pipeline.set_state(gst.STATE_PAUSED)
         self.mainloop.run()
 
     def kill(self):
@@ -385,6 +387,10 @@ class Renderer(object):
 
     def on_no_more_pads(self, element):
         log.info('no more pads')
+        self.recieved.add(element)
+        if self.recieved == self.expected:
+            log.info('all pads recieved, going to STATE_PLAYING')
+            self.pipeline.set_state(gst.STATE_PLAYING)
 
     def on_eos(self, bus, msg):
         log.info('eos')

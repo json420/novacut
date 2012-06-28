@@ -64,7 +64,7 @@ function create_slice(src, frame_count) {
         'src': src,
         'start': {'frame': 0},
         'stop': {'frame': frame_count},
-        'stream': 'video',
+        'stream': 'both',
     }
     return create_node(node);
 }
@@ -83,7 +83,7 @@ function create_sequence() {
 
 function SlicePlayer() {
     this.video = document.createElement('video');
-    this.video.muted = true;
+    //this.video.muted = true;
     this.video.addEventListener('canplaythrough',
         $bind(this.on_canplaythrough, this)
     );
