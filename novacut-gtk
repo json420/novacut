@@ -26,6 +26,7 @@ import time
 from userwebkit import BaseApp
 from microfiber import Conflict, NotFound
 import dbus
+from dmedia.util import init_views
 
 import novacut
 from novacut import schema
@@ -174,7 +175,7 @@ class App(BaseApp):
         hub.connect('sos_project', self.on_sos_project)
 
     def post_env_init(self):
-        views.init_views(self.db, views.novacut_main)
+        init_views(self.db, views.novacut_main)
 
     def dmedia_resolver(self, uri):
         return self.proxy.ResolveURI(uri)
@@ -186,7 +187,7 @@ class App(BaseApp):
         project = self.server.database(doc['db_name'])
         project.put(None)  # Create DB
         project.post(doc)
-        views.init_views(project, views.novacut_projects)
+        init_views(project, views.novacut_projects)
         self.load_page('bucket.html#' + doc['_id'])
         #self.hub.send('project_created', doc['_id'])
 
@@ -210,7 +211,7 @@ class App(BaseApp):
         doc['atime'] = time.time()
         self.db.save(doc)
         db = self.server.database(schema.project_db_name(project_id))
-        views.init_views(db, views.novacut_projects)
+        init_views(db, views.novacut_projects)
         self.load_page('bucket.html#' + project_id)
 
     def on_copy_docs(self, hub, src_db, dst_db, doc_ids):

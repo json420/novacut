@@ -57,6 +57,14 @@ function(doc) {
 }
 """
 
+node_design = {
+    '_id': '_design/node',
+    'views': {
+        'type': {'map': node_type, 'reduce': _count},
+        'src': {'map': node_src, 'reduce': _count},
+    },
+}
+
 
 # For novacut/project docs:
 project_atime = """
@@ -75,64 +83,26 @@ function(doc) {
 }
 """
 
+project_design = {
+    '_id': '_design/project',
+    'views': {
+        'atime': {'map': project_atime},
+        'title': {'map': project_title},
+    },
+}
+
 
 # Design docs for main novacut-VER database
 novacut_main = (
     doc_design, 
-
-    ('project', (
-        ('atime', project_atime, None),
-        ('title', project_title, None),
-    )),
+    project_design,
 )
 
 
 novacut_projects = (
+    node_design,
     doc_design,
     media_design,
     camera_design,
-
-    ('node', (
-        ('type', node_type, _count),
-        ('src', node_src, _count),
-    )),
 )
 
-
-def iter_views(views):
-    for (name, map_, reduce_) in views:
-        if reduce_ is None:
-            yield (name, {'map': map_.strip()})
-        else:
-            yield (name, {'map': map_.strip(), 'reduce': reduce_.strip()})
-
-
-def build_design_doc(design, views):
-    doc = {
-        '_id': '_design/' + design,
-        'language': 'javascript',
-        'views': dict(iter_views(views)),
-    }
-    return doc
-
-
-def update_design_doc(db, doc):
-    assert '_rev' not in doc
-    try:
-        old = db.get(doc['_id'])
-        doc['_rev'] = old['_rev']
-        if doc != old:
-            db.save(doc)
-            return 'changed'
-        else:
-            return 'same'
-    except NotFound:
-        db.save(doc)
-        return 'new'
-
-
-def init_views(db, designs):
-    log.info('Initializing views in %r', db)
-    for (name, views) in designs:
-        doc = build_design_doc(name, views)
-        update_design_doc(db, doc)
