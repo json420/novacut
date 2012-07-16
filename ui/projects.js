@@ -1,6 +1,5 @@
 "use strict";
 
-
 function open_project(project_id) {
     window.location.assign('cutter.html#' + project_id); 
 }
@@ -16,24 +15,47 @@ function countFiles(project_id){
 	return filecount;
 }
 
+function getOffset( el ) {//get the coordinates of an element
+    var _x = 0;
+    var _y = 0;
+    while( el && !isNaN( el.offsetLeft ) && !isNaN( el.offsetTop ) ) {
+        _x += el.offsetLeft - el.scrollLeft;
+        _y += el.offsetTop - el.scrollTop;
+        el = el.offsetParent;
+    }
+    return { y: _y, x: _x };
+}
+
+function generateAnimation(x,y){//generate the animation for the elimination of a project
+	var keyframeprefix = "-webkit-";
+	var keyframes = '@' + keyframeprefix + 'keyframes arg { '+'0% {' + keyframeprefix + 'transform:scale(1)}'+'100% {' + keyframeprefix + 'transform:translatex('+x+'px) translatey('+y+'px) scale(0.001)}'+'}';
+	var s = document.createElement( 'style' );
+	s.innerHTML = keyframes;
+	document.getElementsByTagName( 'head' )[ 0 ].appendChild( s );
+}
+
 var UI = {
     init: function() {
         UI.form = $('new_project');
         UI.input = UI.form.getElementsByTagName('input')[0];
         UI.button = UI.form.getElementsByTagName('button')[0];
-        //UI.project = new Project(novacut);
-        //UI.items = new Items('projects');
         
         UI.form.onsubmit = UI.on_submit;
         UI.input.oninput = UI.on_input;
         
 	UI.hist = document.getElementById('list');
 	UI.proj = document.getElementById('projects');
+
+
+	UI.binDesc ="<p>Here you can find your removed projects<br>Click on <img style=\"width:13px;\" src=\"delete.png\"></img>&nbsp;&nbsp;&nbsp;to remove a project<br>Drag a project out of here to restore it</p>";
+	UI.binMax = 5;
+	UI.binSearch = "<input id=\"s\" onkeyup=\"UI.Search()\"><img id=\"lens\" src=\"search.png\"></img></input>";
+
+	UI.removed = new Array();
         UI.load_items();
     },
 
     load_items: function() {
-	//UI.add_history("qwe","nome",3333,3);
         console.log('load_items');
         novacut.view(UI.on_items, 'project', 'title');
     },
@@ -42,18 +64,41 @@ var UI = {
         var rows = req.read().rows;
         console.log(rows.length);
 	for(var b in rows){
-		var a = rows[b]
-		var pdb = new couch.Database("novacut-0-" + a.id.toLowerCase());
-		try{
-		    var filecount = pdb.view_sync('doc', 'type', {key: 'dmedia/file'}).rows[0].value;
-		}
-		catch(e){
-		    var filecount = 0;
-		}
-		var doc = novacut.get_sync(a.id)
+		var a = rows[b];
+		var filecount = countFiles(a.id);
+		var doc = novacut.get_sync(a.id);
 		if(!doc.isdeleted) UI.add_item(a.id,a.key,a.value,filecount);
-		else UI.add_history(a.id,a.key,a.value,filecount);
+		else UI.removed.push(Array(a.id,a.key,a.value,filecount));
 	}
+	if(UI.removed.length == 0){
+		document.getElementById("cont").innerHTML=UI.binDesc;	
+	}else if(UI.removed.length <= UI.binMax){
+		for(var b in UI.removed){
+			var a = UI.removed[b];
+			UI.add_history(a[0],a[1],a[2],a[3]);
+		}
+
+	}else{
+		document.getElementById("cont").innerHTML = UI.binSearch;
+		for(var b = 0;b<UI.binMax;b++){
+			var a = UI.removed[b];
+			UI.add_history(a[0],a[1],a[2],a[3]);
+		}
+	} 
+    },
+
+    Search: function(){
+	var text = document.getElementById("s").value;
+	UI.hist.innerHTML = "";
+	var count = 0;
+	for(var b in UI.removed){
+		var a = UI.removed[b];
+		if(a[1].indexOf(text) != -1){
+			count++;
+			UI.add_history(a[0],a[1],a[2],a[3]);
+			if(count == UI.binMax)break;
+		}
+	} 
     },
 
     add_history: function(id,name,date,filecount){
@@ -80,7 +125,6 @@ var UI = {
                 li.appendChild(info);
 		UI.hist.appendChild(li);
     },
-
     add_item: function(id,name,date,filecount) {
                 var li = $el('li', {'class': 'project', 'id': id});
                 var thumb = $el('div', {'class': 'thumbnail'});
@@ -105,10 +149,18 @@ var UI = {
 		del.setAttribute('src', 'delete.png');
 		del.setAttribute('align', 'right');
 		del.onclick = function(){
-		    this.parentNode.parentNode.removeChild(this.parentNode);
+   		    var pos = getOffset(this.parentNode);
+		    var end = getOffset( document.getElementById("ico"));
+		    generateAnimation(end.x-pos.x,end.y-pos.y-30);
+		    this.parentNode.style.webkitAnimationName = "arg";
+		    var s = this;
+		    setTimeout(function(){s.parentNode.parentNode.removeChild(s.parentNode)},320,s);
  		    Hub.send('delete_project', id)
 		    var doc = novacut.get_sync(id)
-		    UI.add_history(id,doc.title,doc.time,countFiles(id));
+		    UI.removed.push(Array(id,doc.title,doc.time,countFiles(id)));
+		    document.getElementById("cont").innerHTML = "";
+		    if (UI.removed.length > UI.binMax) document.getElementById("cont").innerHTML = UI.binSearch;
+		    else UI.add_history(id,doc.title,doc.time,countFiles(id));
 		}
 		li.appendChild(del);
                 thumb.onclick = function() {
