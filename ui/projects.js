@@ -45,6 +45,7 @@ var UI = {
         
 	UI.hist = document.getElementById('list');
 	UI.proj = document.getElementById('projects');
+	UI.proj.style.height = window.innerHeight-50+"px";
 
 
 	UI.binDesc ="<p>Here you can find your removed projects<br>Click on <img style=\"width:13px;\" src=\"delete.png\"></img>&nbsp;&nbsp;&nbsp;to remove a project<br>Drag a project out of here to restore it</p>";

@@ -539,3 +539,22 @@ Interesting 16:9 thumbnail sizes we might want to use:
     margin: 0;
     pointer-events: none;
 }
+
+#shortcuts{
+	position:fixed;
+    background-color: rgba(15, 15, 15, 0.85);
+text-shadow: 2px 2px 3px rgba(255, 0, 0, 0.5);
+    box-shadow: 0px 0px 10px 0px #e81f3b;
+    border-radius: 12px;
+    font-size: 16px;
+	display:none;
+	z-index:999;
+}
+#shortcuts table{
+	padding: 20px;
+}
+#shortcuts td{
+	padding-top :4px;
+	padding-left: 15px;
+	padding-right: 15px;
+}

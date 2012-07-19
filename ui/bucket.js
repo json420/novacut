@@ -1661,6 +1661,8 @@ var UI = {
         window.addEventListener('keyup', UI.on_keyup);
         UI.bucket = $('bucket');
         UI.orb = new LoveOrb();
+	    document.getElementById('shortcuts').style.marginTop = window.innerHeight/2-200+"px";
+	    document.getElementById('shortcuts').style.marginLeft = window.innerWidth/2-255+"px";
 
         // Create and start the CouchDB session 
         UI.session = new couch.Session(UI.db, UI.on_new_doc);       
@@ -1945,6 +1947,20 @@ var UI = {
         //UI.player.play();
         $("render-btn").disabled = false;
     },
+}
+
+function showShort(event){
+    console.log('show');
+    UI.orb.toggle();
+    document.getElementById("shortcuts").style.display = "block";
+    event.stopPropagation();
+    document.body.onclick = $bind(hideShort);
+}
+
+function hideShort(event){
+    console.log('hide');
+    document.getElementById("shortcuts").style.display = "none";
+    event.stopPropagation();
 }
 
 window.addEventListener('load', UI.init);
