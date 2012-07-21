@@ -61,10 +61,12 @@ session = dbus.SessionBus()
 log = logging.getLogger()
 
 
-dirname = path.dirname(path.abspath(__file__))
-renderer = path.join(dirname, 'novacut-renderer')
+tree = path.dirname(path.dirname(path.abspath(novacut.__file__)))
+in_tree = path.isfile(path.join(tree, 'setup.py'))
+bindir = (tree if in_tree else '/usr/bin')
+renderer = path.join(bindir, 'novacut-renderer')
 assert path.isfile(renderer)
-thumbnailer = path.join(dirname, 'novacut-thumbnailer')
+thumbnailer = path.join(bindir, 'novacut-thumbnailer')
 assert path.isfile(thumbnailer)
 
 

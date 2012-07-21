@@ -132,9 +132,5 @@ setup(
     license='AGPLv3+',
     cmdclass={'test': Test},
     packages=['novacut2'],
-    data_files=[
-        ('lib/novacut',
-            ['novacut-renderer', 'novacut-thumbnailer'],
-        ),
-    ],
+    scripts=['novacut-renderer', 'novacut-thumbnailer'],
 )
