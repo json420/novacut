@@ -31,22 +31,17 @@ from subprocess import check_call
 from unittest import TestCase
 
 
-# FIXME: This will be improved by using dmedia to hold sample videos
-
-home = path.abspath(os.environ['HOME'])
-testdir = path.join(home, '.novacut-test-files')
-
 def resolve(_id):
-    return path.join(testdir, _id + '.mov')
+    """
+    A dummy Dmedia-like resolver.
+    """
+    return path.join('/home', '.dmedia', 'files', _id[:2], _id[2:])
 
-sample_url = 'http://uds-o.novacut.com/'
 
-sample1 = 'NPY3IW5SQJUNSP2KV47GVB24G7SWX6XF'
 sample1 = 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
-sample2 = 'ENN6AVN2M42ZQULASQNKTTDISIL3YKHE'
 sample2 = 'W62OZLFQUSKE4K6SLJWJ4EHFDUTRLD7JKQXUQMDJSSUG6TAQ'
-sample3 = 'ESK6ZSMJGEAUZNI2YZUCJBZFF5LYGYIB'
-sample3 = 'NS4LKGOBMTDFWZOOAAJPYJIDFMHGYEJXWB23VJV6O53CBV7B'
+
+assert resolve(sample1) == '/home/.dmedia/files/VQ/IXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
 
 
 class TempDir(object):
