@@ -184,7 +184,7 @@ _builders = {
 }
 
 
-class Builder::
+class Builder:
     def __init__(self):
         self.last = None
         self.audio = None
