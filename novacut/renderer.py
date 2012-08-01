@@ -40,6 +40,9 @@ stream_map = {
     'audio': 'audio/x-raw',
 }
 
+# Provide very clear TypeError messages:
+TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
+
 
 def stream_caps(stream):
     return Gst.caps_from_string(stream_map[stream])
@@ -51,36 +54,45 @@ class NoSuchElement(Exception):
         super().__init__('GStreamer element {!r} not available'.format(name))
 
 
-def _make_element(name):
+def make_element(name, props=None):
+    if not isinstance(name, str):
+        raise TypeError(
+            TYPE_ERROR.format('name', str, type(name), name)
+        )
+    if not (props is None or isinstance(props, dict)):
+        raise TypeError(
+            TYPE_ERROR.format('props', dict, type(props), props)
+        )
     element = Gst.ElementFactory.make(name, None)
     if element is None:
         log.error('could not create GStreamer element %r', name)
         raise NoSuchElement(name)
+    if props:
+        for (key, value) in props.items():
+            element.set_property(key, value)
     return element
 
 
-def make_element(desc):
+def element_from_desc(desc):
     """
     Create a GStreamer element and set its properties.
 
     For example:
 
-    >>> enc = make_element({'name': 'theoraenc'})
+    >>> enc = element_from_desc({'name': 'theoraenc'})
     >>> enc.get_property('quality')
     48
 
     Or with properties:
 
-    >>> enc = make_element({'name': 'theoraenc', 'props': {'quality': 40}})
+    >>> enc = element_from_desc({'name': 'theoraenc', 'props': {'quality': 40}})
     >>> enc.get_property('quality')
     40
 
     """
-    el = _make_element(desc['name'])
-    if desc.get('props'):
-        for (key, value) in desc['props'].items():
-            el.set_property(key, value)
-    return el
+    if isinstance(desc, dict):
+        return make_element(desc['name'], desc.get('props'))
+    return make_element(desc)
 
 
 def caps_string(desc):
@@ -164,7 +176,7 @@ def build_slice(builder, doc, offset=0):
 
     for stream in streams:
         # Create the element, set the URI, and select the stream
-        element = Gst.ElementFactory.make('gnlurisource', None)
+        element = make_element('gnlurisource')
         element.set_property('uri', 'file://' + builder.resolve_file(clip['_id']))
         element.set_property('caps', stream_caps(stream))
 
@@ -206,12 +218,12 @@ class Builder:
 
     def get_audio(self):
         if self.audio is None:
-            self.audio = Gst.ElementFactory.make('gnlcomposition', None)
+            self.audio = make_element('gnlcomposition')
         return self.audio
 
     def get_video(self):
         if self.video is None:
-            self.video = Gst.ElementFactory.make('gnlcomposition', None)
+            self.video = make_element('gnlcomposition')
         return self.video
 
     def add(self, element, stream):
@@ -256,7 +268,7 @@ class EncoderBin(Gst.Bin):
         self._q1 = self._make('queue')
         self._q2 = self._make('queue')
         self._q3 = self._make('queue')
-        self._enc = self._make(d['encoder'])
+        self._enc = self._from_desc(d['encoder'])
 
         # Create the filter caps
         self._caps = make_caps(d.get('filter'))
@@ -280,15 +292,15 @@ class EncoderBin(Gst.Bin):
     def __repr__(self):
         return '{}({!r})'.format(self.__class__.__name__, self._d)
 
-    def _make(self, desc, props=None):
-        """
-        Create gst element, set properties, and add to this bin.
-        """
-        if isinstance(desc, str):
-            desc = {'name': desc, 'props': props}
-        el = make_element(desc)
-        self.add(el)
-        return el
+    def _make(self, name, props=None):
+        element = make_element(name, props)
+        self.add(element)
+        return element
+
+    def _from_desc(self, desc):
+        element = element_from_desc(desc)
+        self.add(element)
+        return element
 
 
 class AudioEncoder(EncoderBin):
@@ -342,8 +354,8 @@ class Renderer:
         self.bus.connect('message::error', self.on_error)
 
         # Create elements
-        self.mux = make_element(settings['muxer'])
-        self.sink = Gst.ElementFactory.make('filesink', None)
+        self.mux = element_from_desc(settings['muxer'])
+        self.sink = make_element('filesink')
 
         self.pipeline.add(self.mux)
         self.pipeline.add(self.sink)
@@ -383,7 +395,7 @@ class Renderer:
             klass = {'audio': AudioEncoder, 'video': VideoEncoder}[key]
             el = klass(self.settings[key])
         else:
-            el = Gst.ElementFactory.make('fakesink', None)
+            el = make_element('fakesink')
         self.pipeline.add(el)
         if key in self.settings:
             log.info(el)

@@ -194,22 +194,53 @@ class TestNoSuchElement(TestCase):
 
 
 class TestFunctions(TestCase):
-    def test_make_element_base(self):
+    def test_make_element(self):
+        # Test with bad 'name' type:
+        with self.assertRaises(TypeError) as cm:
+            renderer.make_element(b'theoraenc')
+        self.assertEqual(
+            str(cm.exception),
+            "name: need a <class 'str'>; got a <class 'bytes'>: b'theoraenc'"
+        )
+
+        # Test with bad 'props' type:
+        with self.assertRaises(TypeError) as cm:
+            renderer.make_element('video/x-raw', 'width=800')
+        self.assertEqual(
+            str(cm.exception),
+            "props: need a <class 'dict'>; got a <class 'str'>: 'width=800'"
+        )
+
+        # Test our assumptions about Gst.ElementFactory.make():
+        self.assertIsNone(Gst.ElementFactory.make('foobar', None))
+
         # Test that NoSuchElement is raised
         with self.assertRaises(renderer.NoSuchElement) as cm:
-            renderer._make_element('foobar')
+            renderer.make_element('foobar')
         self.assertEqual(
             str(cm.exception),
             "GStreamer element 'foobar' not available"
         )
 
-        element = renderer._make_element('theoraenc')
+        # Test with a good element
+        element = renderer.make_element('theoraenc')
         self.assertIsInstance(element, Gst.Element)
         self.assertEqual(element.get_factory().get_name(), 'theoraenc')
+        self.assertEqual(element.get_property('quality'), 48)
+        self.assertEqual(element.get_property('speed-level'), 1)
 
-    def test_make_element(self):
+        # Test with props also
+        element = renderer.make_element('theoraenc',
+            {'quality': 40, 'speed-level': 2}
+        )
+        self.assertIsInstance(element, Gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'theoraenc')
+        self.assertEqual(element.get_property('quality'), 40)
+        self.assertEqual(element.get_property('speed-level'), 2)
+
+    def test_element_from_desc(self):
         d = {'name': 'theoraenc'}
-        el = renderer.make_element(d)
+        el = renderer.element_from_desc(d)
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'theoraenc')
         self.assertEqual(el.get_property('keyframe-force'), 64)
@@ -222,7 +253,7 @@ class TestFunctions(TestCase):
                 'keyframe-force': 16,
             },
         }
-        el = renderer.make_element(d)
+        el = renderer.element_from_desc(d)
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'theoraenc')
         self.assertEqual(el.get_property('keyframe-force'), 16)
