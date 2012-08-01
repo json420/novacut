@@ -392,12 +392,11 @@ class Renderer:
         self.video = None
  
     def run(self):
-        self.pipeline.set_state(Gst.STATE_PLAYING)
+        self.pipeline.set_state(Gst.State.PLAYING)
         self.mainloop.run()
 
     def kill(self):
-        self.pipeline.set_state(Gst.STATE_NULL)
-        self.pipeline.get_state()
+        self.pipeline.set_state(Gst.State.NULL)
         self.mainloop.quit()
 
     def create_encoder(self, key):

@@ -98,6 +98,23 @@ def default_settings():
             },
         },
     }
+    node = {
+        'muxer': 'oggmux',
+        'ext': 'ogv',
+        'video': {
+            'encoder': 'theoraenc',
+            'filter': {
+                'mime': 'video/x-raw',
+                'caps': {
+                    'width': 1280,
+                    'height': 720,
+                },
+            },
+        },
+        'audio': {
+            'encoder': 'vorbisenc',
+        },
+    }
     return schema.create_settings(node)
 
 
