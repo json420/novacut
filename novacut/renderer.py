@@ -75,17 +75,27 @@ def make_element(name, props=None):
 
 def element_from_desc(desc):
     """
-    Create a GStreamer element and set its properties.
+    Create a GStreamer element from a JSON serializable description.
 
     For example:
 
+    >>> enc = element_from_desc('theoraenc')
+    >>> enc.get_factory().get_name()
+    'theoraenc'
+    
+    Or from a ``dict`` with the element name:
+
     >>> enc = element_from_desc({'name': 'theoraenc'})
+    >>> enc.get_factory().get_name()
+    'theoraenc'
     >>> enc.get_property('quality')
     48
 
-    Or with properties:
+    Or from a ``dict`` with the element name and props:
 
     >>> enc = element_from_desc({'name': 'theoraenc', 'props': {'quality': 40}})
+    >>> enc.get_factory().get_name()
+    'theoraenc'
     >>> enc.get_property('quality')
     40
 

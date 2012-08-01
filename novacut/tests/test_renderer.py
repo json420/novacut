@@ -239,6 +239,12 @@ class TestFunctions(TestCase):
         self.assertEqual(element.get_property('speed-level'), 2)
 
     def test_element_from_desc(self):
+        el = renderer.element_from_desc('theoraenc')
+        self.assertIsInstance(el, Gst.Element)
+        self.assertEqual(el.get_factory().get_name(), 'theoraenc')
+        self.assertEqual(el.get_property('keyframe-force'), 64)
+        self.assertEqual(el.get_property('quality'), 48)
+
         d = {'name': 'theoraenc'}
         el = renderer.element_from_desc(d)
         self.assertIsInstance(el, Gst.Element)
