@@ -45,6 +45,20 @@ def stream_caps(stream):
     return Gst.caps_from_string(stream_map[stream])
 
 
+class NoSuchElement(Exception):
+    def __init__(self, name):
+        self.name = name
+        super().__init__('GStreamer element {!r} not available'.format(name))
+
+
+def _make_element(name):
+    element = Gst.ElementFactory.make(name, None)
+    if element is None:
+        log.error('could not create GStreamer element %r', name)
+        raise NoSuchElement(name)
+    return element
+
+
 def make_element(desc):
     """
     Create a GStreamer element and set its properties.
@@ -62,7 +76,7 @@ def make_element(desc):
     40
 
     """
-    el = Gst.ElementFactory.make(desc['name'], None)
+    el = _make_element(desc['name'])
     if desc.get('props'):
         for (key, value) in desc['props'].items():
             el.set_property(key, value)

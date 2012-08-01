@@ -185,7 +185,28 @@ class DummyBuilder(renderer.Builder):
         return resolve(_id)
 
 
+class TestNoSuchElement(TestCase):
+    def test_init(self):
+        inst = renderer.NoSuchElement('foobar')
+        self.assertIsInstance(inst, Exception)
+        self.assertEqual(inst.name, 'foobar')
+        self.assertEqual(str(inst), "GStreamer element 'foobar' not available")
+
+
 class TestFunctions(TestCase):
+    def test_make_element_base(self):
+        # Test that NoSuchElement is raised
+        with self.assertRaises(renderer.NoSuchElement) as cm:
+            renderer._make_element('foobar')
+        self.assertEqual(
+            str(cm.exception),
+            "GStreamer element 'foobar' not available"
+        )
+
+        element = renderer._make_element('theoraenc')
+        self.assertIsInstance(element, Gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'theoraenc')
+
     def test_make_element(self):
         d = {'name': 'theoraenc'}
         el = renderer.make_element(d)
