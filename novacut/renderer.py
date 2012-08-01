@@ -413,10 +413,10 @@ class Renderer:
 
     def on_pad_added(self, element, pad, key):
         try:
-            string = pad.get_caps().to_string()
+            string = pad.query_caps(None).to_string()
             log.info('pad-added: %r %r', key, string)
             enc = self.encoders[key]
-            pad.link(enc.get_compatible_pad(pad, pad.get_caps()))
+            pad.link(enc.get_static_pad('sink'))
         except Exception as e:
             log.exception('Error in Renderer.on_pad_added():')
 
@@ -425,6 +425,6 @@ class Renderer:
         self.kill()
 
     def on_error(self, bus, msg):
-        error = msg.parse_error()[1]
-        log.error(error)
+        self.error = msg.parse_error()
+        log.error(self.error)
         self.kill()
