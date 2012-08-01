@@ -30,13 +30,13 @@ from datetime import datetime
 
 import dbus
 from dbus.mainloop.glib import DBusGMainLoop
-import gobject
-from dc3lib.microfiber import Database
+from gi.repository import GObject
+from microfiber import Database
 
-from renderer import Builder, Renderer
+from .renderer import Builder, Renderer
 
 
-gobject.threads_init()
+GObject.threads_init()
 DBusGMainLoop(set_as_default=True)
 session = dbus.SessionBus()
 HOME = path.abspath(os.environ['HOME'])
@@ -44,7 +44,7 @@ HOME = path.abspath(os.environ['HOME'])
 
 class LiveBuilder(Builder):
     def __init__(self, Dmedia, db):
-        super(LiveBuilder, self).__init__()
+        super().__init__()
         self.Dmedia = Dmedia
         self.db = db
         self._cache = {}
@@ -61,11 +61,10 @@ class LiveBuilder(Builder):
             return doc
 
 
-class Worker(object):
+class Worker:
     def __init__(self):
         self.Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
         env = json.loads(self.Dmedia.GetEnv())
-        env['url'] = env['url'].encode('utf-8')
         self.novacut = Database('novacut-0', env)
         self.dmedia = Database('dmedia-0', env)
 
