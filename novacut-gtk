@@ -103,12 +103,9 @@ def default_settings():
         'ext': 'ogv',
         'video': {
             'encoder': 'theoraenc',
-            'filter': {
-                'mime': 'video/x-raw',
-                'caps': {
-                    'width': 1280,
-                    'height': 720,
-                },
+            'caps': {
+                'width': 1280,
+                'height': 720,
             },
         },
         'audio': {
