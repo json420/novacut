@@ -105,39 +105,33 @@ def element_from_desc(desc):
     return make_element(desc)
 
 
-def caps_string(desc):
+def caps_string(mime, caps=None):
     """
     Build a GStreamer caps string.
 
     For example:
 
-    >>> desc = {'mime': 'video/x-raw'}
-    >>> caps_string(desc)
+    >>> caps_string('video/x-raw')
     'video/x-raw'
 
     Or with specific caps:
 
-    >>> desc = {
-    ...     'mime': 'video/x-raw',
-    ...     'caps': {'width': 800, 'height': 450},
-    ... }
-    ...
-    >>> caps_string(desc)
+    >>> caps_string('video/x-raw', {'width': 800, 'height': 450})
     'video/x-raw, height=450, width=800'
 
     """
-    accum = [desc['mime']]
-    if desc.get('caps'):
-        caps = desc['caps']
+    assert mime in ('audio/x-raw', 'video/x-raw')
+    accum = [mime]
+    if caps:
         for key in sorted(caps):
             accum.append('{}={}'.format(key, caps[key]))
     return ', '.join(accum)
 
 
-def make_caps(desc):
-    if not desc:
+def make_caps(mime, caps):
+    if caps is None:
         return None
-    return Gst.caps_from_string(caps_string(desc))
+    return Gst.caps_from_string(caps_string(mime, caps))
 
 
 
@@ -269,9 +263,10 @@ class EncoderBin(Gst.Bin):
     Base class for `AudioEncoder` and `VideoEncoder`.
     """
 
-    def __init__(self, d):
+    def __init__(self, d, mime):
         super().__init__()
         self._d = d
+        assert mime in ('audio/x-raw', 'video/x-raw')
 
         # Create elements
         self._identity = self._make('identity', {'single-segment': True})
@@ -281,7 +276,7 @@ class EncoderBin(Gst.Bin):
         self._enc = self._from_desc(d['encoder'])
 
         # Create the filter caps
-        self._caps = make_caps(d.get('filter'))
+        self._caps = make_caps(mime, d.get('caps'))
 
         # Link elements
         self._identity.link(self._q1)
@@ -315,7 +310,7 @@ class EncoderBin(Gst.Bin):
 
 class AudioEncoder(EncoderBin):
     def __init__(self, d):
-        super().__init__(d)
+        super().__init__(d, 'audio/x-raw')
 
         # Create elements:
         self._conv = self._make('audioconvert')
@@ -331,7 +326,7 @@ class AudioEncoder(EncoderBin):
 
 class VideoEncoder(EncoderBin):
     def __init__(self, d):
-        super().__init__(d)
+        super().__init__(d, 'video/x-raw')
 
         # Create elements:
         self._scale = self._make('videoscale', {'method': 3})

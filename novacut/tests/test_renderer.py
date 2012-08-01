@@ -266,62 +266,32 @@ class TestFunctions(TestCase):
         self.assertEqual(el.get_property('quality'), 40)
 
     def test_caps_string(self):
-        f = renderer.caps_string
-
-        d = {'mime': 'audio/x-raw'}
         self.assertEqual(
-            f(d),
+            renderer.caps_string('audio/x-raw'),
             'audio/x-raw'
         )
 
-        d = {
-            'mime': 'audio/x-raw',
-            'caps': {'rate': 44100},
-        }
         self.assertEqual(
-            f(d),
+            renderer.caps_string('audio/x-raw', {'rate': 44100}), 
             'audio/x-raw, rate=44100'
         )
 
-        d = {
-            'mime': 'audio/x-raw',
-            'caps': {'rate': 44100, 'channels': 1},
-        }
         self.assertEqual(
-            f(d),
+            renderer.caps_string('audio/x-raw', {'rate': 44100, 'channels': 1}),
             'audio/x-raw, channels=1, rate=44100'
         )
 
     def test_make_caps(self):
-        f = renderer.make_caps
+        self.assertIsNone(renderer.make_caps('audio/x-raw', None))
 
-        self.assertIsNone(f({}))
-        self.assertIsNone(f(None))
-
-        d = {'mime': 'audio/x-raw'}
-        c = f(d)
-        self.assertIsInstance(c, Gst.Caps)
-        self.assertEqual(
-            c.to_string(),
-            'audio/x-raw'
-        )
-
-        d = {
-            'mime': 'audio/x-raw',
-            'caps': {'rate': 44100},
-        }
-        c = f(d)
+        c = renderer.make_caps('audio/x-raw', {'rate': 44100})
         self.assertIsInstance(c, Gst.Caps)
         self.assertEqual(
             c.to_string(),
             'audio/x-raw, rate=(int)44100'
         )
 
-        d = {
-            'mime': 'audio/x-raw',
-            'caps': {'rate': 44100, 'channels': 1},
-        }
-        c = f(d)
+        c = renderer.make_caps('audio/x-raw', {'rate': 44100, 'channels': 1})
         self.assertIsInstance(c, Gst.Caps)
         self.assertEqual(
             c.to_string(),
@@ -497,7 +467,6 @@ class TestBuilder(TestCase):
 
 
 class TestEncodeBin(TestCase):
-    klass = renderer.EncoderBin
 
     def test_init(self):
         # with props
@@ -509,8 +478,9 @@ class TestEncodeBin(TestCase):
                 },
             },
         }
-        inst = self.klass(d)
+        inst = renderer.EncoderBin(d, 'audio/x-raw')
         self.assertTrue(inst._d is d)
+        return
 
         for el in (inst._q1, inst._q2, inst._q3):
             self.assertIsInstance(el, Gst.Element)
@@ -526,7 +496,7 @@ class TestEncodeBin(TestCase):
 
         # default properties
         d = {'encoder': {'name': 'vorbisenc'}}
-        inst = self.klass(d)
+        inst = renderer.EncoderBin(d, 'audio/x-raw')
         self.assertTrue(inst._d is d)
 
         self.assertTrue(inst._q1.get_parent() is inst)
@@ -557,7 +527,7 @@ class TestEncodeBin(TestCase):
                 'caps': {'rate': 44100, 'channels': 1},
             },
         }
-        inst = self.klass(d)
+        inst = renderer.EncoderBin(d, 'audio/x-raw')
         self.assertTrue(inst._d is d)
         self.assertIsInstance(inst._caps, Gst.Caps)
         self.assertEqual(
@@ -573,23 +543,23 @@ class TestEncodeBin(TestCase):
             },
         }
 
-        inst = self.klass(d)
+        inst = renderer.EncoderBin(d, 'audio/x-raw')
         self.assertEqual(
             repr(inst),
-            'EncoderBin(%r)' % (d,)
+            'EncoderBin({!r})'.format(d)
         )
 
-        class FooBar(self.klass):
+        class FooBar(renderer.EncoderBin):
             pass
-        inst = FooBar(d)
+        inst = FooBar(d, 'audio/x-raw')
         self.assertEqual(
             repr(inst),
-            'FooBar(%r)' % (d,)
+            'FooBar({!r})'.format(d)
         )
 
     def test_make(self):
         d = {'encoder': 'vorbisenc'}
-        inst = self.klass(d)
+        inst = renderer.EncoderBin(d, 'audio/x-raw')
 
         enc = inst._make('theoraenc')
         self.assertTrue(enc.get_parent() is inst)
@@ -607,8 +577,6 @@ class TestEncodeBin(TestCase):
 
 
 class TestAudioEncoder(TestCase):
-    klass = renderer.AudioEncoder
-
     def test_init(self):
         d = {
             'encoder': {
@@ -618,25 +586,28 @@ class TestAudioEncoder(TestCase):
                 },
             },
         }
-        inst = self.klass(d)
+        inst = renderer.AudioEncoder(d)
         self.assertTrue(isinstance(inst._enc, Gst.Element))
         self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
         self.assertEqual(inst._enc.get_property('quality'), 0.5)
+        self.assertIsNone(inst._caps)
 
         d = {
             'encoder': {
                 'name': 'vorbisenc',
                 'props': {'quality': 0.25},
             },
-            'filter': {
-                'mime': 'audio/x-raw',
-                'caps': {'rate': 44100},
-            },
+            'caps': {'rate': 44100},
         }
-        inst = self.klass(d)
+        inst = renderer.AudioEncoder(d)
         self.assertTrue(isinstance(inst._enc, Gst.Element))
         self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
         self.assertEqual(inst._enc.get_property('quality'), 0.25)
+        self.assertIsInstance(inst._caps, Gst.Caps)
+        self.assertEqual(
+            inst._caps.to_string(),
+            'audio/x-raw, rate=(int)44100'
+        )
 
 
 class TestVideoEncoder(TestCase):
@@ -659,13 +630,10 @@ class TestVideoEncoder(TestCase):
                 'name': 'theoraenc',
                 'props': {'quality': 40},
             },
-            'filter': {
-                'mime': 'video/x-raw',
-                'caps': {
-                    #'format': 'Y42B',  # FIXME: Hmm, why does this break it?
-                    'width': 960,
-                    'height': 540,
-                },
+            'caps': {
+                'format': 'Y42B',
+                'width': 960,
+                'height': 540,
             },
         }
         inst = renderer.VideoEncoder(d)
@@ -676,7 +644,7 @@ class TestVideoEncoder(TestCase):
         self.assertIsInstance(inst._caps, Gst.Caps)
         self.assertEqual(
             inst._caps.to_string(),
-            'video/x-raw, height=(int)540, width=(int)960'
+            'video/x-raw, format=(string)Y42B, height=(int)540, width=(int)960'
         )
 
 
