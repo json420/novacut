@@ -30,7 +30,7 @@ import gst
 from dc3lib.microfiber import random_id
 from novacut2 import renderer
 
-from .base import LiveTestCase, TempDir, resolve, sample1, sample2
+from .base import TempDir, resolve, sample1, sample2
 
 
 clip1 = random_id()
@@ -654,26 +654,3 @@ class TestRenderer(TestCase):
         self.assertEqual(inst.sink.get_factory().get_name(), 'filesink')
         self.assertEqual(inst.sink.get_property('location'), dst)
 
-
-class TestAbusively(LiveTestCase):
-    def test_canned(self):
-        tmp = TempDir()
-        builder = DummyBuilder(docs)
-
-        job = {
-            'src': sequence3,
-            'muxer': {'name': 'oggmux'},
-            'video': {
-                'encoder': {'name': 'theoraenc'},
-                'filter': {
-                    'mime': 'video/x-raw-yuv',
-                    'caps': {
-                        'width': '640',
-                        'height': '360',
-                    },
-                },
-            },
-        }
-        dst = tmp.join('out1.ogv')
-        inst = renderer.Renderer(job, builder, dst)
-        inst.run()

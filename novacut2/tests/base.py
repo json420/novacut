@@ -94,19 +94,3 @@ class TempDir(object):
 
     def __del__(self):
         self.rmtree()
-
-
-class LiveTestCase(TestCase):
-    """
-    Base class for tests that need the sample video files available locally.
-
-    If the needed files are not available, the tests are skipped.
-    """
-
-    samples = (sample1, sample2)
-
-    def setUp(self):
-        for _id in self.samples:
-            f = resolve(_id)
-            if not path.isfile(f):
-                self.skipTest('missing {!r}'.format(f))
