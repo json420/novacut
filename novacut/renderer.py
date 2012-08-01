@@ -184,7 +184,7 @@ _builders = {
 }
 
 
-class Builder(object):
+class Builder::
     def __init__(self):
         self.last = None
         self.audio = None
@@ -234,7 +234,7 @@ class EncoderBin(Gst.Bin):
     """
 
     def __init__(self, d):
-        super(EncoderBin, self).__init__()
+        super().__init__()
         self._d = d
 
         # Create elements
@@ -279,7 +279,7 @@ class EncoderBin(Gst.Bin):
 
 class AudioEncoder(EncoderBin):
     def __init__(self, d):
-        super(AudioEncoder, self).__init__(d)
+        super().__init__(d)
 
         # Create elements:
         self._conv = self._make('audioconvert')
@@ -295,7 +295,7 @@ class AudioEncoder(EncoderBin):
 
 class VideoEncoder(EncoderBin):
     def __init__(self, d):
-        super(VideoEncoder, self).__init__(d)
+        super().__init__(d)
 
         # Create elements:
         self._scale = self._make('videoscale', {'method': 3})
@@ -307,7 +307,7 @@ class VideoEncoder(EncoderBin):
         self._color.link(self._q2)
 
 
-class Renderer(object):
+class Renderer:
     def __init__(self, root, settings, builder, dst):
         """
         Initialize.
