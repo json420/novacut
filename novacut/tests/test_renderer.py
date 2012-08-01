@@ -25,10 +25,9 @@ Unit tests for the `novacut.renderer` module.
 
 from unittest import TestCase
 
-import gst
-
-from dc3lib.microfiber import random_id
-from novacut2 import renderer
+from microfiber import random_id
+from novacut import renderer
+from gi.repository import Gst
 
 from .base import TempDir, resolve, sample1, sample2
 
@@ -190,7 +189,7 @@ class TestFunctions(TestCase):
     def test_make_element(self):
         d = {'name': 'theoraenc'}
         el = renderer.make_element(d)
-        self.assertIsInstance(el, gst.Element)
+        self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'theoraenc')
         self.assertEqual(el.get_property('keyframe-force'), 64)
         self.assertEqual(el.get_property('quality'), 48)
@@ -203,7 +202,7 @@ class TestFunctions(TestCase):
             },
         }
         el = renderer.make_element(d)
-        self.assertIsInstance(el, gst.Element)
+        self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'theoraenc')
         self.assertEqual(el.get_property('keyframe-force'), 16)
         self.assertEqual(el.get_property('quality'), 40)
@@ -211,28 +210,28 @@ class TestFunctions(TestCase):
     def test_caps_string(self):
         f = renderer.caps_string
 
-        d = {'mime': 'audio/x-raw-float'}
+        d = {'mime': 'audio/x-raw'}
         self.assertEqual(
             f(d),
-            'audio/x-raw-float'
+            'audio/x-raw'
         )
 
         d = {
-            'mime': 'audio/x-raw-float',
+            'mime': 'audio/x-raw',
             'caps': {'rate': 44100},
         }
         self.assertEqual(
             f(d),
-            'audio/x-raw-float, rate=44100'
+            'audio/x-raw, rate=44100'
         )
 
         d = {
-            'mime': 'audio/x-raw-float',
+            'mime': 'audio/x-raw',
             'caps': {'rate': 44100, 'channels': 1},
         }
         self.assertEqual(
             f(d),
-            'audio/x-raw-float, channels=1, rate=44100'
+            'audio/x-raw, channels=1, rate=44100'
         )
 
     def test_make_caps(self):
@@ -241,34 +240,34 @@ class TestFunctions(TestCase):
         self.assertIsNone(f({}))
         self.assertIsNone(f(None))
 
-        d = {'mime': 'audio/x-raw-float'}
+        d = {'mime': 'audio/x-raw'}
         c = f(d)
-        self.assertIsInstance(c, gst.Caps)
+        self.assertIsInstance(c, Gst.Caps)
         self.assertEqual(
             c.to_string(),
-            'audio/x-raw-float'
+            'audio/x-raw'
         )
 
         d = {
-            'mime': 'audio/x-raw-float',
+            'mime': 'audio/x-raw',
             'caps': {'rate': 44100},
         }
         c = f(d)
-        self.assertIsInstance(c, gst.Caps)
+        self.assertIsInstance(c, Gst.Caps)
         self.assertEqual(
             c.to_string(),
-            'audio/x-raw-float, rate=(int)44100'
+            'audio/x-raw, rate=(int)44100'
         )
 
         d = {
-            'mime': 'audio/x-raw-float',
+            'mime': 'audio/x-raw',
             'caps': {'rate': 44100, 'channels': 1},
         }
         c = f(d)
-        self.assertIsInstance(c, gst.Caps)
+        self.assertIsInstance(c, Gst.Caps)
         self.assertEqual(
             c.to_string(),
-            'audio/x-raw-float, channels=(int)1, rate=(int)44100'
+            'audio/x-raw, channels=(int)1, rate=(int)44100'
         )
 
     def test_build_slice(self):
@@ -285,63 +284,63 @@ class TestFunctions(TestCase):
         }
 
         # Video stream, offset=0
-        self.assertEqual(renderer.build_slice(b, doc, 0), 4 * gst.SECOND)
+        self.assertEqual(renderer.build_slice(b, doc, 0), 4 * Gst.SECOND)
         el = b.last
-        self.assertIsInstance(el, gst.Element)
+        self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('start'), 0)
-        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
-        self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw-rgb')
+        self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw')
         self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
         # Video stream, offset=3s
         self.assertEqual(
-            renderer.build_slice(b, doc, 3 * gst.SECOND),
-            4 * gst.SECOND
+            renderer.build_slice(b, doc, 3 * Gst.SECOND),
+            4 * Gst.SECOND
         )
         el = b.last
-        self.assertIsInstance(el, gst.Element)
+        self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
-        self.assertEqual(el.get_property('start'), 3 * gst.SECOND)
-        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
-        self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw-rgb')
+        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('start'), 3 * Gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw')
         self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
         # Audio stream, offset=0
         doc['node']['stream'] = 'audio'
-        self.assertEqual(renderer.build_slice(b, doc, 0), 4 * gst.SECOND)
+        self.assertEqual(renderer.build_slice(b, doc, 0), 4 * Gst.SECOND)
         el = b.last
-        self.assertIsInstance(el, gst.Element)
+        self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('start'), 0)
-        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(
             el.get_property('caps').to_string(),
-            'audio/x-raw-int; audio/x-raw-float'
+            'audio/x-raw'
         )
         self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
         # Audio stream, offset=3s
         self.assertEqual(
-            renderer.build_slice(b, doc, 3 * gst.SECOND),
-            4 * gst.SECOND
+            renderer.build_slice(b, doc, 3 * Gst.SECOND),
+            4 * Gst.SECOND
         )
         el = b.last
-        self.assertIsInstance(el, gst.Element)
+        self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
-        self.assertEqual(el.get_property('start'), 3 * gst.SECOND)
-        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('start'), 3 * Gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(
             el.get_property('caps').to_string(),
-            'audio/x-raw-int; audio/x-raw-float'
+            'audio/x-raw'
         )
         self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
@@ -355,35 +354,35 @@ class TestFunctions(TestCase):
                 'stop': {'sample': 12 * 48000},
             },
         }
-        self.assertEqual(renderer.build_slice(b, doc, 0), 4 * gst.SECOND)
+        self.assertEqual(renderer.build_slice(b, doc, 0), 4 * Gst.SECOND)
         el = b.last
-        self.assertIsInstance(el, gst.Element)
+        self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('start'), 0)
-        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(
             el.get_property('caps').to_string(),
-            'audio/x-raw-int; audio/x-raw-float'
+            'audio/x-raw'
         )
         self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
         # Audio stream specified in samples, offset=3s
         self.assertEqual(
-            renderer.build_slice(b, doc, 3 * gst.SECOND),
-            4 * gst.SECOND
+            renderer.build_slice(b, doc, 3 * Gst.SECOND),
+            4 * Gst.SECOND
         )
         el = b.last
-        self.assertIsInstance(el, gst.Element)
+        self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * gst.SECOND)
-        self.assertEqual(el.get_property('start'), 3 * gst.SECOND)
-        self.assertEqual(el.get_property('duration'), 4 * gst.SECOND)
+        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
+        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('start'), 3 * Gst.SECOND)
+        self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(
             el.get_property('caps').to_string(),
-            'audio/x-raw-int; audio/x-raw-float'
+            'audio/x-raw'
         )
         self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
 
@@ -391,13 +390,13 @@ class TestFunctions(TestCase):
         b = DummyBuilder(docs)
         self.assertEqual(
             renderer.build_sequence(b, b.get_doc(sequence1), 0),
-            7 * gst.SECOND
+            7 * Gst.SECOND
         )
 
         b = DummyBuilder(docs)
         self.assertEqual(
             renderer.build_sequence(b, b.get_doc(sequence2), 0),
-            9 * gst.SECOND
+            9 * Gst.SECOND
         )
 
 
@@ -414,21 +413,21 @@ class TestBuilder(TestCase):
         self.assertIsNone(builder.video)
         self.assertIsNone(builder.audio)
 
-        child1 = gst.element_factory_make('gnlurisource')
+        child1 = Gst.ElementFactory.make('gnlurisource', None)
         self.assertIsNone(builder.add(child1, 'video'))
         self.assertIs(child1.get_parent(), builder.video)
         self.assertIs(builder.last, child1)
-        self.assertIsInstance(builder.video, gst.Element)
+        self.assertIsInstance(builder.video, Gst.Element)
         self.assertEqual(
             builder.video.get_factory().get_name(), 'gnlcomposition'
         )
         self.assertIsNone(builder.audio)
 
-        child2 = gst.element_factory_make('gnlurisource')
+        child2 = Gst.ElementFactory.make('gnlurisource', None)
         self.assertIsNone(builder.add(child2, 'audio'))
         self.assertIs(child2.get_parent(), builder.audio)
         self.assertIs(builder.last, child2)
-        self.assertIsInstance(builder.audio, gst.Element)
+        self.assertIsInstance(builder.audio, Gst.Element)
         self.assertEqual(
             builder.audio.get_factory().get_name(), 'gnlcomposition'
         )
@@ -456,11 +455,11 @@ class TestEncodeBin(TestCase):
         self.assertTrue(inst._d is d)
 
         for el in (inst._q1, inst._q2, inst._q3):
-            self.assertIsInstance(el, gst.Element)
+            self.assertIsInstance(el, Gst.Element)
             self.assertTrue(el.get_parent() is inst)
             self.assertEqual(el.get_factory().get_name(), 'queue')
 
-        self.assertIsInstance(inst._enc, gst.Element)
+        self.assertIsInstance(inst._enc, Gst.Element)
         self.assertTrue(inst._enc.get_parent() is inst)
         self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
         self.assertEqual(inst._enc.get_property('quality'), 0.5)
@@ -473,16 +472,16 @@ class TestEncodeBin(TestCase):
         self.assertTrue(inst._d is d)
 
         self.assertTrue(inst._q1.get_parent() is inst)
-        self.assertTrue(isinstance(inst._q1, gst.Element))
+        self.assertTrue(isinstance(inst._q1, Gst.Element))
         self.assertEqual(inst._q1.get_factory().get_name(), 'queue')
 
         self.assertTrue(inst._enc.get_parent() is inst)
-        self.assertTrue(isinstance(inst._enc, gst.Element))
+        self.assertTrue(isinstance(inst._enc, Gst.Element))
         self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
         self.assertNotEqual(inst._enc.get_property('quality'), 0.5)
 
         self.assertTrue(inst._q2.get_parent() is inst)
-        self.assertTrue(isinstance(inst._q2, gst.Element))
+        self.assertTrue(isinstance(inst._q2, Gst.Element))
         self.assertEqual(inst._q2.get_factory().get_name(), 'queue')
 
         self.assertIsNone(inst._caps)
@@ -496,16 +495,16 @@ class TestEncodeBin(TestCase):
                 },
             },
             'filter': {
-                'mime': 'audio/x-raw-float',
+                'mime': 'audio/x-raw',
                 'caps': {'rate': 44100, 'channels': 1},
             },
         }
         inst = self.klass(d)
         self.assertTrue(inst._d is d)
-        self.assertIsInstance(inst._caps, gst.Caps)
+        self.assertIsInstance(inst._caps, Gst.Caps)
         self.assertEqual(
             inst._caps.to_string(),
-            'audio/x-raw-float, channels=(int)1, rate=(int)44100'
+            'audio/x-raw, channels=(int)1, rate=(int)44100'
         )
 
     def test_repr(self):
@@ -536,14 +535,14 @@ class TestEncodeBin(TestCase):
 
         enc = inst._make('theoraenc')
         self.assertTrue(enc.get_parent() is inst)
-        self.assertTrue(isinstance(enc, gst.Element))
+        self.assertTrue(isinstance(enc, Gst.Element))
         self.assertEqual(enc.get_factory().get_name(), 'theoraenc')
         self.assertEqual(enc.get_property('quality'), 48)
         self.assertEqual(enc.get_property('keyframe-force'), 64)
 
         enc = inst._make('theoraenc', {'quality': 50, 'keyframe-force': 32})
         self.assertTrue(enc.get_parent() is inst)
-        self.assertTrue(isinstance(enc, gst.Element))
+        self.assertTrue(isinstance(enc, Gst.Element))
         self.assertEqual(enc.get_factory().get_name(), 'theoraenc')
         self.assertEqual(enc.get_property('quality'), 50)
         self.assertEqual(enc.get_property('keyframe-force'), 32)
@@ -562,7 +561,7 @@ class TestAudioEncoder(TestCase):
             },
         }
         inst = self.klass(d)
-        self.assertTrue(isinstance(inst._enc, gst.Element))
+        self.assertTrue(isinstance(inst._enc, Gst.Element))
         self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
         self.assertEqual(inst._enc.get_property('quality'), 0.5)
 
@@ -572,12 +571,12 @@ class TestAudioEncoder(TestCase):
                 'props': {'quality': 0.25},
             },
             'filter': {
-                'mime': 'audio/x-raw-float',
+                'mime': 'audio/x-raw',
                 'caps': {'rate': 44100},
             },
         }
         inst = self.klass(d)
-        self.assertTrue(isinstance(inst._enc, gst.Element))
+        self.assertTrue(isinstance(inst._enc, Gst.Element))
         self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
         self.assertEqual(inst._enc.get_property('quality'), 0.25)
 
@@ -591,7 +590,7 @@ class TestVideoEncoder(TestCase):
             },
         }
         inst = renderer.VideoEncoder(d)
-        self.assertIsInstance(inst._enc, gst.Element)
+        self.assertIsInstance(inst._enc, Gst.Element)
         self.assertTrue(inst._enc.get_parent() is inst)
         self.assertEqual(inst._enc.get_factory().get_name(), 'theoraenc')
         self.assertEqual(inst._enc.get_property('quality'), 40)
@@ -603,7 +602,7 @@ class TestVideoEncoder(TestCase):
                 'props': {'quality': 40},
             },
             'filter': {
-                'mime': 'video/x-raw-yuv',
+                'mime': 'video/x-raw',
                 'caps': {
                     #'format': 'Y42B',  # FIXME: Hmm, why does this break it?
                     'width': 960,
@@ -612,14 +611,14 @@ class TestVideoEncoder(TestCase):
             },
         }
         inst = renderer.VideoEncoder(d)
-        self.assertIsInstance(inst._enc, gst.Element)
+        self.assertIsInstance(inst._enc, Gst.Element)
         self.assertTrue(inst._enc.get_parent() is inst)
         self.assertEqual(inst._enc.get_factory().get_name(), 'theoraenc')
         self.assertEqual(inst._enc.get_property('quality'), 40)
-        self.assertIsInstance(inst._caps, gst.Caps)
+        self.assertIsInstance(inst._caps, Gst.Caps)
         self.assertEqual(
             inst._caps.to_string(),
-            'video/x-raw-yuv, height=(int)540, width=(int)960'
+            'video/x-raw, height=(int)540, width=(int)960'
         )
 
 
@@ -645,11 +644,11 @@ class TestRenderer(TestCase):
         self.assertIs(src.get_parent(), inst.pipeline)
         self.assertEqual(src.get_factory().get_name(), 'gnlcomposition')
 
-        self.assertIsInstance(inst.mux, gst.Element)
+        self.assertIsInstance(inst.mux, Gst.Element)
         self.assertIs(inst.mux.get_parent(), inst.pipeline)
         self.assertEqual(inst.mux.get_factory().get_name(), 'oggmux')
 
-        self.assertIsInstance(inst.sink, gst.Element)
+        self.assertIsInstance(inst.sink, Gst.Element)
         self.assertIs(inst.sink.get_parent(), inst.pipeline)
         self.assertEqual(inst.sink.get_factory().get_name(), 'filesink')
         self.assertEqual(inst.sink.get_property('location'), dst)

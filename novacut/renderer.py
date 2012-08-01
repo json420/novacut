@@ -23,26 +23,26 @@
 Build GnonLin composition from Novacut edit description.
 """
 
-# FIXME: Some of this is duplicated in dmedia's transcoder.  For now we're doing
-# a bit of copy and paste to quickly get the render backend usable... then we'll
-# refine and consolidate with what's in dmedia.
-
 import logging
 
-import gst
-import gobject
+import gi
+gi.require_version('Gst', '1.0')
+from gi.repository import GObject, Gst
 
 
+GObject.threads_init()
+Gst.init(None)
 log = logging.getLogger()
 
+
 stream_map = {
-    'video': 'video/x-raw-rgb',
-    'audio': 'audio/x-raw-int; audio/x-raw-float',
+    'video': 'video/x-raw',
+    'audio': 'audio/x-raw',
 }
 
 
 def stream_caps(stream):
-    return gst.caps_from_string(stream_map[stream])
+    return Gst.caps_from_string(stream_map[stream])
 
 
 def make_element(desc):
@@ -62,9 +62,9 @@ def make_element(desc):
     40
 
     """
-    el = gst.element_factory_make(desc['name'])
+    el = Gst.ElementFactory.make(desc['name'], None)
     if desc.get('props'):
-        for (key, value) in desc['props'].iteritems():
+        for (key, value) in desc['props'].items():
             el.set_property(key, value)
     return el
 
@@ -75,19 +75,19 @@ def caps_string(desc):
 
     For example:
 
-    >>> desc = {'mime': 'video/x-raw-yuv'}
+    >>> desc = {'mime': 'video/x-raw'}
     >>> caps_string(desc)
-    'video/x-raw-yuv'
+    'video/x-raw'
 
     Or with specific caps:
 
     >>> desc = {
-    ...     'mime': 'video/x-raw-yuv',
+    ...     'mime': 'video/x-raw',
     ...     'caps': {'width': 800, 'height': 450},
     ... }
     ...
     >>> caps_string(desc)
-    'video/x-raw-yuv, height=450, width=800'
+    'video/x-raw, height=450, width=800'
 
     """
     accum = [desc['mime']]
@@ -101,7 +101,7 @@ def caps_string(desc):
 def make_caps(desc):
     if not desc:
         return None
-    return gst.caps_from_string(caps_string(desc))
+    return Gst.caps_from_string(caps_string(desc))
 
 
 
@@ -126,10 +126,10 @@ def to_gst_time(spec, doc):
     if 'frame' in spec:
         num = doc['framerate']['num']
         denom = doc['framerate']['denom']
-        return spec['frame'] * gst.SECOND * denom / num
+        return spec['frame'] * Gst.SECOND * denom // num
     if 'sample' in spec:
         rate = doc['samplerate']
-        return spec['sample'] * gst.SECOND / rate
+        return spec['sample'] * Gst.SECOND // rate
     raise ValueError('invalid time spec: {!r}'.format(spec))
 
 
@@ -150,7 +150,7 @@ def build_slice(builder, doc, offset=0):
 
     for stream in streams:
         # Create the element, set the URI, and select the stream
-        element = gst.element_factory_make('gnlurisource')
+        element = Gst.ElementFactory.make('gnlurisource', None)
         element.set_property('uri', 'file://' + builder.resolve_file(clip['_id']))
         element.set_property('caps', stream_caps(stream))
 
@@ -192,12 +192,12 @@ class Builder(object):
 
     def get_audio(self):
         if self.audio is None:
-            self.audio = gst.element_factory_make('gnlcomposition')
+            self.audio = Gst.ElementFactory.make('gnlcomposition', None)
         return self.audio
 
     def get_video(self):
         if self.video is None:
-            self.video = gst.element_factory_make('gnlcomposition')
+            self.video = Gst.ElementFactory.make('gnlcomposition', None)
         return self.video
 
     def add(self, element, stream):
@@ -216,7 +216,7 @@ class Builder(object):
 
     def build_root(self, _id):
         duration = self.build(_id, 0)
-        sources = filter(lambda s: s is not None, (self.video, self.audio))
+        sources = tuple(filter(lambda s: s is not None, (self.video, self.audio)))
         for src in sources:
             src.set_property('duration', duration)
         return sources
@@ -228,7 +228,7 @@ class Builder(object):
         pass
 
 
-class EncoderBin(gst.Bin):
+class EncoderBin(Gst.Bin):
     """
     Base class for `AudioEncoder` and `VideoEncoder`.
     """
@@ -252,15 +252,15 @@ class EncoderBin(gst.Bin):
         if self._caps is None:
             self._q2.link(self._enc)
         else:
-            self._q2.link(self._enc, self._caps)
+            self._q2.link_filtered(self._enc, self._caps)
         self._enc.link(self._q3)
 
         # Ghost Pads
         self.add_pad(
-            gst.GhostPad('sink', self._identity.get_pad('sink'))
+            Gst.GhostPad.new('sink', self._identity.get_static_pad('sink'))
         )
         self.add_pad(
-            gst.GhostPad('src', self._q3.get_pad('src'))
+            Gst.GhostPad.new('src', self._q3.get_static_pad('src'))
         )
 
     def __repr__(self):
@@ -270,7 +270,7 @@ class EncoderBin(gst.Bin):
         """
         Create gst element, set properties, and add to this bin.
         """
-        if isinstance(desc, basestring):
+        if isinstance(desc, str):
             desc = {'name': desc, 'props': props}
         el = make_element(desc)
         self.add(el)
@@ -287,9 +287,10 @@ class AudioEncoder(EncoderBin):
         self._rate = self._make('audiorate')
 
         # Link elements:
-        gst.element_link_many(
-            self._q1, self._conv, self._rsp, self._rate, self._q2
-        )
+        self._q1.link(self._conv)
+        self._conv.link(self._rsp)
+        self._rsp.link(self._rate)
+        self._rate.link(self._q2)
 
 
 class VideoEncoder(EncoderBin):
@@ -297,11 +298,13 @@ class VideoEncoder(EncoderBin):
         super(VideoEncoder, self).__init__(d)
 
         # Create elements:
-        self._scale = self._make('ffvideoscale', {'method': 10})
-        self._color = self._make('ffmpegcolorspace')
+        self._scale = self._make('videoscale', {'method': 3})
+        self._color = self._make('videoconvert')
 
         # Link elements:
-        gst.element_link_many(self._q1, self._scale, self._color, self._q2)
+        self._q1.link(self._scale)
+        self._scale.link(self._color)
+        self._color.link(self._q2)
 
 
 class Renderer(object):
@@ -315,8 +318,8 @@ class Renderer(object):
         self.root = root
         self.settings = settings
         self.builder = builder
-        self.mainloop = gobject.MainLoop()
-        self.pipeline = gst.Pipeline()
+        self.mainloop = GObject.MainLoop()
+        self.pipeline = Gst.Pipeline()
 
         # Create bus and connect several handlers
         self.bus = self.pipeline.get_bus()
@@ -326,7 +329,7 @@ class Renderer(object):
 
         # Create elements
         self.mux = make_element(settings['muxer'])
-        self.sink = gst.element_factory_make('filesink')
+        self.sink = Gst.ElementFactory.make('filesink', None)
 
         self.pipeline.add(self.mux)
         self.pipeline.add(self.sink)
@@ -353,11 +356,11 @@ class Renderer(object):
         self.video = None
  
     def run(self):
-        self.pipeline.set_state(gst.STATE_PLAYING)
+        self.pipeline.set_state(Gst.STATE_PLAYING)
         self.mainloop.run()
 
     def kill(self):
-        self.pipeline.set_state(gst.STATE_NULL)
+        self.pipeline.set_state(Gst.STATE_NULL)
         self.pipeline.get_state()
         self.mainloop.quit()
 
@@ -366,7 +369,7 @@ class Renderer(object):
             klass = {'audio': AudioEncoder, 'video': VideoEncoder}[key]
             el = klass(self.settings[key])
         else:
-            el = gst.element_factory_make('fakesink')
+            el = Gst.ElementFactory.make('fakesink', None)
         self.pipeline.add(el)
         if key in self.settings:
             log.info(el)
