@@ -74,7 +74,7 @@ def default_settings():
                 },
             },
             'filter': {
-                'mime': 'video/x-raw-yuv',
+                'mime': 'video/x-raw',
                 'caps': {
                     'width': 1280,
                     'height': 720,
@@ -91,7 +91,7 @@ def default_settings():
 #        },
         'audio': {
             'encoder': {
-                'name': 'ffenc_aac',
+                'name': 'avenc_aac',
                 'props': {
                     'bitrate': 256000,
                 },
