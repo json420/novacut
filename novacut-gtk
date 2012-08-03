@@ -29,90 +29,11 @@ import dbus
 from dmedia.util import init_views
 
 import novacut
-from novacut import schema
-from novacut import views
+from novacut import schema, views
+from novacut.settings import default_settings
 
 
 session = dbus.SessionBus()
-
-
-def default_settings():
-#    node = {
-#        'muxer': {'name': 'oggmux'},
-#        'ext': 'ogv',
-#        'video': {
-#            'encoder': {
-#                'name': 'theoraenc',
-#                'props': {
-#                    'speed-level': 2,
-#                },
-#            },
-#            'filter': {
-#                'mime': 'video/x-raw-yuv',
-#                'caps': {
-#                    'width': 960,
-#                    'height': 540,
-#                },
-#            },
-#        },
-#        'audio': {
-#            'encoder': {
-#                'name': 'vorbisenc',
-#            },
-#        },
-#    }
-    node = {
-        'muxer': {'name': 'avimux'},
-        'ext': 'avi',
-        'video': {
-            'encoder': {
-                'name': 'x264enc',
-                'props': {
-                    'pass': 5,  # Quality-based encoding
-                    'quantizer': 15,  # Lower means higher-quality, default=21
-                    'psy-tune': 5,  # Tune for SSIM
-                },
-            },
-            'filter': {
-                'mime': 'video/x-raw',
-                'caps': {
-                    'width': 1280,
-                    'height': 720,
-                },
-            },
-        },
-#        'audio': {
-#            'encoder': {
-#                'name': 'identity',
-#            },
-#            'filter': {
-#                'mime': 'audio/x-raw-int',
-#            },
-#        },
-        'audio': {
-            'encoder': {
-                'name': 'avenc_aac',
-                'props': {
-                    'bitrate': 256000,
-                },
-            },
-        },
-    }
-    node = {
-        'muxer': 'oggmux',
-        'ext': 'ogv',
-        'video': {
-            'encoder': 'theoraenc',
-            'caps': {
-                'width': 1280,
-                'height': 720,
-            },
-        },
-        'audio': {
-            'encoder': 'vorbisenc',
-        },
-    }
-    return schema.create_settings(node)
 
 
 class App(BaseApp):
