@@ -33,6 +33,7 @@ from gi.repository import GObject, Gst
 GObject.threads_init()
 Gst.init(None)
 log = logging.getLogger()
+log.info('**** Gst.version(): %r', Gst.version())
 
 
 stream_map = {
