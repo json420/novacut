@@ -27,6 +27,7 @@ import os
 from os import path
 import json
 from datetime import datetime
+import logging
 
 import dbus
 from dbus.mainloop.glib import DBusGMainLoop
@@ -40,6 +41,21 @@ GObject.threads_init()
 DBusGMainLoop(set_as_default=True)
 session = dbus.SessionBus()
 HOME = path.abspath(os.environ['HOME'])
+log = logging.getLogger()
+
+
+def dumps(obj, pretty=False):
+    kw = dict(
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(',',':'),
+    )
+    if pretty:
+        kw.update(
+            separators=(',',': '),
+            indent=4,
+        )
+    return json.dumps(obj, **kw)
 
 
 class LiveBuilder(Builder):
@@ -69,9 +85,12 @@ class Worker:
         self.dmedia = Database('dmedia-0', env)
 
     def run(self, job_id):
+        log.info('job_id = %s', job_id)
         job = self.novacut.get(job_id)
+        log.info("job['node']: %s", dumps(job['node'], True))
         root = job['node']['root']
         settings = self.novacut.get(job['node']['settings'])
+        log.info("settings['node']: %s", dumps(settings['node'], True))
         builder = LiveBuilder(self.Dmedia, self.novacut)
         dst = self.Dmedia.AllocateTmp()
         renderer = Renderer(root, settings['node'], builder, dst)

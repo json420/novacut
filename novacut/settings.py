@@ -31,7 +31,7 @@ from . import schema
 vp8enc = {
     'name': 'vp8enc',
     'props': {
-        'quality': 8,
+        'quality': 9,
         'tune': 1,  # Tune for SSIM
         'threads': 2,
     },
@@ -59,7 +59,7 @@ avenc_aac = {
 vorbisenc = {
     'name': 'vorbisenc',
     'props': {
-        'quality': 5.0,
+        'quality': 0.5,
     },
 }
 
@@ -82,19 +82,10 @@ def default_settings():
         'ext': 'mkv',
         'video': {
             'encoder': x264enc,
-            'caps': {
-                'width': 960,
-                'height': 540,
-            },
         },
         'audio': {
-            'encoder': vorbisenc
+            'encoder': vorbisenc,
         },
-    }
-    node = deepcopy(webm)
-    node['video']['caps'] = {
-        'width': 960,
-        'height': 540,
     }
     return schema.create_settings(node)
 
