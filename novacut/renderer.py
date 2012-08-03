@@ -317,7 +317,7 @@ class AudioEncoder(EncoderBin):
         self._conv = self._make('audioconvert')
         self._rsp = self._make('audioresample', {'quality': 10})
         self._rate = self._make('audiorate',
-            # {'tolerance': Gst.SECOND * 10 // 48000}
+            {'tolerance': Gst.SECOND * 4 // 48000}
         )
 
         # Link elements:

@@ -82,6 +82,10 @@ def default_settings():
         'ext': 'mkv',
         'video': {
             'encoder': x264enc,
+#            'caps': {
+#                'width': 1280,
+#                'height': 720,
+#            }
         },
         'audio': {
             'encoder': vorbisenc,
