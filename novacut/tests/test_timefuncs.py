@@ -61,6 +61,21 @@ class TestFunctions(TestCase):
             1001000000
         )
 
+    def test_nanosecond_to_frame(self):
+        # nanosecond_to_frame() rounds to the nearest int, so we should be able
+        # to round-trip the values
+        framerates = [
+            {'num': 30000, 'denom': 1001},
+            {'num': 24, 'denom': 1},
+        ]
+        for framerate in framerates:
+            for i in range(100000):
+                ns = timefuncs.frame_to_nanosecond(i, framerate)
+                self.assertEqual(
+                    timefuncs.nanosecond_to_frame(ns, framerate),
+                    i
+                )
+
     def test_sample_to_nanosecond(self):
         self.assertEqual(timefuncs.sample_to_nanosecond(0, 48000), 0)
         self.assertEqual(timefuncs.sample_to_nanosecond(0, 44100), 0)
@@ -68,6 +83,17 @@ class TestFunctions(TestCase):
         self.assertEqual(timefuncs.sample_to_nanosecond(1, 44100), 22675)
         self.assertEqual(timefuncs.sample_to_nanosecond(480, 48000), 10000000)
         self.assertEqual(timefuncs.sample_to_nanosecond(441, 44100), 10000000)
+
+    def test_nanosecond_to_sample(self):
+        # nanosecond_to_sample() rounds to the nearest int, so we should be able
+        # to round-trip the values
+        for samplerate in (96000, 48000, 44100):
+            for i in range(100000):
+                ns = timefuncs.sample_to_nanosecond(i, samplerate)
+                self.assertEqual(
+                    timefuncs.nanosecond_to_sample(ns, samplerate),
+                    i
+                )
 
     def test_frame_to_sample(self):
         framerate = {'num': 30000, 'denom': 1001}

@@ -20,7 +20,7 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 """
-Convert between frames, samples, and nanoseconds
+Convert between frames, samples, and nanoseconds.
 """
 
 
@@ -36,7 +36,7 @@ def get_fraction(value):
 
 def frame_to_nanosecond(frame, framerate):
     """
-    Convert from frame to nanoseconds (GStreamer time).
+    Convert from frame to nanosecond (GStreamer time).
 
     >>> frame_to_nanosecond(30, {'num': 30000, 'denom': 1001})
     1001000000
@@ -46,15 +46,38 @@ def frame_to_nanosecond(frame, framerate):
     return frame * SECOND * denom // num
 
 
+def nanosecond_to_frame(nanosecond, framerate):
+    """
+    Convert from nanosecond (GStreamer time) to frame.
+
+    >>> nanosecond_to_frame(1001000000, {'num': 30000, 'denom': 1001})
+    30
+
+    """
+    (num, denom) = get_fraction(framerate)
+    return int(round(nanosecond * num / denom / SECOND))
+
+
 def sample_to_nanosecond(sample, samplerate):
     """
-    Convert from sample to nanoseconds (GStreamer time).
+    Convert from sample to nanosecond (GStreamer time).
 
     >>> sample_to_nanosecond(48048, 48000)
     1001000000
 
     """
     return sample * SECOND // samplerate
+    
+    
+def nanosecond_to_sample(nanosecond, samplerate):
+    """
+    Convert from nanosecond (GStreamer time) to sample.
+    
+    >>> nanosecond_to_sample(1001000000, 48000)
+    48048
+
+    """
+    return int(round(nanosecond * samplerate / SECOND))
 
 
 def frame_to_sample(frame, framerate, samplerate):
