@@ -32,6 +32,9 @@ SECOND = 1000000000
 def get_fraction(value):
     if isinstance(value, dict):
         return (value['num'], value['denom'])
+    if isinstance(value, tuple):
+        return (value[0], value[1])
+    raise TypeError('value must be a dict or tuple; got {!r}'.format(value))
 
 
 def frame_to_nanosecond(frame, framerate):
