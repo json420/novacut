@@ -53,6 +53,7 @@ def nanosecond_to_frame(nanosecond, framerate):
     >>> nanosecond_to_frame(1001000000, {'num': 30000, 'denom': 1001})
     30
 
+    This is designed to round-trip values with `frame_to_nanosecond()`.
     """
     (num, denom) = get_fraction(framerate)
     return int(round(nanosecond * num / denom / SECOND))
@@ -67,15 +68,16 @@ def sample_to_nanosecond(sample, samplerate):
 
     """
     return sample * SECOND // samplerate
-    
-    
+
+
 def nanosecond_to_sample(nanosecond, samplerate):
     """
     Convert from nanosecond (GStreamer time) to sample.
-    
+
     >>> nanosecond_to_sample(1001000000, 48000)
     48048
 
+    This is designed to round-trip values with `sample_to_nanosecond()`.
     """
     return int(round(nanosecond * samplerate / SECOND))
 
