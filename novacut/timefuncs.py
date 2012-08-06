@@ -89,6 +89,7 @@ def frame_to_sample(frame, framerate, samplerate):
     >>> frame_to_sample(30, {'num': 30000, 'denom': 1001}, 48000)
     48048
 
+    Note that this is *not* designed to round-trip with `sample_to_frame()`.
     """
     (num, denom) = get_fraction(framerate)
     return frame * samplerate * denom // num
@@ -101,6 +102,7 @@ def sample_to_frame(sample, samplerate, framerate):
     >>> sample_to_frame(48048, 48000, {'num': 30000, 'denom': 1001})
     30
 
+    Note that this is *not* designed to round-trip with `frame_to_sample()`.
     """
     (num, denom) = get_fraction(framerate)
     return sample * num // (samplerate * denom)
