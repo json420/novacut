@@ -70,8 +70,8 @@ class App(BaseApp):
 
         'render_job': ['job_id'],
         'job_rendered': ['job_id', 'file_id', 'link'],
- 	'delete_project': ['project_id'],
- 	'sos_project': ['project_id'],
+        'delete_project': ['project_id'],
+        'sos_project': ['project_id'],
     }
 
     __Renderer = None
@@ -128,17 +128,17 @@ class App(BaseApp):
 
     def on_delete_project(self, hub, project_id):
         print('delete_project', project_id)
-        doc = self.db.get(project_id)		
-       	doc['isdeleted'] = True
+        doc = self.db.get(project_id)
+        doc['isdeleted'] = True
         self.db.post(doc)
 
     def on_sos_project(self,hub,project_id):
         print('sos_project', project_id)
         doc = self.db.get(project_id)
         print(doc)
-       	doc['isdeleted'] = False
+        doc['isdeleted'] = False
         self.db.post(doc)
-	
+
 
     def on_load_project(self, hub, project_id):
         print('load_project', project_id)
