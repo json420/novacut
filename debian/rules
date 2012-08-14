@@ -1,22 +1,27 @@
 #!/usr/bin/make -f
 
-%:
-	dh $@ --with=python3 --with=python2
+PYTHON3=$(shell py3versions -vr)
 
+%:
+	dh $@ --with=python3
+
+test-python%:
+	python$* setup.py test
 
 override_dh_auto_clean:
-	python3.2 setup.py clean -a
-	python2.7 setup2.py clean -a
+	rm -rf build/
 
 override_dh_auto_build:
-	python3.2 setup.py build --force
-	python2.7 setup2.py build --force
+	set -ex; for python in $(shell py3versions -r); do \
+		$$python setup.py build \
+				--executable=/usr/bin/python3; \
+	done
 
 override_dh_auto_install:
-	python3.2 setup.py install \
-			--install-layout=deb \
-			--root $(CURDIR)/debian/novacut
-	python2.7 setup2.py install \
-			--install-layout=deb \
-			--root $(CURDIR)/debian/novacut
+	set -ex; for python in $(shell py3versions -r); do \
+		$$python setup.py install \
+				--install-layout=deb \
+				--root=$(CURDIR)/debian/novacut; \
+	done
 
+override_dh_auto_test: $(PYTHON3:%=test-python%)

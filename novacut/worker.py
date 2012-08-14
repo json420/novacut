@@ -39,7 +39,6 @@ from .renderer import Builder, Renderer
 
 GObject.threads_init()
 DBusGMainLoop(set_as_default=True)
-session = dbus.SessionBus()
 HOME = path.abspath(os.environ['HOME'])
 log = logging.getLogger()
 
@@ -79,6 +78,7 @@ class LiveBuilder(Builder):
 
 class Worker:
     def __init__(self):
+        session = dbus.SessionBus()
         self.Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
         env = json.loads(self.Dmedia.GetEnv())
         self.novacut = Database('novacut-0', env)
