@@ -25,6 +25,10 @@
 Install `novacut`.
 """
 
+import sys
+if sys.version_info < (3, 2):
+    sys.exit('Novacut requires Python 3.2 or newer')
+
 import os
 from os import path
 import stat
@@ -32,11 +36,6 @@ from distutils.core import setup
 from distutils.cmd import Command
 from unittest import TestLoader, TextTestRunner
 from doctest import DocTestSuite
-import sys
-
-if sys.version_info.major != 3:
-    print(sys.argv)
-    sys.exit(1)
 
 import novacut
 
@@ -132,7 +131,12 @@ setup(
     author_email='jderose@novacut.com',
     license='AGPLv3+',
     packages=['novacut'],
-    scripts=['novacut-gtk', 'novacut-cli'],
+    scripts=[
+        'novacut-gtk',
+        'novacut-cli',
+        'novacut-renderer',
+        'novacut-thumbnailer',
+    ],
     data_files=[
         ('share/couchdb/apps/novacut',
             [path.join('ui', name) for name in os.listdir('ui')]
