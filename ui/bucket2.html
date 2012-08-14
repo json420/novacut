@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="/_apps/userwebkit/base.css" />
+    <link rel="stylesheet" href="/_apps/dmedia/common.css" />
+    <link rel="stylesheet" href="/_apps/dmedia/grid.css" />
+    <link rel="stylesheet" href="bucket2.css" />
+    <script src="/_apps/userwebkit/couch.js"></script>
+    <script src="/_apps/userwebkit/base.js"></script>
+    <script src="novacut.js"></script>
+    <script src="bucket2.js"></script>
+</head>
+
+<body>
+<div id="open_clips">Clips</div>
+<div id="clips_outer" class="bar">
+    <div id="clips_nav">
+        <label>Dmedia Project: <select id="dmedia_project"></select></lable>
+    </div>
+    <div id="clips"></div>
+</div>
+
+<div id="flyout_capture" class="hide">
+<div id="flyout">
+    <div class="fgrid_row">
+        <a class="fgrid_4" href="projects.html"><strong>Projects</strong></a>
+        <button class="fgrid_3" id="render-btn" onclick="UI.render()">Render</button>
+    </div>
+    <div class="fgrid_row">
+        <a class="fgrid_4" href="projects.html">(Most recent project)</a>
+    </div>
+    <div class="fgrid_row">
+        <a class="fgrid_4" href="projects.html">(2nd most recent project)</a>
+    </div>
+    <div class="fgrid_row">
+        <a class="fgrid_4" href="projects.html">(3rd most recent project)</a>
+    </div>
+
+    <div class="fgrid_row"><strong class="fgrid_2">.</strong></div>
+    <div class="fgrid_row"><strong class="fgrid_2">.</strong></div>
+    <div class="fgrid_row"><strong class="fgrid_2">.</strong></div>
+    <div class="fgrid_row"><strong class="fgrid_2">.</strong></div>
+    <div class="fgrid_row"><strong class="fgrid_2">.</strong></div>
+    <div class="fgrid_row"><strong class="fgrid_2">.</strong></div>
+
+    <div class="fgrid_row">
+    <strong class="fgrid_4 version">Novacut 12.08.0</strong>
+<a onclick="showShort(event);" style="cursor: pointer; margin-right:135px;">Keyboard Shortcuts</a>
+    <a href="http://www.kickstarter.com/projects/novacut/novacut-pro-video-editor/backers" class="fgrid_5">Thanks to our Kickstarter backers!</a>
+    </div>
+</div>
+</div>
+
+<div id="bucket">
+<div id="shortcuts" >
+<table border="0">
+  <tr>
+    <td>D</td>
+    <td>Duplicate slice</td>
+  </tr>
+  <tr>
+    <td>Del</td>
+    <td>Delete slice</td>
+  </tr>
+  <tr>
+    <td>Space bar</td>
+    <td>Play/Pause</td>
+  </tr>
+  <tr>
+    <td>Esc</td>
+    <td>Close</td>
+  </tr>
+  <tr>
+    <td>Mouse wheel</td>
+    <td>Move of one frame</td>
+  </tr>
+  <tr>
+    <td>Shift+Mouse Wheel</td>
+    <td>Move of ten frames</td>
+  </tr> 
+</table> 
+</div>
+</div>
+<div id="sequence" clas="lower"></div>
+<div id="roughcut" class="hide">
+    <div class="grid_row">
+        <button class="grid_2" id="close_roughcut">Done</button>
+        <button class="grid_2" id="create_slice">New Slice</button>
+    </div>
+</div>
+</body>
+
+</html>
