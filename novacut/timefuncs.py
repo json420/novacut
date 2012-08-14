@@ -23,6 +23,7 @@
 Convert between frames, samples, and nanoseconds.
 """
 
+from fractions import Fraction
 
 # In case we want to use these functions when GStreamer isn't available, we
 # define our own nanosecond constant:
@@ -30,11 +31,39 @@ SECOND = 1000000000
 
 
 def get_fraction(value):
+    """
+    Get numerator and denominator independent of exact fraction representation.
+
+    From a ``dict``:
+
+    >>> get_fraction({'num': 30000, 'denom': 1001})
+    (30000, 1001)
+    
+    From a ``list``:
+
+    >>> get_fraction([30000, 1001])
+    (30000, 1001)
+
+    From a ``tuple``:
+
+    >>> get_fraction((30000, 1001))
+    (30000, 1001)
+
+    Or from a ``fractions.Fraction``:
+
+    >>> get_fraction(Fraction(30000, 1001))
+    (30000, 1001)
+
+    """
     if isinstance(value, dict):
         return (value['num'], value['denom'])
-    if isinstance(value, tuple):
+    if isinstance(value, (list, tuple)):
         return (value[0], value[1])
-    raise TypeError('value must be a dict or tuple; got {!r}'.format(value))
+    if isinstance(value, Fraction):
+        return (value.numerator, value.denominator)
+    raise TypeError(
+        'invalid fraction type {!r}: {!r}'.format(type(value), value)
+    )
 
 
 def frame_to_nanosecond(frame, framerate):

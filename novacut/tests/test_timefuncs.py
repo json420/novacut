@@ -24,6 +24,7 @@ Unit tests for the `novacut.timefuncs` module.
 """
 
 from unittest import TestCase
+from fractions import Fraction
 
 from novacut import timefuncs
 
@@ -31,8 +32,12 @@ from novacut import timefuncs
 class TestFunctions(TestCase):
     def test_get_fraction(self):
         self.assertEqual(
-            timefuncs.get_fraction({'num': 24, 'denom': 1}),
-            (24, 1)
+            timefuncs.get_fraction({'num': 30000, 'denom': 1001}),
+            (30000, 1001)
+        )
+        self.assertEqual(
+            timefuncs.get_fraction([30000, 1001]),
+            (30000, 1001)
         )
         self.assertEqual(
             timefuncs.get_fraction((30000, 1001)),
@@ -42,11 +47,15 @@ class TestFunctions(TestCase):
             timefuncs.get_fraction((30000, 1001, True)),
             (30000, 1001)
         )
+        self.assertEqual(
+            timefuncs.get_fraction(Fraction(30000, 1001)),
+            (30000, 1001)
+        )
         with self.assertRaises(TypeError) as cm:
-            timefuncs.get_fraction([24, 1])
+            timefuncs.get_fraction('24/1')
         self.assertEqual(
             str(cm.exception),
-            'value must be a dict or tuple; got [24, 1]'
+            "invalid fraction type <class 'str'>: '24/1'"
         )   
 
     def test_frame_to_nanosecond(self):
