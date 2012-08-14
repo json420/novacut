@@ -23,3 +23,24 @@
 """
 Unit tests for the `novacut` package.
 """
+
+from unittest import TestCase
+import os
+from os import path
+import logging
+
+from .base import TempHome
+
+import novacut
+
+
+class TestFunctions(TestCase):
+    def test_configure_logging(self):
+        tmp = TempHome()
+        cache = tmp.join('.cache', 'novacut')
+        self.assertFalse(path.isdir(cache))
+        log = novacut.configure_logging()
+        self.assertIsInstance(log, logging.RootLogger)
+        self.assertTrue(path.isdir(cache))
+        self.assertEqual(os.listdir(cache), ['setup.py.log'])
+        self.assertTrue(path.isfile(path.join(cache, 'setup.py.log')))
