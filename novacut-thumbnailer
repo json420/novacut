@@ -184,7 +184,7 @@ class Thumbnailer(object):
 
     def on_no_more_pads(self, element):
         print('on_no_more_pads')
-        self.next()
+        GObject.idle_add(self.next)
 
     def on_handoff(self, element, buf, pad):
         frame = nanosecond_to_frame(buf.pts, self.framerate)
@@ -219,8 +219,7 @@ class Thumbnailer(object):
         self.kill()
 
     def on_error(self, bus, msg):
-        error = msg.parse_error()[1]
-        print(error)
+        print('on_error():', msg.parse_error())
         self.kill()
 
 thumbnailer = Thumbnailer(_id, frames, filename)
