@@ -292,7 +292,6 @@ def check_novacut(doc):
 
     >>> doc = {
     ...     '_id': 'NZXXMYLDOV2F6ZTUO5PWM5DX',
-    ...     'ver': 0,
     ...     'type': 'novacut/foo',
     ...     'time': 1234567890,
     ... }
@@ -303,9 +302,6 @@ def check_novacut(doc):
     _check(doc, [], dict)
     _check(doc, ['_id'], None,
         _any_id,
-    )
-    _check(doc, ['ver'], int,
-        (_equals, VER),
     )
     _check(doc, ['type'], str,
         (_matches, 'novacut/[a-z]+$'),
@@ -336,7 +332,6 @@ def check_project(doc):
 
     >>> doc = {
     ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
-    ...     'ver': 0,
     ...     'type': 'novacut/project',
     ...     'time': 1234567890,
     ...     'db_name': 'novacut-0-hb6ysckay27kiwutwkgkctni',
@@ -364,7 +359,6 @@ def create_project(title=''):
     ts = time.time()
     return {
         '_id': _id,
-        'ver': VER,
         'type': 'novacut/project',
         'time': ts,
         'atime': ts,
@@ -382,7 +376,6 @@ def check_node(doc):
 
     >>> doc = {
     ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
-    ...     'ver': 0,
     ...     'type': 'novacut/node',
     ...     'time': 1234567890,
     ...     'node': {
@@ -411,7 +404,6 @@ def check_node(doc):
 def create_node(node):
     return {
         '_id': random_id(),
-        'ver': VER,
         'type': 'novacut/node',
         'time': time.time(),
         'node': node,
@@ -427,7 +419,6 @@ def create_inode(inode):
                 'content_type': 'application/json',
             }
         },
-        'ver': VER,
         'type': 'novacut/inode',
         'time': time.time(),
         'node': inode.node,
@@ -445,7 +436,6 @@ def create_settings(node):
                 'content_type': 'application/json',
             }
         },
-        'ver': VER,
         'type': 'novacut/settings',
         'time': time.time(),
         'node': inode.node,
@@ -466,7 +456,6 @@ def create_job(root, settings):
                 'content_type': 'application/json',
             }
         },
-        'ver': VER,
         'type': 'novacut/job',
         'time': time.time(),
         'node': inode.node,
