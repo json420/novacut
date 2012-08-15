@@ -222,18 +222,7 @@ doc = {
 }
 
 
-def vslice_pts_and_duration(start, stop, framerate):
-    assert 0 <= start < stop
-    pts = frame_to_nanosecond(start, framerate)
-    duration = frame_to_nanosecond(stop, framerate) - pts
-    return (pts, duration)
 
-
-def aslice_pts_and_duration(start, stop, samplerate):
-    assert 0 <= start < stop
-    pts = sample_to_nanosecond(start, samplerate)
-    duration = sample_to_nanosecond(stop, samplerate) - pts
-    return (pts, duration)
 
 
 def build_vslice(builder, doc, offset=0):

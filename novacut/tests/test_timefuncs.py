@@ -146,3 +146,73 @@ class TestFunctions(TestCase):
         self.assertEqual(timefuncs.sample_to_frame(2000, 48000, framerate), 1)
         self.assertEqual(timefuncs.sample_to_frame(1838, 44100, framerate), 1)
 
+    def test_vslice_pts_and_duration(self):
+        framerate = {'num': 30000, 'denom': 1001}
+        self.assertEqual(
+            timefuncs.vslice_pts_and_duration(0, 1, framerate),
+            (0, 33366666),
+        )
+        self.assertEqual(
+            timefuncs.vslice_pts_and_duration(1, 2, framerate),
+            (33366666, 33366667),
+        )
+        accum = 0
+        for i in range(100000):
+            (pts, dur) = timefuncs.vslice_pts_and_duration(i, i+1, framerate)
+            self.assertEqual(pts, accum)
+            self.assertEqual(pts, timefuncs.frame_to_nanosecond(i, framerate))
+            self.assertIn(dur, (33366666, 33366667))
+            accum += dur
+
+        framerate = {'num': 24, 'denom': 1}
+        self.assertEqual(
+            timefuncs.vslice_pts_and_duration(0, 1, framerate),
+            (0, 41666666),
+        )
+        self.assertEqual(
+            timefuncs.vslice_pts_and_duration(1, 2, framerate),
+            (41666666, 41666667),
+        )
+        accum = 0
+        for i in range(100000):
+            (pts, dur) = timefuncs.vslice_pts_and_duration(i, i+1, framerate)
+            self.assertEqual(pts, accum)
+            self.assertEqual(pts, timefuncs.frame_to_nanosecond(i, framerate))
+            self.assertIn(dur, (41666666, 41666667))
+            accum += dur
+
+    def test_aslice_pts_and_duration(self):
+        samplerate = 48000
+        self.assertEqual(
+            timefuncs.aslice_pts_and_duration(0, 1, samplerate),
+            (0, 20833),
+        )
+        self.assertEqual(
+            timefuncs.aslice_pts_and_duration(1, 2, samplerate),
+            (20833, 20833),
+        )
+        accum = 0
+        for i in range(100000):
+            (pts, dur) = timefuncs.aslice_pts_and_duration(i, i+1, samplerate)
+            self.assertEqual(pts, accum)
+            self.assertEqual(pts, timefuncs.sample_to_nanosecond(i, samplerate))
+            self.assertIn(dur, (20833, 20834))
+            accum += dur
+
+        samplerate = 44100
+        self.assertEqual(
+            timefuncs.aslice_pts_and_duration(0, 1, samplerate),
+            (0, 22675),
+        )
+        self.assertEqual(
+            timefuncs.aslice_pts_and_duration(1, 2, samplerate),
+            (22675, 22676),
+        )
+        accum = 0
+        for i in range(100000):
+            (pts, dur) = timefuncs.aslice_pts_and_duration(i, i+1, samplerate)
+            self.assertEqual(pts, accum)
+            self.assertEqual(pts, timefuncs.sample_to_nanosecond(i, samplerate))
+            self.assertIn(dur, (22675, 22676))
+            accum += dur
+
