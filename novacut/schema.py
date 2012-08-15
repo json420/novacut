@@ -410,9 +410,31 @@ def create_node(node):
     }
 
 
+def check_slice(doc):
+    """
+    Check common schema between slice/video and slice/audio nodes.
+    """
+    check_node(doc)
+    _check(doc, ['node', 'type'], str,
+        (_is_in, 'slice/video', 'slice/audio')
+    )
+    _check(doc, ['node', 'src'], str,
+        _intrinsic_id
+    )
+    _check(doc, ['node', 'start'], int,
+        (_at_least, 0),
+    )
+    _check(doc, ['node', 'stop'], int,
+        (_at_least, 1),
+    )
+    _check(doc, ['node', 'stop'], int,
+        (_at_least, doc['node']['start'] + 1)
+    )
+
+
 def check_video_slice(doc):
     """
-    Verify that *doc* is a valid "vslice" novacut/node document.
+    Verify that *doc* is a valid slice/video node.
 
     For example, a conforming value:
 
@@ -431,27 +453,52 @@ def check_video_slice(doc):
     >>> check_video_slice(doc)
 
     """
-    check_node(doc)
+    check_slice(doc)
     _check(doc, ['node', 'type'], str,
         (_equals, 'slice/video')
-    )
-    _check(doc, ['node', 'src'], str,
-        _intrinsic_id
-    )
-    _check(doc, ['node', 'start'], int,
-        (_at_least, 0),
-    )
-    _check(doc, ['node', 'stop'], int,
-        (_at_least, 1),
-    )
-    _check(doc, ['node', 'stop'], int,
-        (_at_least, doc['node']['start'] + 1)
     )
 
 
 def create_video_slice(src, start, stop):
     node = {
         'type': 'slice/video',
+        'src': src,
+        'start': start,
+        'stop': stop,
+    }
+    return create_node(node)
+
+
+def check_audio_slice(doc):
+    """
+    Verify that *doc* is a valid slice/video node.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     'time': 1234567890,
+    ...     'type': 'novacut/node',
+    ...     'node': {
+    ...         'type': 'slice/audio',
+    ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
+    ...         'start': 48000,
+    ...         'stop': 96000,
+    ...     },
+    ... }
+    ...
+    >>> check_audio_slice(doc)
+
+    """
+    check_slice(doc)
+    _check(doc, ['node', 'type'], str,
+        (_equals, 'slice/audio')
+    )
+
+
+def create_audio_slice(src, start, stop):
+    node = {
+        'type': 'slice/audio',
         'src': src,
         'start': start,
         'stop': stop,
@@ -511,24 +558,6 @@ def create_job(root, settings):
         'renders': {},
     }
 
-
-def check_slice(doc):
-    check_node(doc)
-    _check(doc, ['node', 'type'], str,
-        (_equals, 'slice'),
-    )
-    _check(doc, ['node', 'src'], str,
-        _any_id,
-    )
-    _check(doc, ['node', 'start'], dict,
-        _nonempty
-    )
-    _check(doc, ['node', 'stop'], dict,
-        _nonempty
-    )
-    _check(doc, ['node', 'stream'], str,
-        (_is_in, 'video', 'audio'),
-    )
 
 
 def create_slice(src, start, stop, stream='video'):
