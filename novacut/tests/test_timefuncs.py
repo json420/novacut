@@ -181,19 +181,19 @@ class TestFunctions(TestCase):
             self.assertIn(dur, (41666666, 41666667))
             accum += dur
 
-    def test_aslice_pts_and_duration(self):
+    def test_audio_pts_and_duration(self):
         samplerate = 48000
         self.assertEqual(
-            timefuncs.aslice_pts_and_duration(0, 1, samplerate),
+            timefuncs.audio_pts_and_duration(0, 1, samplerate),
             (0, 20833),
         )
         self.assertEqual(
-            timefuncs.aslice_pts_and_duration(1, 2, samplerate),
+            timefuncs.audio_pts_and_duration(1, 2, samplerate),
             (20833, 20833),
         )
         accum = 0
         for i in range(100000):
-            (pts, dur) = timefuncs.aslice_pts_and_duration(i, i+1, samplerate)
+            (pts, dur) = timefuncs.audio_pts_and_duration(i, i+1, samplerate)
             self.assertEqual(pts, accum)
             self.assertEqual(pts, timefuncs.sample_to_nanosecond(i, samplerate))
             self.assertIn(dur, (20833, 20834))
@@ -201,16 +201,16 @@ class TestFunctions(TestCase):
 
         samplerate = 44100
         self.assertEqual(
-            timefuncs.aslice_pts_and_duration(0, 1, samplerate),
+            timefuncs.audio_pts_and_duration(0, 1, samplerate),
             (0, 22675),
         )
         self.assertEqual(
-            timefuncs.aslice_pts_and_duration(1, 2, samplerate),
+            timefuncs.audio_pts_and_duration(1, 2, samplerate),
             (22675, 22676),
         )
         accum = 0
         for i in range(100000):
-            (pts, dur) = timefuncs.aslice_pts_and_duration(i, i+1, samplerate)
+            (pts, dur) = timefuncs.audio_pts_and_duration(i, i+1, samplerate)
             self.assertEqual(pts, accum)
             self.assertEqual(pts, timefuncs.sample_to_nanosecond(i, samplerate))
             self.assertIn(dur, (22675, 22676))

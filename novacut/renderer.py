@@ -29,7 +29,7 @@ import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import GObject, Gst
 
-from .timefuncs import video_pts_and_duration, aslice_pts_and_duration
+from .timefuncs import video_pts_and_duration, audio_pts_and_duration
 
 
 GObject.threads_init()
@@ -263,12 +263,12 @@ def build_aslice(builder, doc, offset):
     element.set_property('uri', 'file://' + builder.resolve_file(node['src']))
 
     # These properties are about the slice itself
-    (pts, duration) = aslice_pts_and_duration(start, stop, samplerate)
+    (pts, duration) = audio_pts_and_duration(start, stop, samplerate)
     element.set_property('media-start', pts)
     element.set_property('media-duration', duration)
 
     # These properties are about the position of the slice in the composition
-    (pts, duration) = aslice_pts_and_duration(
+    (pts, duration) = audio_pts_and_duration(
         offset, offset + samples, samplerate
     )
     element.set_property('start', pts)

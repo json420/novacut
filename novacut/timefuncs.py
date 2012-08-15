@@ -160,18 +160,18 @@ def video_pts_and_duration(start, stop, framerate):
     return (pts, duration)
 
 
-def aslice_pts_and_duration(start, stop, samplerate):
+def audio_pts_and_duration(start, stop, samplerate):
     """
     Get the presentation timestamp and duration for an audio slice.
 
     It can be for a single sample:
 
-    >>> aslice_pts_and_duration(1, 2, 48000)
+    >>> audio_pts_and_duration(1, 2, 48000)
     (20833, 20833)
 
     Or for a multi-sample slice:
 
-    >>> aslice_pts_and_duration(1, 101, 48000)
+    >>> audio_pts_and_duration(1, 101, 48000)
     (20833, 2083333)
     
     """
