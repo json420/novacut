@@ -135,13 +135,16 @@ class TestFunctions(TestCase):
             'time': time.time(),
             'type': 'novacut/node',
             'node': {
-                'type': 'slice/video',
+                'type': 'video/slice',
                 'src': random_id(DIGEST_BYTES),
                 'start': 1776,
                 'stop': 2013,
             },
         }
         schema.check_slice(good)
+        also_good = deepcopy(good)
+        also_good['node']['type'] = 'audio/slice'
+        schema.check_slice(also_good)
 
         # Test with missing keys
         keys = sorted(good)
@@ -174,7 +177,7 @@ class TestFunctions(TestCase):
             schema.check_slice(bad)
         self.assertEqual(
             str(cm.exception),
-            "doc['node']['type'] value 'foo/bar' not in ('slice/video', 'slice/audio')"
+            "doc['node']['type'] value 'foo/bar' not in ('video/slice', 'audio/slice')"
         )
 
         # Test with bad start type
@@ -233,7 +236,7 @@ class TestFunctions(TestCase):
             'time': time.time(),
             'type': 'novacut/node',
             'node': {
-                'type': 'slice/video',
+                'type': 'video/slice',
                 'src': random_id(DIGEST_BYTES),
                 'start': 1776,
                 'stop': 2013,
@@ -267,12 +270,12 @@ class TestFunctions(TestCase):
 
         # Test with bad doc['node']['type'] value:
         bad = deepcopy(good)
-        bad['node']['type'] = 'slice/audio'
+        bad['node']['type'] = 'audio/slice'
         with self.assertRaises(ValueError) as cm:
             schema.check_video_slice(bad)
         self.assertEqual(
             str(cm.exception),
-            "doc['node']['type'] must equal 'slice/video'; got 'slice/audio'"
+            "doc['node']['type'] must equal 'video/slice'; got 'audio/slice'"
         )
 
     def test_create_video_slice(self):
@@ -282,7 +285,7 @@ class TestFunctions(TestCase):
         stop = random.randrange(start + 1, frames + 1)
         doc = schema.create_video_slice(src_id, start, stop)
         schema.check_video_slice(doc)
-        self.assertEqual(doc['node']['type'], 'slice/video')
+        self.assertEqual(doc['node']['type'], 'video/slice')
         self.assertEqual(doc['node']['src'], src_id)
         self.assertEqual(doc['node']['start'], start)
         self.assertEqual(doc['node']['stop'], stop)
@@ -293,7 +296,7 @@ class TestFunctions(TestCase):
             'time': time.time(),
             'type': 'novacut/node',
             'node': {
-                'type': 'slice/audio',
+                'type': 'audio/slice',
                 'src': random_id(DIGEST_BYTES),
                 'start': 1776,
                 'stop': 2013,
@@ -327,12 +330,12 @@ class TestFunctions(TestCase):
 
         # Test with bad doc['node']['type'] value:
         bad = deepcopy(good)
-        bad['node']['type'] = 'slice/video'
+        bad['node']['type'] = 'video/slice'
         with self.assertRaises(ValueError) as cm:
             schema.check_audio_slice(bad)
         self.assertEqual(
             str(cm.exception),
-            "doc['node']['type'] must equal 'slice/audio'; got 'slice/video'"
+            "doc['node']['type'] must equal 'audio/slice'; got 'video/slice'"
         )
 
     def test_create_audio_slice(self):
@@ -342,7 +345,7 @@ class TestFunctions(TestCase):
         stop = random.randrange(start + 1, samples + 1)
         doc = schema.create_audio_slice(src_id, start, stop)
         schema.check_audio_slice(doc)
-        self.assertEqual(doc['node']['type'], 'slice/audio')
+        self.assertEqual(doc['node']['type'], 'audio/slice')
         self.assertEqual(doc['node']['src'], src_id)
         self.assertEqual(doc['node']['start'], start)
         self.assertEqual(doc['node']['stop'], stop)

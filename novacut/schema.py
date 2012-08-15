@@ -412,11 +412,11 @@ def create_node(node):
 
 def check_slice(doc):
     """
-    Check common schema between slice/video and slice/audio nodes.
+    Check common schema between video/slice and audio/slice nodes.
     """
     check_node(doc)
     _check(doc, ['node', 'type'], str,
-        (_is_in, 'slice/video', 'slice/audio')
+        (_is_in, 'video/slice', 'audio/slice')
     )
     _check(doc, ['node', 'src'], str,
         _intrinsic_id
@@ -434,7 +434,7 @@ def check_slice(doc):
 
 def check_video_slice(doc):
     """
-    Verify that *doc* is a valid slice/video node.
+    Verify that *doc* is a valid video/slice node.
 
     For example, a conforming value:
 
@@ -443,7 +443,7 @@ def check_video_slice(doc):
     ...     'time': 1234567890,
     ...     'type': 'novacut/node',
     ...     'node': {
-    ...         'type': 'slice/video',
+    ...         'type': 'video/slice',
     ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
     ...         'start': 17,
     ...         'stop': 69,
@@ -455,13 +455,13 @@ def check_video_slice(doc):
     """
     check_slice(doc)
     _check(doc, ['node', 'type'], str,
-        (_equals, 'slice/video')
+        (_equals, 'video/slice')
     )
 
 
 def create_video_slice(src, start, stop):
     node = {
-        'type': 'slice/video',
+        'type': 'video/slice',
         'src': src,
         'start': start,
         'stop': stop,
@@ -471,7 +471,7 @@ def create_video_slice(src, start, stop):
 
 def check_audio_slice(doc):
     """
-    Verify that *doc* is a valid slice/video node.
+    Verify that *doc* is a valid audio/slice node.
 
     For example, a conforming value:
 
@@ -480,7 +480,7 @@ def check_audio_slice(doc):
     ...     'time': 1234567890,
     ...     'type': 'novacut/node',
     ...     'node': {
-    ...         'type': 'slice/audio',
+    ...         'type': 'audio/slice',
     ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
     ...         'start': 48000,
     ...         'stop': 96000,
@@ -492,13 +492,13 @@ def check_audio_slice(doc):
     """
     check_slice(doc)
     _check(doc, ['node', 'type'], str,
-        (_equals, 'slice/audio')
+        (_equals, 'audio/slice')
     )
 
 
 def create_audio_slice(src, start, stop):
     node = {
-        'type': 'slice/audio',
+        'type': 'audio/slice',
         'src': src,
         'start': start,
         'stop': stop,
