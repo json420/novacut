@@ -139,6 +139,7 @@ def sample_to_frame(sample, samplerate, framerate):
     (num, denom) = get_fraction(framerate)
     return sample * num // (samplerate * denom)
 
+
 def video_pts_and_duration(start, stop, framerate):
     """
     Get the presentation timestamp and duration for a video slice.
@@ -152,7 +153,7 @@ def video_pts_and_duration(start, stop, framerate):
 
     >>> video_pts_and_duration(1, 101, (24, 1))
     (41666666, 4166666667)
-    
+
     """
     assert 0 <= start < stop
     pts = frame_to_nanosecond(start, framerate)
@@ -173,7 +174,7 @@ def audio_pts_and_duration(start, stop, samplerate):
 
     >>> audio_pts_and_duration(1, 101, 48000)
     (20833, 2083333)
-    
+
     """
     assert 0 <= start < stop
     pts = sample_to_nanosecond(start, samplerate)
