@@ -410,7 +410,7 @@ def create_node(node):
     }
 
 
-def check_vslice(doc):
+def check_video_slice(doc):
     """
     Verify that *doc* is a valid "vslice" novacut/node document.
 
@@ -421,19 +421,19 @@ def check_vslice(doc):
     ...     'time': 1234567890,
     ...     'type': 'novacut/node',
     ...     'node': {
-    ...         'type': 'vslice',
+    ...         'type': 'slice/video',
     ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
     ...         'start': 17,
     ...         'stop': 69,
     ...     },
     ... }
     ...
-    >>> check_vslice(doc)
+    >>> check_video_slice(doc)
 
     """
     check_node(doc)
     _check(doc, ['node', 'type'], str,
-        (_equals, 'vslice')
+        (_equals, 'slice/video')
     )
     _check(doc, ['node', 'src'], str,
         _intrinsic_id
@@ -447,6 +447,16 @@ def check_vslice(doc):
     _check(doc, ['node', 'stop'], int,
         (_at_least, doc['node']['start'] + 1)
     )
+
+
+def create_video_slice(src, start, stop):
+    node = {
+        'type': 'slice/video',
+        'src': src,
+        'start': start,
+        'stop': stop,
+    }
+    return create_node(node)
 
 
 def create_inode(inode):
