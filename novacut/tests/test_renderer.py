@@ -428,7 +428,7 @@ class TestFunctions(TestCase):
             9 * Gst.SECOND
         )
 
-    def test_build_aslice(self):
+    def test_build_audio_slice(self):
         file_id = random_id(DIGEST_BYTES)
         file = {
             '_id': file_id,
@@ -443,7 +443,7 @@ class TestFunctions(TestCase):
                 'stop': 79453,
             },
         }
-        (samples, element) = renderer.build_aslice(b, doc, 0)
+        (samples, element) = renderer.build_audio_slice(b, doc, 0)
         self.assertEqual(samples, 31415)
         self.assertIsInstance(element, Gst.Element)
         self.assertEqual(element.get_factory().get_name(), 'gnlurisource')
@@ -460,7 +460,7 @@ class TestFunctions(TestCase):
         self.assertEqual(element.get_property('start'), 0)
         self.assertEqual(element.get_property('duration'), 654479166)
 
-        (samples, element) = renderer.build_aslice(b, doc, 48038)
+        (samples, element) = renderer.build_audio_slice(b, doc, 48038)
         self.assertEqual(samples, 31415)
         self.assertIsInstance(element, Gst.Element)
         self.assertEqual(element.get_factory().get_name(), 'gnlurisource')

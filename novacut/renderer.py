@@ -250,7 +250,7 @@ def build_vslice(builder, doc, offset=0):
     return frames
 
 
-def build_aslice(builder, doc, offset):
+def build_audio_slice(builder, doc, offset):
     node = doc['node']
     samplerate = builder.get_doc(node['src'])['samplerate']
     start = node['start']
