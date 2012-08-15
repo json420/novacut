@@ -29,7 +29,7 @@ import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import GObject, Gst
 
-from .timefuncs import vslice_pts_and_duration, aslice_pts_and_duration
+from .timefuncs import video_pts_and_duration, aslice_pts_and_duration
 
 
 GObject.threads_init()
@@ -237,12 +237,12 @@ def build_vslice(builder, doc, offset=0):
     element.set_property('caps', Gst.caps_from_string('video/x-raw'))
 
     # These properties are about the slice itself
-    (pts, duration) = vslice_pts_and_duration(start, stop, framerate)
+    (pts, duration) = video_pts_and_duration(start, stop, framerate)
     element.set_property('media-start', pts)
     element.set_property('media-duration', duration)
 
     # These properties are about the position of the slice in the composition
-    (pts, duration) = vslice_pts_and_duration(offset, offset+frames, framerate)
+    (pts, duration) = video_pts_and_duration(offset, offset+frames, framerate)
     element.set_property('start', pts)
     element.set_property('duration', duration)
 

@@ -139,19 +139,18 @@ def sample_to_frame(sample, samplerate, framerate):
     (num, denom) = get_fraction(framerate)
     return sample * num // (samplerate * denom)
 
-
-def vslice_pts_and_duration(start, stop, framerate):
+def video_pts_and_duration(start, stop, framerate):
     """
     Get the presentation timestamp and duration for a video slice.
 
     It can be for a single frame:
 
-    >>> vslice_pts_and_duration(1, 2, (24, 1))
+    >>> video_pts_and_duration(1, 2, (24, 1))
     (41666666, 41666667)
 
     Or for a multi-frame slice:
 
-    >>> vslice_pts_and_duration(1, 101, (24, 1))
+    >>> video_pts_and_duration(1, 101, (24, 1))
     (41666666, 4166666667)
     
     """
