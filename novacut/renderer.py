@@ -29,6 +29,8 @@ import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import GObject, Gst
 
+from .timefuncs import vslice_pts_and_duration, aslice_pts_and_duration
+
 
 GObject.threads_init()
 Gst.init(None)
@@ -222,11 +224,9 @@ doc = {
 }
 
 
-
-
-
 def build_vslice(builder, doc, offset=0):
     node = doc['node']
+    framerate = builder.get_doc(node['src'])['framerate']
     start = node['start']
     stop = node['stop']
     frames = stop - start
@@ -247,8 +247,34 @@ def build_vslice(builder, doc, offset=0):
     element.set_property('duration', duration)
 
     builder.video.add(element)
-
     return frames
+
+
+def build_aslice(builder, doc, offset):
+    node = doc['node']
+    samplerate = builder.get_doc(node['src'])['samplerate']
+    start = node['start']
+    stop = node['stop']
+    samples = stop - start
+    log.info('aslice %d:%d %s', start, stop, node['src'])
+
+    element = make_element('gnlurisource')
+    element.set_property('caps', Gst.caps_from_string('audio/x-raw'))
+    element.set_property('uri', 'file://' + builder.resolve_file(node['src']))
+
+    # These properties are about the slice itself
+    (pts, duration) = aslice_pts_and_duration(start, stop, samplerate)
+    element.set_property('media-start', pts)
+    element.set_property('media-duration', duration)
+
+    # These properties are about the position of the slice in the composition
+    (pts, duration) = aslice_pts_and_duration(
+        offset, offset + samples, samplerate
+    )
+    element.set_property('start', pts)
+    element.set_property('duration', duration)
+
+    return (samples, element)
 
 
 def build_sequence(builder, doc, offset=0):

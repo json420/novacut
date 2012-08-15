@@ -25,6 +25,7 @@ Unit tests for the `novacut.renderer` module.
 
 from unittest import TestCase
 
+from filestore import DIGEST_BYTES
 from microfiber import random_id
 from novacut import renderer
 from gi.repository import Gst
@@ -426,6 +427,55 @@ class TestFunctions(TestCase):
             renderer.build_sequence(b, b.get_doc(sequence2), 0),
             9 * Gst.SECOND
         )
+
+    def test_build_aslice(self):
+        file_id = random_id(DIGEST_BYTES)
+        file = {
+            '_id': file_id,
+            'samplerate': 48000,
+        }
+        b = DummyBuilder([file])
+
+        doc = {
+            'node': {
+                'src': file_id,
+                'start': 48038,
+                'stop': 79453,
+            },
+        }
+        (samples, element) = renderer.build_aslice(b, doc, 0)
+        self.assertEqual(samples, 31415)
+        self.assertIsInstance(element, Gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'gnlurisource')
+        self.assertEqual(
+            element.get_property('caps').to_string(),
+            'audio/x-raw'
+        )
+        self.assertEqual(
+            element.get_property('uri'),
+            'file://' + resolve(file_id)
+        )
+        self.assertEqual(element.get_property('media-start'), 1000791666)
+        self.assertEqual(element.get_property('media-duration'), 654479167)
+        self.assertEqual(element.get_property('start'), 0)
+        self.assertEqual(element.get_property('duration'), 654479166)
+
+        (samples, element) = renderer.build_aslice(b, doc, 48038)
+        self.assertEqual(samples, 31415)
+        self.assertIsInstance(element, Gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'gnlurisource')
+        self.assertEqual(
+            element.get_property('caps').to_string(),
+            'audio/x-raw'
+        )
+        self.assertEqual(
+            element.get_property('uri'),
+            'file://' + resolve(file_id)
+        )
+        self.assertEqual(element.get_property('media-start'), 1000791666)
+        self.assertEqual(element.get_property('media-duration'), 654479167)
+        self.assertEqual(element.get_property('start'), 1000791666)
+        self.assertEqual(element.get_property('duration'), 654479167)
 
 
 class TestBuilder(TestCase):
