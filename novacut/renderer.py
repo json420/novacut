@@ -224,7 +224,7 @@ doc = {
 }
 
 
-def build_vslice(builder, doc, offset=0):
+def build_video_slice(builder, doc, offset=0):
     node = doc['node']
     framerate = builder.get_doc(node['src'])['framerate']
     start = node['start']
