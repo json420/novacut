@@ -196,8 +196,70 @@ def build_slice(builder, doc, offset=0):
         log.info('%s %d:%d %s', stream, start, duration, clip['_id'])
 
         builder.add(element, stream)
-        
+
     return duration
+
+
+doc = {
+    'type': 'novacut/node',
+    'node': {
+        'type': 'vslice',
+        'src': 'FILE_ID',
+        'start': 79,
+        'stop': 203,
+    }
+}
+
+
+doc = {
+    'type': 'novacut/node',
+    'node': {
+        'type': 'aslice',
+        'src': 'FILE_ID',
+        'start': 48000,
+        'stop': 96000,
+    }
+}
+
+
+def vslice_pts_and_duration(start, stop, framerate):
+    assert 0 <= start < stop
+    pts = frame_to_nanosecond(start, framerate)
+    duration = frame_to_nanosecond(stop, framerate) - pts
+    return (pts, duration)
+
+
+def aslice_pts_and_duration(start, stop, samplerate):
+    assert 0 <= start < stop
+    pts = sample_to_nanosecond(start, samplerate)
+    duration = sample_to_nanosecond(stop, samplerate) - pts
+    return (pts, duration)
+
+
+def build_vslice(builder, doc, offset=0):
+    node = doc['node']
+    start = node['start']
+    stop = node['stop']
+    frames = stop - start
+    log.info('vslice %d:%d %s', start, stop, node['src'])
+
+    element = make_element('gnlurisource')
+    element.set_property('uri', 'file://' + builder.resolve_file(node['src']))
+    element.set_property('caps', Gst.caps_from_string('video/x-raw'))
+
+    # These properties are about the slice itself
+    (pts, duration) = vslice_pts_and_duration(start, stop, framerate)
+    element.set_property('media-start', pts)
+    element.set_property('media-duration', duration)
+
+    # These properties are about the position of the slice in the composition
+    (pts, duration) = vslice_pts_and_duration(offset, offset+frames, framerate)
+    element.set_property('start', pts)
+    element.set_property('duration', duration)
+
+    builder.video.add(element)
+
+    return frames
 
 
 def build_sequence(builder, doc, offset=0):
