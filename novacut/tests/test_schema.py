@@ -24,8 +24,11 @@ Unit tests for the `novacut.schema` module.
 """
 
 from unittest import TestCase
+import time
+from copy import deepcopy
 
 from microfiber import random_id
+from filestore import DIGEST_BYTES
 
 from novacut import schema
 
@@ -85,6 +88,130 @@ class TestFunctions(TestCase):
         doc = schema.create_project(title='Hobo Spaceship')
         schema.check_project(doc)
         self.assertEqual(doc['title'], 'Hobo Spaceship')
+
+    def test_check_node(self):
+        good = {
+            '_id': random_id(),
+            'time': time.time(),
+            'type': 'novacut/node',
+            'node': {
+                'type': 'shaker',
+                'src': random_id(),
+            },
+        }
+        schema.check_node(good)
+        
+        # Test with missing keys
+        keys = sorted(good)
+        for key in keys:
+            bad = deepcopy(good)
+            del bad[key]
+            with self.assertRaises(ValueError) as cm:
+                schema.check_node(bad)
+            self.assertEqual(
+                str(cm.exception),
+                'doc[{!r}] does not exist'.format(key)
+            )
+
+        # Test with missing keys in doc['node']
+        keys = sorted(good['node'])
+        for key in keys:
+            bad = deepcopy(good)
+            del bad['node'][key]
+            with self.assertRaises(ValueError) as cm:
+                schema.check_node(bad)
+            self.assertEqual(
+                str(cm.exception),
+                "doc['node'][{!r}] does not exist".format(key)
+            )
+
+    def test_check_vslice(self):
+        good = {
+            '_id': random_id(),
+            'time': time.time(),
+            'type': 'novacut/node',
+            'node': {
+                'type': 'vslice',
+                'src': random_id(DIGEST_BYTES),
+                'start': 1776,
+                'stop': 2013,
+            },
+        }
+        schema.check_vslice(good)
+
+        # Test with missing keys
+        keys = sorted(good)
+        for key in keys:
+            bad = deepcopy(good)
+            del bad[key]
+            with self.assertRaises(ValueError) as cm:
+                schema.check_vslice(bad)
+            self.assertEqual(
+                str(cm.exception),
+                'doc[{!r}] does not exist'.format(key)
+            )
+
+        # Test with missing keys in doc['node']
+        keys = sorted(good['node'])
+        for key in keys:
+            bad = deepcopy(good)
+            del bad['node'][key]
+            with self.assertRaises(ValueError) as cm:
+                schema.check_vslice(bad)
+            self.assertEqual(
+                str(cm.exception),
+                "doc['node'][{!r}] does not exist".format(key)
+            )
+
+        # Test with bad start type
+        bad = deepcopy(good)
+        bad['node']['start'] = 1776.0
+        with self.assertRaises(TypeError) as cm:
+            schema.check_vslice(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['node']['start']: need a <class 'int'>; got a <class 'float'>: 1776.0"
+        )
+
+        # Test with bad stop type
+        bad = deepcopy(good)
+        bad['node']['stop'] = 2013.0
+        with self.assertRaises(TypeError) as cm:
+            schema.check_vslice(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['node']['stop']: need a <class 'int'>; got a <class 'float'>: 2013.0"
+        )
+
+        # Test with bad start value
+        bad = deepcopy(good)
+        bad['node']['start'] = -1
+        with self.assertRaises(ValueError) as cm:
+            schema.check_vslice(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['node']['start'] must be >= 0; got -1"
+        )
+
+        # Test with bad stop value
+        bad = deepcopy(good)
+        bad['node']['stop'] = 0
+        with self.assertRaises(ValueError) as cm:
+            schema.check_vslice(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['node']['stop'] must be >= 1; got 0"
+        )
+
+        # Test with a zero-length slice
+        bad = deepcopy(good)
+        bad['node']['stop'] = 1776
+        with self.assertRaises(ValueError) as cm:
+            schema.check_vslice(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['node']['stop'] must be >= 1777; got 1776"
+        )
 
     def test_create_slice(self):
         src = random_id()

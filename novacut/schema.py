@@ -410,6 +410,45 @@ def create_node(node):
     }
 
 
+def check_vslice(doc):
+    """
+    Verify that *doc* is a valid "vslice" novacut/node document.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     'time': 1234567890,
+    ...     'type': 'novacut/node',
+    ...     'node': {
+    ...         'type': 'vslice',
+    ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
+    ...         'start': 17,
+    ...         'stop': 69,
+    ...     },
+    ... }
+    ...
+    >>> check_vslice(doc)
+
+    """
+    check_node(doc)
+    _check(doc, ['node', 'type'], str,
+        (_equals, 'vslice')
+    )
+    _check(doc, ['node', 'src'], str,
+        _intrinsic_id
+    )
+    _check(doc, ['node', 'start'], int,
+        (_at_least, 0),
+    )
+    _check(doc, ['node', 'stop'], int,
+        (_at_least, 1),
+    )
+    _check(doc, ['node', 'stop'], int,
+        (_at_least, doc['node']['start'] + 1)
+    )
+
+
 def create_inode(inode):
     return {
         '_id': inode.id,
