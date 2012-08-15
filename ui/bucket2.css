@@ -1,0 +1,640 @@
+* {
+    font-family: Ubuntu;
+    line-height: 24px;
+    -webkit-user-select: none;
+}
+
+img {
+    -webkit-user-select: none;
+}
+
+.fgrid_row {
+    white-space: nowrap;
+    font-size: 0;
+    line-height: 0;
+}
+
+.fgrid_row > * {
+    font-size: 15px;
+    display: inline-block;
+    margin: 8px;
+    box-sizing: border-box !important;
+    vertical-align: top;
+}
+
+
+.fgrid_cell > * {
+    display: block;
+    width: 100%;
+    box-sizing: border-box !important;
+}
+
+.fgrid_1 {
+    width: 50px;
+}
+
+.fgrid_2 {
+    width: 116px;
+}
+
+.fgrid_3 {
+    width: 182px;
+}
+
+.fgrid_4 {
+    width: 248px;
+}
+
+.fgrid_5 {
+    width: 314px;
+}
+
+.fgrid_6 {
+    width: 380px;
+}
+
+.fgrid_7 {
+    width: 446px;
+}
+
+.fgrid_8 {
+    width: 512px;
+}
+
+.fgrid_9 {
+    width: 578px;
+}
+
+.fgrid_10 {
+    width: 644px;
+}
+
+.fgrid_11 {
+    width: 710px;
+}
+
+.fgrid_12 {
+    width: 776px;
+}
+
+#flyout .version {
+    text-shadow: 0px 0px 10px #e81f3b;
+}
+
+
+#flyout_capture {
+    position: fixed;
+    z-index: 10;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    /*
+    background: rgba(0,0,0,0.5);
+    */
+}
+
+
+#flyout {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    width: 800px;
+    height: 448px;
+    /*
+    background: -webkit-linear-gradient(top, #333, #2a2a2a);
+    */
+    background-color: rgba(15, 15, 15, 0.9);
+    box-shadow: 0px 0px 10px 0px #e81f3b;
+    border-radius: 12px;
+    font-size: 16px;
+    color: #ddd;
+    box-sizing: border-box !important;
+    padding: 4px;
+}
+
+#flyout a {
+    color: #e81f3b;
+    text-decoration: none;
+}
+
+#flyout a:hover {
+    color: #f82f4b;
+    text-decoration: underline;
+}
+
+#logo {
+    position: fixed;
+    z-index: 11;
+    right: 6px;
+    top: 6px;
+    width: 48px;
+    height: 48px;
+    -webkit-transition: -webkit-transform 300ms linear;
+}
+
+#logo.open {
+    -webkit-transform: rotate(-180deg);   
+}
+
+#open_clips {
+    z-index: 4;
+    position: fixed;
+    top: 0;
+    right: 50%;
+    width: 80px;
+    color: #ddd;
+    padding-left: 6px;
+    padding-right: 6px;
+    cursor: default;
+    box-shadow: 0px 1px 4px 0px rgba(0,0,0,0.6);
+    text-align: center;
+    border-radius: 0 0 2px 2px;
+    border:1px solid transparent;
+    border-top:none;
+    border-bottom:1px solid #383838;
+    background: -webkit-linear-gradient(top, #444, #333);
+    text-shadow: 0px -1px 0px rgba(0,0,0,0.5);
+}
+
+#clips_outer {
+    z-index: 3;
+    position: fixed;
+    top: -140px;
+    height: 139px;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+    -webkit-transition: top 250ms ease-in-out;
+    box-shadow: 0px 2px 6px 0px rgba(0,0,0,0.6);
+}
+
+
+#clips_outer.open {
+    top: 0px;
+}
+
+.grid_row {
+    font-size: 0;
+    white-space: nowrap;
+    font-size: 0;
+}
+
+#clips_nav {
+    height: 41px;
+}
+
+#clips_nav label, #clips_nav select {
+    margin: 8px;
+}
+
+
+#clips {
+    width: 100%;
+    overflow-y: hidden;
+    overflow-x: scroll;
+    white-space: nowrap;
+    font-size: 0;
+    line-height: 0;
+    height: 97px;
+    
+    /*
+    Dear James, you are looking especially tall today, and tough and handsome.
+    Could you please make this scrollbar less horible looking?
+    
+    Love,
+    Jason
+    */
+}
+
+::-webkit-scrollbar{
+    width:5px;
+    height:5px;
+    background:#222;
+}
+
+::-webkit-scrollbar-thumb{
+    border-radius:2px;
+    background:#999;
+}
+
+#clips img {
+    width: 160px;
+    height: 90px;
+    display: inline-block;
+    border: 1px solid #333;
+    -webkit-user-select: none;
+}
+
+#clips img.selected {
+    border-color: #e81f3b;
+}
+
+#bucket {
+    position: fixed;
+    top: 0px;
+    bottom: 246px;
+    left: 0;
+    right: 0;
+    /*
+    background: #333;
+    */
+    background: #301438;
+    overflow: hidden;
+}
+
+.seq-preview {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 246px;
+    z-index: 3;
+    background-color: black;
+}
+
+.seq-preview video {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+
+#sequence {
+    position: fixed;
+    height: 221px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #eee;
+    
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 0;
+    line-height: 0;
+
+    padding-top: 25px;
+    background-image: url(grip-short.png);
+    /*
+    background-image: url(grip-short.png), -webkit-linear-gradient(top, #222, #333);
+    */
+    background-repeat: repeat-x;
+}
+
+.slice {
+    border-top: 1px solid #666;
+    border-left: 1px solid #555;
+    border-right: 1px solid #444;
+    border-bottom:1px solid #333;
+}
+
+.slice.selected {
+    border-color: #e81f3b;
+    z-index: 1;
+}
+
+.slice, .slice * {
+    -webkit-user-select: none;
+}
+
+#bucket .slice {
+    position: absolute;
+    box-shadow: 0px 2px 5px 1px rgba(0,0,0,0.5);
+    
+    -webkit-transition-timing-function: ease;
+    -webkit-transition-duration: 250ms;
+    -webkit-transition-property: left, top;
+}
+
+#sequence .slice {
+    display: inline-block;
+}
+
+
+.frame {
+    position: relative;
+}
+
+.frame div {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 2px 6px;
+
+    cursor: default;
+    text-align: right;
+    font-family: "Ubuntu Mono";
+    font-size: 14px;
+    line-height: 1.6em;
+    font-weight: bold;
+    color: white;
+    text-shadow: 0 0 2px black;
+    /*
+    -webkit-text-stroke: 1px #000;
+    */
+}
+
+.frame img {
+    margin: 0;
+    padding: 0;
+    border: none;
+    display: block;
+    background-color: white;
+}
+
+/*
+Interesting 16:9 thumbnail sizes we might want to use:
+    112 63
+    128 72
+    144 81
+    160 90
+    176 99
+    192 108
+    208 117
+    224 126
+*/
+
+#bucket img {
+    width: 128px;
+    height: 72px;
+}
+
+#sequence img {
+    width: 192px;
+    height: 108px;
+}
+
+
+.indicator {
+    height: 3px;
+    /*background:-webkit-linear-gradient(top, #111, #222);*/
+    background-color: #333;
+    position: relative;
+    pointer-events: none;
+}
+
+.indicator div {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    left: 0%;
+    right: 0%;
+    background:-webkit-linear-gradient(top, #ddd, #fff);
+}
+
+.indicator div:before{
+    position:absolute;
+    top:-1px;
+    bottom:-1px;
+    left:0px;
+    width:1px;
+    background:white;
+    content:"";
+}
+
+.indicator div:after{
+    position:absolute;
+    top:-1px;
+    bottom:-1px;
+    right:0px;
+    width:1px;
+    background:white;
+    content:"";
+}
+
+
+
+.over {
+    margin-left: 194px;
+}
+
+.over-right {
+    margin-right: 194px;
+}
+
+
+.right {
+    position: relative;
+    left: 194px;
+}
+
+.left {
+    position: relative;
+    left: -194px;
+} 
+
+.animated {
+    position: relative;
+    -webkit-transition: left 150ms ease;
+}
+
+.grabbed {
+    -webkit-transition-property: none !important;
+    position: fixed !important;
+}
+
+
+#roughcut {
+    position: fixed;
+    top: 139px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: black;
+    z-index: 4;
+}
+
+
+
+#roughcut .frames {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 30px;
+    font-size: 0px;
+    line-height: 0px;
+}
+
+.videoframe {
+    display: inline-block;
+    width: 50%;
+    position: relative;
+}
+
+
+.videoframe video {
+    pointer-events: none;
+    width: 100%;
+    margin: 0;
+    display: block;
+}
+
+.videoframe div {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 2px 6px;
+
+    cursor: default;
+    text-align: right;
+    font-family: "Ubuntu Mono";
+    font-size: 16px;
+    line-height: 1.6em;
+    font-weight: bold;
+    color: white;
+    text-shadow: 0 0 2px black;
+}
+
+
+
+#roughcut .scrubber {
+    position: absolute;
+    bottom: 0;
+    height: 30px;
+    left: 0;
+    right: 0;
+    background-color: #999;
+}
+
+
+#roughcut .scrubber * {
+    pointer-events: none;
+}
+
+#roughcut .bar {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    background-color: #e81f3b;
+}
+
+#roughcut .playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: green;
+    /*
+    -webkit-transition: left 150ms linear;
+    */
+}
+
+#player {
+    position: fixed;
+    z-index: 20;
+    background-color: black;
+    top: 0;
+    bottom: 246px;
+    left: 0;
+    right: 0;
+}
+
+#player video {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    pointer-events: none;
+}
+
+#shortcuts{
+	position:fixed;
+    background-color: rgba(15, 15, 15, 0.85);
+text-shadow: 2px 2px 3px rgba(255, 0, 0, 0.5);
+    box-shadow: 0px 0px 10px 0px #e81f3b;
+    border-radius: 12px;
+    font-size: 16px;
+	display:none;
+	z-index:999;
+}
+#shortcuts table{
+	padding: 20px;
+}
+#shortcuts td{
+	padding-top :4px;
+	padding-left: 15px;
+	padding-right: 15px;
+}
+
+.cont{
+border-top: 1px solid rgb(102, 102, 102);
+border-left: 1px solid rgb(85, 85, 85);
+border-right: 1px solid rgb(68, 68, 68);
+border-bottom: 1px solid rgb(51, 51, 51);
+}
+
+#bucket .cont{
+position: absolute;
+min-width:128px;
+height:147px;
+}
+
+.cont ,.cont * {
+-webkit-user-select: none;
+}
+
+.cont{
+/*-webkit-animation-duration: 0.2s;
+-webkit-animation-iteration-count: 1;
+-webkit-animation-timing-function: ease;*/
+background:gray;
+/*position: fixed;*/
+}
+
+
+/*#sequence .cont{
+height: 219px !important;
+}*/
+
+/*#sequence .comp div{
+height: 109px;
+}*/
+
+
+.cont .slice{
+position: relative !important;
+float: left;
+}
+
+#sequence .cont{
+display: inline-block;
+height:219px !important;
+}
+
+.top{
+height: 75px;
+}
+
+.bot{
+height: 72px;
+}
+
+#sequence .top{
+height: 111px;
+}
+
+#sequence .bot{
+height: 108px;
+}
+
+.cont.selected{
+border-color: rgb(232, 31, 59);
+z-index: 1;
+}
+
+@-webkit-keyframes enter{
+from{-webkit-transform: translateX(-200px) translateY(-200px) scale(0.3);}
+to{-webkit-transform: translateX(0px) translateY(0px) scale(1);}
+}
+
+.selector{
+border: 1px solid red;
+position:absolute;
+box-shadow: inset 0px 0px 10px rgba(255,0,0,0.5);
+border-radius: 5px;
+background-color: rgba(255, 0, 0, 0.13);
+z-index: 10;
+} 
