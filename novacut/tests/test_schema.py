@@ -29,10 +29,10 @@ from copy import deepcopy
 from random import SystemRandom
 
 from microfiber import random_id
-from filestore import DIGEST_BYTES
 
 from novacut.misc import random_slice
 from novacut import schema
+from .base import random_file_id
 
 
 class TestFunctions(TestCase):
@@ -134,7 +134,7 @@ class TestFunctions(TestCase):
             'type': 'novacut/node',
             'node': {
                 'type': 'video/slice',
-                'src': random_id(DIGEST_BYTES),
+                'src': random_file_id(),
                 'start': 1776,
                 'stop': 2013,
             },
@@ -235,7 +235,7 @@ class TestFunctions(TestCase):
             'type': 'novacut/node',
             'node': {
                 'type': 'video/slice',
-                'src': random_id(DIGEST_BYTES),
+                'src': random_file_id(),
                 'start': 1776,
                 'stop': 2013,
             },
@@ -277,7 +277,7 @@ class TestFunctions(TestCase):
         )
 
     def test_create_video_slice(self):
-        src_id = random_id(DIGEST_BYTES)
+        src_id = random_file_id()
         frames = 24 * 60
         (start, stop) = random_slice(frames)
         doc = schema.create_video_slice(src_id, start, stop)
@@ -294,7 +294,7 @@ class TestFunctions(TestCase):
             'type': 'novacut/node',
             'node': {
                 'type': 'audio/slice',
-                'src': random_id(DIGEST_BYTES),
+                'src': random_file_id(),
                 'start': 1776,
                 'stop': 2013,
             },
@@ -336,7 +336,7 @@ class TestFunctions(TestCase):
         )
 
     def test_create_audio_slice(self):
-        src_id = random_id(DIGEST_BYTES)
+        src_id = random_file_id()
         samples = 48000 * 60
         (start, stop) = random_slice(samples)
         doc = schema.create_audio_slice(src_id, start, stop)

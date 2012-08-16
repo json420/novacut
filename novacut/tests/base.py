@@ -27,7 +27,9 @@ import os
 from os import path
 import shutil
 import tempfile
-from unittest import TestCase
+
+from microfiber import random_id
+from filestore import DIGEST_BYTES
 
 
 def resolve(_id):
@@ -41,6 +43,12 @@ sample1 = 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
 sample2 = 'W62OZLFQUSKE4K6SLJWJ4EHFDUTRLD7JKQXUQMDJSSUG6TAQ'
 
 assert resolve(sample1) == '/home/.dmedia/files/VQ/IXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
+
+
+
+def random_file_id():
+    return random_id(DIGEST_BYTES)
+
 
 
 class TempDir(object):
