@@ -35,14 +35,18 @@ from filestore import DIGEST_BYTES
 def resolve(_id):
     """
     A dummy Dmedia-like resolver.
+    
+    For example:
+    
+    >>> resolve('VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N')
+    'file:///home/.dmedia/files/VQ/IXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
+
     """
-    return path.join('/home', '.dmedia', 'files', _id[:2], _id[2:])
+    return 'file://' + path.join('/home', '.dmedia', 'files', _id[:2], _id[2:])
 
 
 sample1 = 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
 sample2 = 'W62OZLFQUSKE4K6SLJWJ4EHFDUTRLD7JKQXUQMDJSSUG6TAQ'
-
-assert resolve(sample1) == '/home/.dmedia/files/VQ/IXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
 
 
 

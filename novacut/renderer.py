@@ -184,7 +184,7 @@ def build_slice(builder, doc, offset=0):
     for stream in streams:
         # Create the element, set the URI, and select the stream
         element = make_element('gnlurisource')
-        element.set_property('uri', 'file://' + builder.resolve_file(clip['_id']))
+        element.set_property('uri', builder.resolve_file(clip['_id']))
         element.set_property('caps', stream_caps(stream))
 
         # These properties are about the slice itself
@@ -212,7 +212,7 @@ def build_video_slice(builder, doc, offset=0):
 
     element = make_element('gnlurisource')
     element.set_property('caps', Gst.caps_from_string('video/x-raw'))
-    element.set_property('uri', 'file://' + builder.resolve_file(node['src']))
+    element.set_property('uri', builder.resolve_file(node['src']))
 
     # These properties are about the slice itself
     (pts, duration) = video_pts_and_duration(start, stop, framerate)
@@ -238,7 +238,7 @@ def build_audio_slice(builder, doc, offset):
 
     element = make_element('gnlurisource')
     element.set_property('caps', Gst.caps_from_string('audio/x-raw'))
-    element.set_property('uri', 'file://' + builder.resolve_file(node['src']))
+    element.set_property('uri', builder.resolve_file(node['src']))
 
     # These properties are about the slice itself
     (pts, duration) = audio_pts_and_duration(start, stop, samplerate)

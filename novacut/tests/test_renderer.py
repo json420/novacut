@@ -321,7 +321,7 @@ class TestFunctions(TestCase):
         self.assertEqual(el.get_property('start'), 0)
         self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw')
-        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
+        self.assertEqual(el.get_property('uri'), resolve(clip1))
 
         # Video stream, offset=3s
         self.assertEqual(
@@ -336,7 +336,7 @@ class TestFunctions(TestCase):
         self.assertEqual(el.get_property('start'), 3 * Gst.SECOND)
         self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw')
-        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
+        self.assertEqual(el.get_property('uri'), resolve(clip1))
 
         # Audio stream, offset=0
         doc['node']['stream'] = 'audio'
@@ -352,7 +352,7 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'audio/x-raw'
         )
-        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
+        self.assertEqual(el.get_property('uri'), resolve(clip1))
 
         # Audio stream, offset=3s
         self.assertEqual(
@@ -370,7 +370,7 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'audio/x-raw'
         )
-        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
+        self.assertEqual(el.get_property('uri'), resolve(clip1))
 
         # Audio stream specified in samples, offset=0
         doc = {
@@ -394,7 +394,7 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'audio/x-raw'
         )
-        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
+        self.assertEqual(el.get_property('uri'), resolve(clip1))
 
         # Audio stream specified in samples, offset=3s
         self.assertEqual(
@@ -412,7 +412,7 @@ class TestFunctions(TestCase):
             el.get_property('caps').to_string(),
             'audio/x-raw'
         )
-        self.assertEqual(el.get_property('uri'), 'file://' + resolve(clip1))
+        self.assertEqual(el.get_property('uri'), resolve(clip1))
 
     def test_build_sequence(self):
         b = DummyBuilder(docs)
@@ -450,10 +450,7 @@ class TestFunctions(TestCase):
             element.get_property('caps').to_string(),
             'audio/x-raw'
         )
-        self.assertEqual(
-            element.get_property('uri'),
-            'file://' + resolve(file_id)
-        )
+        self.assertEqual(element.get_property('uri'), resolve(file_id))
         self.assertEqual(element.get_property('media-start'), 1000791666)
         self.assertEqual(element.get_property('media-duration'), 654479167)
         self.assertEqual(element.get_property('start'), 0)
@@ -467,10 +464,7 @@ class TestFunctions(TestCase):
             element.get_property('caps').to_string(),
             'audio/x-raw'
         )
-        self.assertEqual(
-            element.get_property('uri'),
-            'file://' + resolve(file_id)
-        )
+        self.assertEqual(element.get_property('uri'), resolve(file_id))
         self.assertEqual(element.get_property('media-start'), 1000791666)
         self.assertEqual(element.get_property('media-duration'), 654479167)
         self.assertEqual(element.get_property('start'), 1000791666)
