@@ -559,7 +559,6 @@ def create_job(root, settings):
     }
 
 
-
 def create_slice(src, start, stop, stream='video'):
     node = {
         'type': 'slice',
@@ -580,6 +579,13 @@ def create_sequence(src):
     doc = create_node(node)
     doc['doodle'] = []
     return doc
-            
-        
+
+
+def create_video_sequence(src):
+    assert isinstance(src, list)
+    node = {
+        'type': 'video/sequence',
+        'src': src,
+    }
+    return create_node(node)
 

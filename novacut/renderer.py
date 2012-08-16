@@ -202,39 +202,17 @@ def build_slice(builder, doc, offset=0):
     return duration
 
 
-doc = {
-    'type': 'novacut/node',
-    'node': {
-        'type': 'vslice',
-        'src': 'FILE_ID',
-        'start': 79,
-        'stop': 203,
-    }
-}
-
-
-doc = {
-    'type': 'novacut/node',
-    'node': {
-        'type': 'aslice',
-        'src': 'FILE_ID',
-        'start': 48000,
-        'stop': 96000,
-    }
-}
-
-
 def build_video_slice(builder, doc, offset=0):
     node = doc['node']
     framerate = builder.get_doc(node['src'])['framerate']
     start = node['start']
     stop = node['stop']
     frames = stop - start
-    log.info('vslice %d:%d %s', start, stop, node['src'])
+    log.info('video/slice %d:%d %s', start, stop, node['src'])
 
     element = make_element('gnlurisource')
-    element.set_property('uri', 'file://' + builder.resolve_file(node['src']))
     element.set_property('caps', Gst.caps_from_string('video/x-raw'))
+    element.set_property('uri', 'file://' + builder.resolve_file(node['src']))
 
     # These properties are about the slice itself
     (pts, duration) = video_pts_and_duration(start, stop, framerate)
@@ -256,7 +234,7 @@ def build_audio_slice(builder, doc, offset):
     start = node['start']
     stop = node['stop']
     samples = stop - start
-    log.info('aslice %d:%d %s', start, stop, node['src'])
+    log.info('audio/slice %d:%d %s', start, stop, node['src'])
 
     element = make_element('gnlurisource')
     element.set_property('caps', Gst.caps_from_string('audio/x-raw'))
