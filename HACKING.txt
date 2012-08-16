@@ -1,10 +1,52 @@
-We need to agresively test Novacut with a large number of real files from HDSLR
-cameras.  However, we don't want to put these files themselves under version
-control as we don't want the tree to be hundreds of GB.  The solution is to use
-dmedia to store the test files.  This will be done soon, but for now, here is
-how to get the needed test files:
+                         ***************************
+                         Contribute code to Novacut!
+                         ***************************
 
-    mkdir ~/.novacut-test-files
-    cd ~/.novacut-test-files
-    wget http://uds-o.novacut.com/NPY3IW5SQJUNSP2KV47GVB24G7SWX6XF.mov
-    wget http://uds-o.novacut.com/ENN6AVN2M42ZQULASQNKTTDISIL3YKHE.mov
+Getting Started
+===============
+
+Work on Novacut is coordinated through its Launchpad project:
+
+    https://launchpad.net/novacut
+
+Interested developers should start by installing `novacut` from the Novacut
+Daily Builds PPA (which is also an easy way to get all the dependencies).
+
+Install from the daily PPA like this:
+
+    sudo apt-add-repository ppa:novacut/daily
+    sudo apt-get update
+    sudo apt-get install novacut
+
+
+Grab the Code
+=============
+
+Install `bzr` if you don't already have it installed:
+
+    sudo apt-get install bzr
+
+Then setup your bzr workspace and checkout novacut trunk like this:
+
+    bzr init-repo novacut
+    cd novacut/
+    bzr checkout lp:novacut trunk
+    cd trunk/
+
+Then run the unit tests, which is a good way to make sure things are setup
+appropriately for development:
+
+    ./setup.py test
+
+If you need help, ping jderose in the #novacut IRC channel.
+
+
+Coding Style
+============
+
+Contributions must follow good PEP-8, PEP-257 style:
+
+    http://www.python.org/dev/peps/pep-0008/
+
+    http://www.python.org/dev/peps/pep-0257/
+
