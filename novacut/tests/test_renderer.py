@@ -25,12 +25,11 @@ Unit tests for the `novacut.renderer` module.
 
 from unittest import TestCase
 
-from filestore import DIGEST_BYTES
 from microfiber import random_id
 from novacut import renderer
 from gi.repository import Gst
 
-from .base import TempDir, resolve, sample1, sample2
+from .base import TempDir, resolve, random_file_id, sample1, sample2
 
 
 clip1 = random_id()
@@ -429,7 +428,7 @@ class TestFunctions(TestCase):
         )
 
     def test_build_audio_slice(self):
-        file_id = random_id(DIGEST_BYTES)
+        file_id = random_file_id()
         file = {
             '_id': file_id,
             'samplerate': 48000,
