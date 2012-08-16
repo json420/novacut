@@ -31,10 +31,8 @@ from random import SystemRandom
 from microfiber import random_id
 from filestore import DIGEST_BYTES
 
+from novacut.misc import random_slice
 from novacut import schema
-
-
-random = SystemRandom()
 
 
 class TestFunctions(TestCase):
@@ -281,8 +279,7 @@ class TestFunctions(TestCase):
     def test_create_video_slice(self):
         src_id = random_id(DIGEST_BYTES)
         frames = 24 * 60
-        start = random.randrange(0, frames)
-        stop = random.randrange(start + 1, frames + 1)
+        (start, stop) = random_slice(frames)
         doc = schema.create_video_slice(src_id, start, stop)
         schema.check_video_slice(doc)
         self.assertEqual(doc['node']['type'], 'video/slice')
@@ -341,8 +338,7 @@ class TestFunctions(TestCase):
     def test_create_audio_slice(self):
         src_id = random_id(DIGEST_BYTES)
         samples = 48000 * 60
-        start = random.randrange(0, samples)
-        stop = random.randrange(start + 1, samples + 1)
+        (start, stop) = random_slice(samples)
         doc = schema.create_audio_slice(src_id, start, stop)
         schema.check_audio_slice(doc)
         self.assertEqual(doc['node']['type'], 'audio/slice')
