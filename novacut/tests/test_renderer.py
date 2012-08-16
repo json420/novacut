@@ -26,10 +26,13 @@ Unit tests for the `novacut.renderer` module.
 from unittest import TestCase
 
 from microfiber import random_id
-from novacut import renderer
 from gi.repository import Gst
 
 from .base import TempDir, resolve, random_file_id, sample1, sample2
+from novacut.misc import random_slice
+from novacut.timefuncs import audio_pts_and_duration, video_pts_and_duration
+from novacut import renderer
+
 
 
 clip1 = random_id()
@@ -429,9 +432,10 @@ class TestFunctions(TestCase):
 
     def test_build_audio_slice(self):
         file_id = random_file_id()
+        rate = 48000
         file = {
             '_id': file_id,
-            'samplerate': 48000,
+            'samplerate': rate,
         }
         b = DummyBuilder([file])
 
@@ -469,6 +473,44 @@ class TestFunctions(TestCase):
         self.assertEqual(element.get_property('media-duration'), 654479167)
         self.assertEqual(element.get_property('start'), 1000791666)
         self.assertEqual(element.get_property('duration'), 654479167)
+
+        # Test random slices at different offsets
+        for i in range(10):
+            (start, stop) = random_slice(rate * 60)
+            count = stop - start
+            self.assertGreaterEqual(count, 1)
+            doc = {
+                'node': {
+                    'src': file_id,
+                    'start': start,
+                    'stop': stop,
+                },
+            }
+            for offset in range(1000):
+                (samples, element) = renderer.build_audio_slice(b, doc, offset)
+                self.assertEqual(samples, count)
+                self.assertIsInstance(element, Gst.Element)
+                self.assertEqual(
+                    element.get_factory().get_name(),
+                    'gnlurisource'
+                )
+                self.assertEqual(
+                    element.get_property('caps').to_string(),
+                    'audio/x-raw'
+                )
+                self.assertEqual(
+                    element.get_property('uri'),
+                    resolve(file_id)
+                )
+                (pts1, dur1) = audio_pts_and_duration(start, stop, rate)
+                self.assertEqual(element.get_property('media-start'), pts1)
+                self.assertEqual(element.get_property('media-duration'), dur1)
+                (pts2, dur2) = audio_pts_and_duration(
+                    offset, offset + count, rate
+                )
+                self.assertEqual(element.get_property('start'), pts2)
+                self.assertEqual(element.get_property('duration'), dur2)
+                self.assertLessEqual(abs(dur1 - dur2), 1)
 
 
 class TestBuilder(TestCase):
