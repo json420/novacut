@@ -30,6 +30,18 @@ random = SystemRandom()
 
 
 def random_slice(count):
+    """
+    Generate a random slice of media that is *count* units long.
+
+    For example, there is only one possible slice in a one-frame-long video:
+
+    >>> random_slice(1)
+    (0, 1)
+
+    This function returns a ``(start,stop)`` tuple such that::
+
+        0 <= start < stop <= count
+    """
     assert count >= 1
     start = random.randrange(0, count)
     stop = random.randrange(start + 1, count + 1)
