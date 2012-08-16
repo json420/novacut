@@ -202,7 +202,7 @@ def build_slice(builder, doc, offset=0):
     return duration
 
 
-def build_video_slice(builder, doc, offset=0):
+def build_video_slice(builder, doc, offset):
     node = doc['node']
     framerate = builder.get_doc(node['src'])['framerate']
     start = node['start']
@@ -224,8 +224,7 @@ def build_video_slice(builder, doc, offset=0):
     element.set_property('start', pts)
     element.set_property('duration', duration)
 
-    builder.video.add(element)
-    return frames
+    return (frames, element)
 
 
 def build_audio_slice(builder, doc, offset):

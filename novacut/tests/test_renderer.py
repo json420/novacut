@@ -430,6 +430,88 @@ class TestFunctions(TestCase):
             9 * Gst.SECOND
         )
 
+    def test_build_video_slice(self):
+        file_id = random_file_id()
+        rate = {'num': 30000, 'denom': 1001}
+        file = {
+            '_id': file_id,
+            'framerate': rate,
+        }
+        b = DummyBuilder([file])
+
+        doc = {
+            'node': {
+                'src': file_id,
+                'start': 301,
+                'stop': 600,
+            },
+        }
+        (frames, element) = renderer.build_video_slice(b, doc, 0)
+        self.assertEqual(frames, 299)
+        self.assertIsInstance(element, Gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'gnlurisource')
+        self.assertEqual(
+            element.get_property('caps').to_string(),
+            'video/x-raw'
+        )
+        self.assertEqual(element.get_property('uri'), resolve(file_id))
+        self.assertEqual(element.get_property('media-start'), 10043366666)
+        self.assertEqual(element.get_property('media-duration'), 9976633334)
+        self.assertEqual(element.get_property('start'), 0)
+        self.assertEqual(element.get_property('duration'), 9976633333)
+
+        (frames, element) = renderer.build_video_slice(b, doc, 2047)
+        self.assertEqual(frames, 299)
+        self.assertIsInstance(element, Gst.Element)
+        self.assertEqual(element.get_factory().get_name(), 'gnlurisource')
+        self.assertEqual(
+            element.get_property('caps').to_string(),
+            'video/x-raw'
+        )
+        self.assertEqual(element.get_property('uri'), resolve(file_id))
+        self.assertEqual(element.get_property('media-start'), 10043366666)
+        self.assertEqual(element.get_property('media-duration'), 9976633334)
+        self.assertEqual(element.get_property('start'), 68301566666)
+        self.assertEqual(element.get_property('duration'), 9976633334)
+
+        # Test random slices at different offsets
+        for i in range(10):
+            (start, stop) = random_slice(30 * 120)
+            count = stop - start
+            self.assertGreaterEqual(count, 1)
+            doc = {
+                'node': {
+                    'src': file_id,
+                    'start': start,
+                    'stop': stop,
+                },
+            }
+            for offset in range(1000):
+                (frames, element) = renderer.build_video_slice(b, doc, offset)
+                self.assertEqual(frames, count)
+                self.assertIsInstance(element, Gst.Element)
+                self.assertEqual(
+                    element.get_factory().get_name(),
+                    'gnlurisource'
+                )
+                self.assertEqual(
+                    element.get_property('caps').to_string(),
+                    'video/x-raw'
+                )
+                self.assertEqual(
+                    element.get_property('uri'),
+                    resolve(file_id)
+                )
+                (pts1, dur1) = video_pts_and_duration(start, stop, rate)
+                self.assertEqual(element.get_property('media-start'), pts1)
+                self.assertEqual(element.get_property('media-duration'), dur1)
+                (pts2, dur2) = video_pts_and_duration(
+                    offset, offset + count, rate
+                )
+                self.assertEqual(element.get_property('start'), pts2)
+                self.assertEqual(element.get_property('duration'), dur2)
+                self.assertLessEqual(abs(dur1 - dur2), 1)
+
     def test_build_audio_slice(self):
         file_id = random_file_id()
         rate = 48000
