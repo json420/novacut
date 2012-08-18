@@ -35,6 +35,7 @@ from os import path
 from threading import Thread
 import subprocess
 import logging
+from collections import namedtuple
 
 import dbus
 import dbus.service
@@ -54,7 +55,6 @@ except ImportError:
 
 BUS = 'com.novacut.Renderer'
 IFACE = BUS
-
 GObject.threads_init()
 DBusGMainLoop(set_as_default=True)
 session = dbus.SessionBus()
@@ -76,11 +76,15 @@ def _start_thread(target, *args):
     thread.daemon = True
     thread.start()
     return thread
+ 
+
+
+Job = namedtuple('Job', 'key worker args success error')
 
 
 class Service(dbus.service.Object):
     def __init__(self, bus):
-        self._workers = {}
+        self._jobs = {}
         self.bus = bus
         self.mainloop = GObject.MainLoop()
         super(Service, self).__init__(session, object_path='/')
@@ -95,40 +99,41 @@ class Service(dbus.service.Object):
         log.info('kill()')
         self.mainloop.quit()
 
-    def start_worker(self, key, *args):
-        if key in self._workers:
-            log.info('worker %r is already running', key)
+    def start_job(self, job):
+        assert isinstance(job, Job)
+        assert isinstance(job.key, tuple)
+        assert callable(job.worker)
+        assert isinstance(job.args, tuple)
+        assert callable(job.success)
+        assert callable(job.error)
+        if job.key in self._jobs:
+            log.info('job %r is already running', job.key)
             return False
-        log.info('starting worker %r', key)
-        self._workers[key] = _start_thread(self.run_worker, key, args)
+        log.info('starting job %r', job.key)
+        self._jobs[job.key] = _start_thread(self.run_job, job)
         return True
 
-    def remove_worker(self, key):
-        log.info('deleting worker %r', key)
-        del self._workers[key]
+    def remove_job(self, job):
+        log.info('deleting job %r', job.key)
+        del self._jobs[job.key]
 
-    def run_worker(self, key, args):
-        log.info('executing worker %r', key)
+    def run_job(self, job):
+        log.info('executing %r', job.key)
         try:
-            worker = getattr(self, key[0])
-            ret_args = worker(*args)
-            signal = ret_args[0]
-            signal_args = ret_args[1:]
-            log.info('success executing worker %r', key)
-            GObject.idle_add(self.on_success, key, signal, signal_args)
+            signal_args = job.worker(*job.args)
+            log.info('success executing %r', job.key)
+            GObject.idle_add(self.on_success, job, signal_args)
         except Exception as e:
-            log.exception('error executing worker %r', key)
-            GObject.idle_add(self.on_error, key, str(e))
+            log.exception('error executing job %r', job.key)
+            GObject.idle_add(self.on_error, job, str(e))
 
-    def on_success(self, key, signal, signal_args):
-        self.remove_worker(key)
-        if signal is not None:
-            signal(*signal_args)
+    def on_success(self, job, signal_args):
+        self.remove_job(job)
+        job.success(*signal_args)
 
-    def on_error(self, key, error):
-        self.remove_worker(key)
-        domain = repr(key)
-        self.Error(domain, error)
+    def on_error(self, job, message):
+        self.remove_job(job)
+        job.error(*job.key[1:])
 
     def render_job(self, job_id):
         cmd = [renderer, job_id]
@@ -155,7 +160,7 @@ class Service(dbus.service.Object):
         cmd = [thumbnailer, file_id]
         cmd.extend(str(f) for f in frames)
         subprocess.check_call(cmd)
-        return (self.ThumbnailFinished, file_id)
+        return (file_id,)
 
     @dbus.service.method(IFACE, in_signature='', out_signature='s')
     def Version(self):
@@ -229,11 +234,22 @@ class Service(dbus.service.Object):
         frames = [int(i) for i in frames]
         log.info('Thumbnail(%r, %r)', file_id, frames)
         key = ('thumbnail', file_id)
-        return self.start_worker(key, file_id, frames)
+        job = Job(
+            key,
+            self.thumbnail,
+            (file_id, frames),
+            self.ThumbnailFinished,
+            self.ThumbnailError,
+        )
+        return self.start_job(job)
 
     @dbus.service.signal(IFACE, signature='s')
     def ThumbnailFinished(self, file_id):
         log.info('@ThumbnailFinished(%r)', file_id)
+
+    @dbus.service.signal(IFACE, signature='s')
+    def ThumbnailError(self, file_id):
+        log.info('@ThumbnailError(%r)', file_id)
 
 
 parser = optparse.OptionParser(

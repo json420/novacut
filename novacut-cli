@@ -126,14 +126,14 @@ class RenderJob(_Method):
 class Thumbnail(_Method):
     'Generate thumbnails'
 
-    args = ['file_id', 'chunk_id']
+    args = ['file_id', 'chunk']
 
     def validate_args(self, file_id, chunk):
         try:
             chunk = int(chunk)
         except ValueError:
             error('CHUNK must be an integer; got {!r}'.format(chunk))
-        return (file_id, chunk)
+        return (file_id, [chunk])
 
 
 parser = optparse.OptionParser(
