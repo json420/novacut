@@ -138,7 +138,7 @@ class Service(dbus.service.Object):
     def render_job(self, job_id):
         cmd = [renderer, job_id]
         obj = json.loads(subprocess.check_output(cmd).decode('utf-8'))
-        return (self.JobRendered, job_id, obj['file_id'], obj['link'])
+        return (job_id, obj['file_id'], obj['link'])
 
     def hash_edit(self, project_id, node_id):
         db = Database(schema.DB_NAME, self.env)
@@ -237,7 +237,14 @@ class Service(dbus.service.Object):
         job_id = str(job_id)
         log.info('RenderJob(%r)', job_id)
         key = ('render_job', job_id)
-        return self.start_worker(key, job_id)
+        job = Job(
+            key,
+            self.render_job,
+            (job_id,),
+            self.JobRendered,
+            self.RenderJobError,
+        )
+        return self.start_job(job)
 
     @dbus.service.signal(IFACE, signature='sss')
     def JobRendered(self, job_id, file_id, link):
@@ -246,6 +253,10 @@ class Service(dbus.service.Object):
             return
         n = Notify.Notification.new('Render Complete', link, None)
         n.show()
+
+    @dbus.service.signal(IFACE, signature='s')
+    def RenderJobError(self, job_id):
+        log.info('@RenderJobError(%r)', job_id)
 
     @dbus.service.method(IFACE, in_signature='sai', out_signature='b')
     def Thumbnail(self, file_id, frames):
