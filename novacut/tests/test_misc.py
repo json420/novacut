@@ -31,14 +31,18 @@ from novacut import misc
 class TestFunctions(TestCase):
     def test_random_slice(self):
         for i in range(100):
-            self.assertEqual(misc.random_slice(1), (0, 1))
+            s = misc.random_slice(1)
+            self.assertEqual(s, (0, 1))
+            self.assertIsInstance(s, misc.Slice)
+            self.assertEqual(s.start, 0)
+            self.assertEqual(s.stop, 1)
         for count in range(1, 10000):
-            (start, stop) = misc.random_slice(count)
-            self.assertLessEqual(0, start)
-            self.assertLess(start, stop)
-            self.assertLessEqual(stop, count)
+            s = misc.random_slice(count)
+            self.assertIsInstance(s, misc.Slice)
+            self.assertEqual(s, (s.start, s.stop))
+            self.assertLessEqual(0, s.start)
+            self.assertLess(s.start, s.stop)
+            self.assertLessEqual(s.stop, count)
             # Just so the above is clearer:
-            assert 0 <= start < stop <= count
-        
-            
+            assert 0 <= s.start < s.stop <= count
 

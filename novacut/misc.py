@@ -24,9 +24,11 @@ Misc functions, currently just for generating random edits.
 """
 
 from random import SystemRandom
+from collections import namedtuple
 
 
 random = SystemRandom()
+Slice = namedtuple('Slice', 'start stop')
 
 
 def random_slice(count):
@@ -36,7 +38,7 @@ def random_slice(count):
     For example, there is only one possible slice in a one-frame-long video:
 
     >>> random_slice(1)
-    (0, 1)
+    Slice(start=0, stop=1)
 
     This function returns a ``(start,stop)`` tuple such that::
 
@@ -45,5 +47,5 @@ def random_slice(count):
     assert count >= 1
     start = random.randrange(0, count)
     stop = random.randrange(start + 1, count + 1)
-    return (start, stop)
+    return Slice(start, stop)
 
