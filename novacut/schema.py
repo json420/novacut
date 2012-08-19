@@ -38,55 +38,53 @@ must:
        manipulating edit state
 
 
-Example of a slice node:
+Example of a video/slice node:
 
 >>> doc = {
 ...     '_id': '3HHSRSVXT5ZGY2B6LJPN457P',
 ...     'type': 'novacut/node',
+...     'time': 1234567890,
 ...     'node': {
-...         'type': 'slice',
+...         'type': 'video/slice',
 ...         'src': 'VYUG4ON2APZK3GEJULB4I7PHJTKZLXTOIRGU2LU2LW7JBOCU',
-...         'start': {
-...             'frame': 123,
-...         },
-...         'stop': {
-...             'frame': 456,
-...         },
+...         'start': 123,
+...         'stop': 456,
 ...     },
 ... }
+>>> check_video_slice(doc)
 
 
-Another slice from of the same clip:
+Another video/slice from of the same clip:
 
 >>> doc = {
 ...     '_id': 'RXJM24DMCRZ4YS6L6FOPDQRX',
 ...     'type': 'novacut/node',
+...     'time': 1234567891,
 ...     'node': {
-...         'type': 'slice',
+...         'type': 'video/slice',
 ...         'src': 'VYUG4ON2APZK3GEJULB4I7PHJTKZLXTOIRGU2LU2LW7JBOCU',
-...         'start': {
-...             'frame': 1023,
-...         },
-...         'stop': {
-...             'frame': 1776,
-...         },
+...         'start': 1023,
+...         'stop': 1776,
 ...     },
 ... }
+>>> check_video_slice(doc)
 
 
-A sequence with these two slices back-to-back:
+A video/sequence with these two slices back-to-back:
 
 >>> doc = {
 ...     '_id': 'JG444OBNF5JUUNSPCCE5YPIK',
 ...     'type': 'novacut/node',
+...     'time': 1234567892,
 ...     'node': {
-...         'type': 'sequence',
+...         'type': 'video/sequence',
 ...         'src': [
 ...             '3HHSRSVXT5ZGY2B6LJPN457P',
 ...             'RXJM24DMCRZ4YS6L6FOPDQRX',
 ...         ],
 ...     },
 ... }
+>>> check_video_sequence(doc)
 
 
 
