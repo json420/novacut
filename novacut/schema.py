@@ -236,63 +236,6 @@ def check_novacut(doc):
     )
 
 
-def project_db_name(_id):
-    """
-    Return the CouchDB database name for the project with *_id*.
-
-    For example:
-
-    >>> project_db_name('HB6YSCKAY27KIWUTWKGKCTNI')
-    'novacut-0-hb6ysckay27kiwutwkgkctni'
-
-    """
-    return '-'.join(['novacut', str(VER), _id.lower()])
-
-
-def check_project(doc):
-    """
-    Verify that *doc* is a valid novacut/project document.
-
-    For example, a conforming value:
-
-    >>> doc = {
-    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
-    ...     'type': 'novacut/project',
-    ...     'time': 1234567890,
-    ...     'db_name': 'novacut-0-hb6ysckay27kiwutwkgkctni',
-    ...     'title': 'Bewitched, Bothered and Bewildered',
-    ... }
-    ...
-    >>> check_project(doc)
-
-    """
-    check_novacut(doc)
-    _check(doc, ['_id'], None,
-        _random_id,
-    )
-    _check(doc, ['type'], str,
-        (_equals, 'novacut/project'),
-    )
-    _check(doc, ['db_name'], str,
-        (_equals, project_db_name(doc['_id'])),
-    )
-    _check(doc, ['title'], str),
-
-
-def create_project(title=''):
-    _id = random_id()
-    ts = time.time()
-    return {
-        '_id': _id,
-        'type': 'novacut/project',
-        'time': ts,
-        'atime': ts,
-        'db_name': project_db_name(_id),
-        'title': title,
-	'isdeleted': False,
-    }
-
-
 def check_node(doc):
     """
     Verify that *doc* is a valid novacut/node document.
@@ -471,6 +414,63 @@ def create_audio_slice(src, start, stop):
         'stop': stop,
     }
     return create_node(node)
+
+
+def project_db_name(_id):
+    """
+    Return the CouchDB database name for the project with *_id*.
+
+    For example:
+
+    >>> project_db_name('HB6YSCKAY27KIWUTWKGKCTNI')
+    'novacut-0-hb6ysckay27kiwutwkgkctni'
+
+    """
+    return '-'.join(['novacut', str(VER), _id.lower()])
+
+
+def check_project(doc):
+    """
+    Verify that *doc* is a valid novacut/project document.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     'type': 'novacut/project',
+    ...     'time': 1234567890,
+    ...     'db_name': 'novacut-0-hb6ysckay27kiwutwkgkctni',
+    ...     'title': 'Bewitched, Bothered and Bewildered',
+    ... }
+    ...
+    >>> check_project(doc)
+
+    """
+    check_novacut(doc)
+    _check(doc, ['_id'], None,
+        _random_id,
+    )
+    _check(doc, ['type'], str,
+        (_equals, 'novacut/project'),
+    )
+    _check(doc, ['db_name'], str,
+        (_equals, project_db_name(doc['_id'])),
+    )
+    _check(doc, ['title'], str),
+
+
+def create_project(title=''):
+    _id = random_id()
+    ts = time.time()
+    return {
+        '_id': _id,
+        'type': 'novacut/project',
+        'time': ts,
+        'atime': ts,
+        'db_name': project_db_name(_id),
+        'title': title,
+	'isdeleted': False,
+    }
 
 
 def iter_src(src):
