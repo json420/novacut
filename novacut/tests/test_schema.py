@@ -202,6 +202,16 @@ class TestFunctions(TestCase):
                 bad_id
             )
         )
+
+    def test_create_video_sequence(self):
+        id1 = random_id()
+        id2 = random_id()
+        doc = schema.create_video_sequence([id1, id2])
+        schema.check_novacut(doc)
+        schema.check_node(doc)
+        schema.check_video_sequence(doc)
+        self.assertEqual(doc['node']['type'], 'video/sequence')
+        self.assertEqual(doc['node']['src'], [id1, id2])
  
     def test_check_slice(self):
         good = {
