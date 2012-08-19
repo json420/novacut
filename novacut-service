@@ -144,7 +144,7 @@ class Service(dbus.service.Object):
         db = Database(schema.DB_NAME, self.env)
         project = Database(schema.project_db_name(project_id), self.env)
         intrinsic_id = schema.save_to_intrinsic(node_id, project, db)
-        return (self.EditHashed, project_id, node_id, intrinsic_id)
+        return (project_id, node_id, intrinsic_id)
 
     def hash_job(self, intrinsic_id, settings_id):
         db = Database(schema.DB_NAME, self.env)
@@ -189,11 +189,22 @@ class Service(dbus.service.Object):
         node_id = str(node_id)
         log.info('HashEdit(%r, %r)', project_id, node_id)
         key = ('hash_edit', project_id, node_id)
-        return self.start_worker(key, project_id, node_id)
+        job = Job(
+            key,
+            self.hash_edit,
+            (project_id, node_id),
+            self.EditHashed,
+            self.HashEditError,
+        )
+        return self.start_job(job)
 
     @dbus.service.signal(IFACE, signature='sss')
     def EditHashed(self, project_id, node_id, intrinsic_id):
         log.info('@EditHashed(%r, %r, %r)', project_id, node_id, intrinsic_id)
+
+    @dbus.service.signal(IFACE, signature='ss')
+    def HashEditError(self, project_id, node_id):
+        log.info('@HashEditError(%r, %r)', project_id, node_id)
 
     @dbus.service.method(IFACE, in_signature='ss', out_signature='b')
     def HashJob(self, intrinsic_id, settings_id):
