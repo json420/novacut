@@ -279,6 +279,7 @@ def create_node(node):
     >>> check_node(doc)
 
     """
+    assert isinstance(node, dict)
     return {
         '_id': random_id(),
         'type': 'novacut/node',

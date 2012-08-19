@@ -131,7 +131,15 @@ class TestFunctions(TestCase):
             )
 
     def test_create_node(self):
-        self.skipTest('FIXME')
+        marker = random_id()
+        node = {'type': 'foo', 'src': marker}
+        doc = schema.create_node(node)
+        schema.check_novacut(doc)
+        schema.check_node(doc)
+        self.assertEqual(doc['type'], 'novacut/node')
+        self.assertEqual(doc['node'],
+            {'type': 'foo', 'src': marker}
+        )
 
     def test_check_video_sequence(self):
         good = {
