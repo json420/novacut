@@ -213,7 +213,9 @@ def check_novacut(doc):
     """
     Verify the common schema that all Novacut docs should have.
 
-    For example, a conforming value:
+    All Novacut and Dmedia docs must contain a small amount of common schema.
+
+    For example, a conforming Novacut value:
 
     >>> doc = {
     ...     '_id': 'NZXXMYLDOV2F6ZTUO5PWM5DX',
@@ -270,6 +272,15 @@ def check_node(doc):
 
 
 def create_node(node):
+    """
+    Create a novacut/node document.
+    
+    For example:
+
+    >>> doc = create_node({'type': 'video/sequence', 'src': []})
+    >>> check_node(doc)
+
+    """
     return {
         '_id': random_id(),
         'type': 'novacut/node',
@@ -312,6 +323,16 @@ def check_video_sequence(doc):
 
 
 def create_video_sequence(src):
+    """
+    Create a video/sequence node document.
+
+    For example:
+
+    >>> src_ids = ['A7MJVLM7F5YZ7N6FB5LXTWVI', 'A7MJVLM7F5YZ7N6FB5LXTWVI']
+    >>> doc = create_video_sequence(src_ids)
+    >>> check_video_sequence(doc)
+
+    """
     assert isinstance(src, list)
     node = {
         'type': 'video/sequence',
@@ -370,6 +391,16 @@ def check_video_slice(doc):
 
 
 def create_video_slice(src, start, stop):
+    """
+    Create a video/slice node document.
+
+    For example:
+
+    >>> file_id = 'SM3GS4DUDVXOEU2DTTTWU5HKNRK777IWNSI5UQ4ZWNQGRXAN'
+    >>> doc = create_video_slice(file_id, 17, 55)
+    >>> check_video_slice(doc)
+
+    """
     node = {
         'type': 'video/slice',
         'src': src,
@@ -407,6 +438,16 @@ def check_audio_slice(doc):
 
 
 def create_audio_slice(src, start, stop):
+    """
+    Create a audio/slice node document.
+
+    For example:
+
+    >>> file_id = 'SM3GS4DUDVXOEU2DTTTWU5HKNRK777IWNSI5UQ4ZWNQGRXAN'
+    >>> doc = create_audio_slice(file_id, 27227, 88088)
+    >>> check_audio_slice(doc)
+
+    """
     node = {
         'type': 'audio/slice',
         'src': src,
