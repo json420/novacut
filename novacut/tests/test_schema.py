@@ -36,60 +36,14 @@ from .base import random_file_id
 
 
 class TestFunctions(TestCase):
-    def test_intrinsic_node(self):
-        node = {
-            'src': 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N',
-            'type': 'slice',
-            'stream': 'video',
-            'start': {
-                'frame': 200,
-            },
-            'stop': {
-                'frame': 245,
-            },
-        }
-        data = schema.normalized_dumps(node)
-        t = schema.intrinsic_node(node)
-        self.assertIsInstance(t, schema.Intrinsic)
-        self.assertEqual(t.id, schema.hash_node(data))
-        self.assertEqual(t.data, data)
-        self.assertIs(t.node, node)
-        self.assertEqual(schema.normalized_dumps(t.node), data)
+    def test_normalized_dumps(self):
+        self.skipTest('FIXME')
 
-    def test_intrinsic_src(self):
-        return  # FIXME: need to change this a bit to make it easier to test
-        _id = random_id(30)
-        self.assertEqual(
-            schema.intrinsic_src(_id, None, None),
-            _id
-        )
+    def test_hash_node(self):
+        self.skipTest('FIXME')
 
-        _id = random_id(30)
-        src = {'id': _id, 'foo': 'bar'}
-        self.assertEqual(
-            schema.intrinsic_src(src, None, None),
-            {'id': _id, 'foo': 'bar'}
-        )
-
-    def test_project_db_name(self):
-        self.assertEqual(
-            schema.project_db_name('AAAAAAAAAAAAAAAAAAAAAAAA'),
-            'novacut-0-aaaaaaaaaaaaaaaaaaaaaaaa',
-        )
-        _id = random_id()
-        self.assertEqual(
-            schema.project_db_name(_id),
-            'novacut-0-{}'.format(_id.lower())
-        )
-
-    def test_create_project(self):
-        doc = schema.create_project()
-        schema.check_project(doc)
-        self.assertEqual(doc['title'], '')
-
-        doc = schema.create_project(title='Hobo Spaceship')
-        schema.check_project(doc)
-        self.assertEqual(doc['title'], 'Hobo Spaceship')
+    def test_check_novacut(self):
+        self.skipTest('FIXME')
 
     def test_check_node(self):
         good = {
@@ -126,6 +80,9 @@ class TestFunctions(TestCase):
                 str(cm.exception),
                 "doc['node'][{!r}] does not exist".format(key)
             )
+
+    def test_create_node(self):
+        self.skipTest('FIXME')
 
     def test_check_video_sequence(self):
         good = {
@@ -432,6 +389,29 @@ class TestFunctions(TestCase):
         self.assertEqual(doc['node']['start'], start)
         self.assertEqual(doc['node']['stop'], stop)
 
+    def test_project_db_name(self):
+        self.assertEqual(
+            schema.project_db_name('AAAAAAAAAAAAAAAAAAAAAAAA'),
+            'novacut-0-aaaaaaaaaaaaaaaaaaaaaaaa',
+        )
+        _id = random_id()
+        self.assertEqual(
+            schema.project_db_name(_id),
+            'novacut-0-{}'.format(_id.lower())
+        )
+        
+    def test_check_project(self):
+        self.skipTest('FIXME')
+
+    def test_create_project(self):
+        doc = schema.create_project()
+        schema.check_project(doc)
+        self.assertEqual(doc['title'], '')
+
+        doc = schema.create_project(title='Hobo Spaceship')
+        schema.check_project(doc)
+        self.assertEqual(doc['title'], 'Hobo Spaceship')
+
     def test_create_slice(self):
         src = random_id()
         doc = schema.create_slice(src, {'frame': 17}, {'frame': 1869})
@@ -471,6 +451,41 @@ class TestFunctions(TestCase):
                 'type': 'sequence',
                 'src': [one, two],
             }
+        )
+
+    def test_intrinsic_node(self):
+        node = {
+            'src': 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N',
+            'type': 'slice',
+            'stream': 'video',
+            'start': {
+                'frame': 200,
+            },
+            'stop': {
+                'frame': 245,
+            },
+        }
+        data = schema.normalized_dumps(node)
+        t = schema.intrinsic_node(node)
+        self.assertIsInstance(t, schema.Intrinsic)
+        self.assertEqual(t.id, schema.hash_node(data))
+        self.assertEqual(t.data, data)
+        self.assertIs(t.node, node)
+        self.assertEqual(schema.normalized_dumps(t.node), data)
+
+    def test_intrinsic_src(self):
+        return  # FIXME: need to change this a bit to make it easier to test
+        _id = random_id(30)
+        self.assertEqual(
+            schema.intrinsic_src(_id, None, None),
+            _id
+        )
+
+        _id = random_id(30)
+        src = {'id': _id, 'foo': 'bar'}
+        self.assertEqual(
+            schema.intrinsic_src(src, None, None),
+            {'id': _id, 'foo': 'bar'}
         )
 
     def test_iter_src(self):
