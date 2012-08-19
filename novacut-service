@@ -154,7 +154,7 @@ class Service(dbus.service.Object):
             job = db.get(job_id)
         except NotFound:
             db.save(job)
-        return (self.JobHashed, intrinsic_id, settings_id, job_id)
+        return (intrinsic_id, settings_id, job_id)
 
     def thumbnail(self, file_id, frames):
         cmd = [thumbnailer, file_id]
@@ -212,11 +212,22 @@ class Service(dbus.service.Object):
         settings_id = str(settings_id)
         log.info('HashJob(%r, %r)', intrinsic_id, settings_id)
         key = ('hash_job', intrinsic_id, settings_id)
-        return self.start_worker(key, intrinsic_id, settings_id)
+        job = Job(
+            key,
+            self.hash_job,
+            (intrinsic_id, settings_id),
+            self.JobHashed,
+            self.HashJobError,
+        )
+        return self.start_job(job)
 
     @dbus.service.signal(IFACE, signature='sss')
     def JobHashed(self, intrinsic_id, settings_id, job_id):
         log.info('@JobHashed(%r, %r, %r)', intrinsic_id, settings_id, job_id)
+
+    @dbus.service.signal(IFACE, signature='ss')
+    def HashJobError(self, intrinsic_id, settings_id):
+        log.info('@HashJobError(%r, %r)', intrinsic_id, settings_id)
 
     @dbus.service.method(IFACE, in_signature='s', out_signature='b')
     def RenderJob(self, job_id):
