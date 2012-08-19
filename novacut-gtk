@@ -59,6 +59,7 @@ class App(BaseApp):
         'copy_docs': ['src_db_name', 'dst_db_name', 'doc_ids'],
         'thumbnail': ['file_id', 'frames'],
         'thumbnail_finished': ['file_id'],
+        'thumbnail_error': ['file_id'],
 
         'hash_edit': ['project_id', 'node_id'],
         'edit_hashed': ['project_id', 'node_id', 'intrinsic_id'],
@@ -80,6 +81,7 @@ class App(BaseApp):
             session = dbus.SessionBus()
             self.__Renderer = session.get_object('com.novacut.Renderer', '/')
             self.__Renderer.connect_to_signal('ThumbnailFinished', self.on_ThumbnailFinished)
+            self.__Renderer.connect_to_signal('ThumbnailError', self.on_ThumbnailError)
             self.__Renderer.connect_to_signal('EditHashed', self.on_EditHashed)
             self.__Renderer.connect_to_signal('JobHashed', self.on_JobHashed)
             self.__Renderer.connect_to_signal('JobRendered', self.on_JobRendered)
@@ -87,6 +89,9 @@ class App(BaseApp):
 
     def on_ThumbnailFinished(self, file_id):
         self.hub.send('thumbnail_finished', file_id)
+
+    def on_ThumbnailError(self, file_id):
+        self.hub.send('thumbnail_error', file_id)
 
     def on_EditHashed(self, project_id, node_id, intrinsic_id):
         self.hub.send('edit_hashed', project_id, node_id, intrinsic_id)

@@ -15,7 +15,8 @@ var Thumbs = {
                 return false;
             }
         }
-        if (Thumbs.docs[file_id]._attachments[index]) {
+        var attachments = Thumbs.docs[file_id]._attachments;
+        if (attachments && attachments[index]) {
             return true;
         }
         return false;
@@ -136,9 +137,15 @@ var Thumbs = {
         }
         Thumbs.flush();
     },
+
+    on_thumbnail_error: function(file_id) {
+        console.log('error thumbnailing ' + file_id);
+        Thumbs.on_thumbnail_finished(file_id); 
+    },
 }
 
 Hub.connect('thumbnail_finished', Thumbs.on_thumbnail_finished);
+Hub.connect('thumbnail_error', Thumbs.on_thumbnail_error);
 
 
 function $halt(event) {

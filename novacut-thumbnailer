@@ -106,6 +106,9 @@ class Thumbnailer(object):
                 '_id': _id,
                 '_attachments': {},
             }
+            db.save(self.doc)
+        if '_attachments' not in self.doc:
+            self.doc['_attachments'] = {}
         self.attachments = self.doc['_attachments']
         self.changed = False
 
