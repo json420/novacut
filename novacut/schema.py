@@ -410,6 +410,48 @@ def create_node(node):
     }
 
 
+def check_video_sequence(doc):
+    """
+    Verify that *doc* is a valid video/sequence node.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'YLJMJVTGCN4ZUKXNPXCJGER2',
+    ...     'time': 1234567890,
+    ...     'type': 'novacut/node',
+    ...     'node': {
+    ...         'type': 'video/sequence',
+    ...         'src': [
+    ...             'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...             'NZXXMYLDOV2F6ZTUO5PWM5DX',
+    ...         ],
+    ...     },
+    ... }
+    ...
+    >>> check_video_sequence(doc)
+
+    """
+    check_node(doc)
+    _check(doc, ['node', 'type'], str,
+        (_equals, 'video/sequence')
+    )
+    _check(doc, ['node', 'src'], list)
+    for i in range(len(doc['node']['src'])):
+        _check(doc, ['node', 'src', i], str,
+            _random_id,
+        )
+
+
+def create_video_sequence(src):
+    assert isinstance(src, list)
+    node = {
+        'type': 'video/sequence',
+        'src': src,
+    }
+    return create_node(node)
+
+
 def check_slice(doc):
     """
     Check common schema between video/slice and audio/slice nodes.
@@ -579,13 +621,3 @@ def create_sequence(src):
     doc = create_node(node)
     doc['doodle'] = []
     return doc
-
-
-def create_video_sequence(src):
-    assert isinstance(src, list)
-    node = {
-        'type': 'video/sequence',
-        'src': src,
-    }
-    return create_node(node)
-

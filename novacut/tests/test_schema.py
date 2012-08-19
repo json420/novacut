@@ -102,7 +102,7 @@ class TestFunctions(TestCase):
             },
         }
         schema.check_node(good)
-        
+
         # Test with missing keys
         keys = sorted(good)
         for key in keys:
@@ -126,6 +126,82 @@ class TestFunctions(TestCase):
                 str(cm.exception),
                 "doc['node'][{!r}] does not exist".format(key)
             )
+
+    def test_check_video_sequence(self):
+        good = {
+            '_id': random_id(),
+            'time': time.time(),
+            'type': 'novacut/node',
+            'node': {
+                'type': 'video/sequence',
+                'src': [
+                    random_id(),
+                    random_id(),
+                    random_id(),
+                ],
+            },
+        }
+        schema.check_video_sequence(good)
+
+        # Test with missing keys
+        keys = sorted(good)
+        for key in keys:
+            bad = deepcopy(good)
+            del bad[key]
+            with self.assertRaises(ValueError) as cm:
+                schema.check_video_sequence(bad)
+            self.assertEqual(
+                str(cm.exception),
+                'doc[{!r}] does not exist'.format(key)
+            )
+
+        # Test with missing keys in doc['node']
+        keys = sorted(good['node'])
+        for key in keys:
+            bad = deepcopy(good)
+            del bad['node'][key]
+            with self.assertRaises(ValueError) as cm:
+                schema.check_video_sequence(bad)
+            self.assertEqual(
+                str(cm.exception),
+                "doc['node'][{!r}] does not exist".format(key)
+            )
+
+        # Test with bad doc['node']['type'] value:
+        bad = deepcopy(good)
+        bad['node']['type'] = 'video/foo'
+        with self.assertRaises(ValueError) as cm:
+            schema.check_video_sequence(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['node']['type'] must equal 'video/sequence'; got 'video/foo'"
+        )
+
+        # Test with bad doc['node']['src'] type:
+        bad = deepcopy(good)
+        bad_id = random_id()
+        bad['node']['src'] = bad_id
+        with self.assertRaises(TypeError) as cm:
+            schema.check_video_sequence(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['node']['src']: need a {!r}; got a {!r}: {!r}".format(
+                list, str, bad_id
+            )
+        )
+
+        # Test with bad doc['node']['src'] value:
+        bad = deepcopy(good)
+        bad_id = random_id(5)
+        bad['node']['src'][1] = bad_id
+        with self.assertRaises(ValueError) as cm:
+            schema.check_video_sequence(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['node']['src'][1]: random ID must be 24 characters, got 8: {!r}".format(
+                bad_id
+            )
+        )
  
     def test_check_slice(self):
         good = {
