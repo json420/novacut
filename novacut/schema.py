@@ -209,81 +209,6 @@ def hash_node(data):
     return b32encode(skein.digest()).decode('utf-8')
 
 
-def iter_src(src):
-    if isinstance(src, str):
-        yield src
-    elif isinstance(src, list):
-        for value in src:
-            if isinstance(value, str):
-                yield value
-            else:
-                yield value['id']
-    elif isinstance(src, dict):
-        for value in src.values():
-            if isinstance(value, str):
-                yield value
-            else:
-                yield value['id']
-
-
-def intrinsic_node(node):
-    data = normalized_dumps(node)
-    _id = hash_node(data)
-    return Intrinsic(_id, data, node)
-
-
-def intrinsic_src(src, get_doc, results):
-    id1 = (src if isinstance(src, str) else src['id'])
-    id2 = intrinsic_graph(id1, get_doc, results)
-    if isinstance(src, str):
-        return id2
-    src['id'] = id2
-    return src
-
-
-def intrinsic_graph(_id, get_doc, results):
-    try:
-        return results[_id]['_id']
-    except KeyError:
-        pass
-    doc = get_doc(_id)
-    if len(_id) != RANDOM_B32LEN:
-        results[_id] = doc
-        return _id
-    node = deepcopy(doc['node'])
-    src = node['src']
-    assert isinstance(src, (str, list, dict))
-    if isinstance(src, str):
-        new = intrinsic_src(src, get_doc, results)
-    elif isinstance(src, list):
-        new = [intrinsic_src(value, get_doc, results) for value in src]
-    elif isinstance(src, dict):
-        new = dict(
-            (key, intrinsic_src(value, get_doc, results))
-            for (key, value) in src.items()
-        )
-    node['src'] = new
-    inode = intrinsic_node(node)
-    results[_id] = create_inode(inode)
-    return inode.id
-
-
-def save_to_intrinsic(root, src, dst):
-    results = {}
-    iroot = intrinsic_graph(root, src.get, results)
-    for doc in results.values():
-        for key in ('_rev', '_attachments'):
-            try:
-                del doc[key]
-            except KeyError:
-                pass
-        try:
-            dst.save(doc)
-        except Conflict:
-            pass
-    return iroot
-
-
 def check_novacut(doc):
     """
     Verify the common schema that all Novacut docs should have.
@@ -546,6 +471,81 @@ def create_audio_slice(src, start, stop):
         'stop': stop,
     }
     return create_node(node)
+
+
+def iter_src(src):
+    if isinstance(src, str):
+        yield src
+    elif isinstance(src, list):
+        for value in src:
+            if isinstance(value, str):
+                yield value
+            else:
+                yield value['id']
+    elif isinstance(src, dict):
+        for value in src.values():
+            if isinstance(value, str):
+                yield value
+            else:
+                yield value['id']
+
+
+def intrinsic_node(node):
+    data = normalized_dumps(node)
+    _id = hash_node(data)
+    return Intrinsic(_id, data, node)
+
+
+def intrinsic_src(src, get_doc, results):
+    id1 = (src if isinstance(src, str) else src['id'])
+    id2 = intrinsic_graph(id1, get_doc, results)
+    if isinstance(src, str):
+        return id2
+    src['id'] = id2
+    return src
+
+
+def intrinsic_graph(_id, get_doc, results):
+    try:
+        return results[_id]['_id']
+    except KeyError:
+        pass
+    doc = get_doc(_id)
+    if len(_id) != RANDOM_B32LEN:
+        results[_id] = doc
+        return _id
+    node = deepcopy(doc['node'])
+    src = node['src']
+    assert isinstance(src, (str, list, dict))
+    if isinstance(src, str):
+        new = intrinsic_src(src, get_doc, results)
+    elif isinstance(src, list):
+        new = [intrinsic_src(value, get_doc, results) for value in src]
+    elif isinstance(src, dict):
+        new = dict(
+            (key, intrinsic_src(value, get_doc, results))
+            for (key, value) in src.items()
+        )
+    node['src'] = new
+    inode = intrinsic_node(node)
+    results[_id] = create_inode(inode)
+    return inode.id
+
+
+def save_to_intrinsic(root, src, dst):
+    results = {}
+    iroot = intrinsic_graph(root, src.get, results)
+    for doc in results.values():
+        for key in ('_rev', '_attachments'):
+            try:
+                del doc[key]
+            except KeyError:
+                pass
+        try:
+            dst.save(doc)
+        except Conflict:
+            pass
+    return iroot
 
 
 def create_inode(inode):
