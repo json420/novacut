@@ -43,7 +43,56 @@ class TestFunctions(TestCase):
         self.skipTest('FIXME')
 
     def test_check_novacut(self):
-        self.skipTest('FIXME')
+        good = {
+            '_id': random_id(),
+            'type': 'novacut/whatever',
+            'time': time.time(),
+        }
+        schema.check_novacut(good)
+        also_good = deepcopy(good)
+        also_good['_id'] = random_file_id()
+
+        # Test with missing keys
+        keys = sorted(good)
+        for key in keys:
+            bad = deepcopy(good)
+            del bad[key]
+            with self.assertRaises(ValueError) as cm:
+                schema.check_novacut(bad)
+            self.assertEqual(
+                str(cm.exception),
+                'doc[{!r}] does not exist'.format(key)
+            )
+
+        # Test with bad _id value
+        bad = deepcopy(good)
+        bad['_id'] = 'christ_nuggets'
+        with self.assertRaises(ValueError) as cm:
+            schema.check_novacut(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['_id']: length of ID (14) not multiple of 8: 'christ_nuggets'"
+        )
+
+        # Test with bad time value
+        bad = deepcopy(good)
+        bad['time'] = -1
+        with self.assertRaises(ValueError) as cm:
+            schema.check_novacut(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['time'] must be >= 0; got -1"
+        )
+
+        # Test with bad type value
+        bad = deepcopy(good)
+        bad['type'] = 'dmedia/file'
+        with self.assertRaises(ValueError) as cm:
+            schema.check_novacut(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['type']: 'dmedia/file' does not match 'novacut/[a-z]+$'"
+        )
 
     def test_check_node(self):
         good = {
