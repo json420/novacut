@@ -128,6 +128,7 @@ import json
 from base64 import b32encode, b64encode
 from copy import deepcopy
 from collections import namedtuple
+import re
 
 from skein import skein512
 from microfiber import random_id, RANDOM_B32LEN, Conflict
@@ -154,6 +155,9 @@ VER = 0
 
 # versioned primary database name:
 DB_NAME = 'novacut-{}'.format(VER)
+
+# Pattern to match a project DB name
+PROJECT_DB_PAT = '^novacut-0-([234567abcdefghijklmnopqrstuvwxyz]{24})$'
 
 # Skein personalization string
 PERS_NODE = b'20120117 jderose@novacut.com novacut/node'
@@ -491,6 +495,28 @@ def project_db_name(_id):
 
     """
     return '-'.join(['novacut', str(VER), _id.lower()])
+
+
+def get_project_id(db_name):
+    """
+    Return project ID from CouchDB database name.
+
+    For example:
+
+    >>> get_project_id('novacut-0-hb6ysckay27kiwutwkgkctni')
+    'HB6YSCKAY27KIWUTWKGKCTNI'
+
+    If *db_name* doesn't match the expected naming convention, ``None`` is
+    returned:
+
+    >>> get_project_id('novacut-hb6ysckay27kiwutwkgkctni') is None
+    True
+
+    Also see `project_db_name()`.
+    """
+    match = re.match(PROJECT_DB_PAT, db_name)
+    if match:
+        return match.group(1).upper()
 
 
 def check_project(doc):
