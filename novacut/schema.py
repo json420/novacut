@@ -20,7 +20,7 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 """
-Test-driven definition of novacut edit node schema.
+Test-driven definition of Novacut edit description and CouchDB schema.
 
 UX wise, the schema is perhaps the most important aspect of Novacut.  The schema
 must:
@@ -455,6 +455,30 @@ def create_audio_slice(src, start, stop):
     return create_node(node)
 
 
+# FIXME: This is replaced by create_video_sequence()
+def create_sequence(src):
+    assert isinstance(src, list)
+    node = {
+        'type': 'sequence',
+        'src': src,
+    }
+    doc = create_node(node)
+    doc['doodle'] = []
+    return doc
+
+
+# FIXME: This is replaced by create_video_slice(), create_audio_slice()
+def create_slice(src, start, stop, stream='video'):
+    node = {
+        'type': 'slice',
+        'src': src,
+        'start': start,
+        'stop': stop,
+        'stream': stream,
+    }
+    return create_node(node)
+
+
 def project_db_name(_id):
     """
     Return the CouchDB database name for the project with *_id*.
@@ -638,25 +662,3 @@ def create_job(root, settings):
         'node': inode.node,
         'renders': {},
     }
-
-
-def create_slice(src, start, stop, stream='video'):
-    node = {
-        'type': 'slice',
-        'src': src,
-        'start': start,
-        'stop': stop,
-        'stream': stream,
-    }
-    return create_node(node)
-
-
-def create_sequence(src):
-    assert isinstance(src, list)
-    node = {
-        'type': 'sequence',
-        'src': src,
-    }
-    doc = create_node(node)
-    doc['doodle'] = []
-    return doc
