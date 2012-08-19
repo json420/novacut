@@ -109,12 +109,10 @@ class Service(dbus.service.Object):
         if job.key in self._jobs:
             log.info('job %r is already running', job.key)
             return False
-        log.info('starting job %r', job.key)
         self._jobs[job.key] = _start_thread(self.run_job, job)
         return True
 
     def remove_job(self, job):
-        log.info('deleting job %r', job.key)
         del self._jobs[job.key]
 
     def run_job(self, job):
