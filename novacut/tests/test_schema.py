@@ -66,12 +66,12 @@ class TestFunctions(TestCase):
 
         # Test with bad _id value
         bad = deepcopy(good)
-        bad['_id'] = 'christ_nuggets'
+        bad['_id'] = 'foobar'
         with self.assertRaises(ValueError) as cm:
             schema.check_novacut(bad)
         self.assertEqual(
             str(cm.exception),
-            "doc['_id']: length of ID (14) not multiple of 8: 'christ_nuggets'"
+            "doc['_id']: length of ID (6) not multiple of 8: 'foobar'"
         )
 
         # Test with bad time value
@@ -217,6 +217,7 @@ class TestFunctions(TestCase):
             '_id': random_id(),
             'time': time.time(),
             'type': 'novacut/node',
+            'audio': [],
             'node': {
                 'type': 'video/sequence',
                 'src': [
@@ -404,6 +405,7 @@ class TestFunctions(TestCase):
             '_id': random_id(),
             'time': time.time(),
             'type': 'novacut/node',
+            'audio': [],
             'node': {
                 'type': 'video/slice',
                 'src': random_file_id(),

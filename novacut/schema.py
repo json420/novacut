@@ -44,6 +44,7 @@ Example of a video/slice node:
 ...     '_id': '3HHSRSVXT5ZGY2B6LJPN457P',
 ...     'type': 'novacut/node',
 ...     'time': 1234567890,
+...     'audio': [],
 ...     'node': {
 ...         'type': 'video/slice',
 ...         'src': 'VYUG4ON2APZK3GEJULB4I7PHJTKZLXTOIRGU2LU2LW7JBOCU',
@@ -60,6 +61,7 @@ Another video/slice from of the same clip:
 ...     '_id': 'RXJM24DMCRZ4YS6L6FOPDQRX',
 ...     'type': 'novacut/node',
 ...     'time': 1234567891,
+...     'audio': [],
 ...     'node': {
 ...         'type': 'video/slice',
 ...         'src': 'VYUG4ON2APZK3GEJULB4I7PHJTKZLXTOIRGU2LU2LW7JBOCU',
@@ -76,6 +78,7 @@ A video/sequence with these two slices back-to-back:
 ...     '_id': 'JG444OBNF5JUUNSPCCE5YPIK',
 ...     'type': 'novacut/node',
 ...     'time': 1234567892,
+...     'audio': [],
 ...     'node': {
 ...         'type': 'video/sequence',
 ...         'src': [
@@ -314,6 +317,7 @@ def check_video_sequence(doc):
     ...     '_id': 'YLJMJVTGCN4ZUKXNPXCJGER2',
     ...     'time': 1234567890,
     ...     'type': 'novacut/node',
+    ...     'audio': [],
     ...     'node': {
     ...         'type': 'video/sequence',
     ...         'src': [
@@ -327,6 +331,7 @@ def check_video_sequence(doc):
 
     """
     check_node(doc)
+    check_relative_audio(doc)
     _check(doc, ['node', 'type'], str,
         (_equals, 'video/sequence')
     )
@@ -353,7 +358,9 @@ def create_video_sequence(src):
         'type': 'video/sequence',
         'src': src,
     }
-    return create_node(node)
+    doc = create_node(node)
+    doc['audio'] = []
+    return doc
 
 
 def check_slice(doc):
@@ -388,6 +395,7 @@ def check_video_slice(doc):
     ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
     ...     'time': 1234567890,
     ...     'type': 'novacut/node',
+    ...     'audio': [],
     ...     'node': {
     ...         'type': 'video/slice',
     ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
@@ -400,6 +408,7 @@ def check_video_slice(doc):
 
     """
     check_slice(doc)
+    check_relative_audio(doc)
     _check(doc, ['node', 'type'], str,
         (_equals, 'video/slice')
     )
@@ -422,7 +431,9 @@ def create_video_slice(src, start, stop):
         'start': start,
         'stop': stop,
     }
-    return create_node(node)
+    doc = create_node(node)
+    doc['audio'] = []
+    return doc
 
 
 def check_audio_slice(doc):
