@@ -51,7 +51,6 @@ def migrate_slice(db, doc):
     video['node']['start'] = start
     video['node']['stop'] = stop
     remove_unneeded(video)
-    schema.check_video_slice(video)
 
     if node['stream'] == 'both':
         clip = db.get(node['src'])
@@ -61,12 +60,13 @@ def migrate_slice(db, doc):
             frame_to_sample(start, framerate, samplerate),
             frame_to_sample(stop, framerate, samplerate),
         )
-        schema.check_audio_slice(audio)
         video['relative'] = [
             {'offset': 0, 'id': audio['_id']}
         ]
+        schema.check_audio_slice(audio)
         yield audio
 
+    schema.check_video_slice(video)
     yield video
 
 
@@ -78,3 +78,22 @@ def migrate_sequence(db, doc):
     new['node']['type'] = 'video/sequence'
     remove_unneeded(new)
     yield new
+
+
+def migrate_db(db):
+    for row in db.get('_all_docs', endkey='_')['rows']:
+        _id = row['id']
+        doc = db.get(_id)
+        if not doc.get('type') == 'novacut/node':
+            continue
+        node = doc.get('node')
+        if not isinstance(node, dict):
+            continue
+        type_ = node.get('type')
+        if type_ == 'slice':
+            for new in migrate_slice(db, doc):
+                yield new
+        elif type_ == 'sequence':
+            for new in migrate_sequence(db, doc):
+                yield new
+

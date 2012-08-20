@@ -334,4 +334,35 @@ class TestFunctions(CouchTestCase):
             }
         )
         schema.check_video_sequence(new)
-  
+
+    def test_migrate_db(self):
+        db = Database('foo', self.env)
+        self.assertTrue(db.ensure())
+        docs = json.loads(docs_s)
+        db.save_many(docs)
+
+        new_docs = list(migration.migrate_db(db))
+        self.assertEqual(len(new_docs), 5)
+        counts = {}
+        for doc in new_docs:
+            self.assertEqual(doc['type'], 'novacut/node')
+            self.assertNotIn('ver', doc)
+            self.assertNotIn('session_id', doc)
+            node = doc['node']
+            self.assertIn(node['type'],
+                ['video/sequence', 'video/slice', 'audio/slice']
+            )
+            counts[node['type']] = counts.get(node['type'], 0) + 1
+            if node['type'] == 'video/sequence':
+                schema.check_video_sequence(doc)
+            elif node['type'] == 'video/slice':
+                schema.check_video_slice(doc)
+            else:
+                schema.check_audio_slice(doc)
+        self.assertEqual(counts,
+            {
+                'video/sequence': 1,
+                'video/slice': 2,
+                'audio/slice': 2,
+            }
+        )
