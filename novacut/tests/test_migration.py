@@ -216,9 +216,53 @@ class TestFunctions(CouchTestCase):
         docs = json.loads(docs_s)
         db.save_many(docs)
 
+        # Test when stream=both
         doc = db.get('JDQPJVFJOEPYR64FRTEULTBB')
         new = list(migration.migrate_slice(db, doc))
         self.assertEqual(len(new), 2)
+        (audio, video) = new
+
+        self.assertEqual(set(audio), set(['_id', 'type', 'time', 'node']))
+        self.assertEqual(audio['node']['type'], 'audio/slice')
+        self.assertEqual(audio['node']['src'], video['node']['src'])
+        self.assertEqual(audio['node']['start'],
+            frame_to_sample(127, (25, 1), 48000)
+        )
+        self.assertEqual(audio['node']['stop'],
+            frame_to_sample(205, (25, 1), 48000)
+        )
+        self.assertEqual(audio['node']['start'], 243840)
+        self.assertEqual(audio['node']['stop'], 393600)
+        self.assertNotIn('_rev', audio)
+        schema.check_audio_slice(audio)
+
+        self.assertEqual(video,
+            {
+                '_id': 'JDQPJVFJOEPYR64FRTEULTBB',
+                '_rev': '1-b109ac525743bbdee75fc03476ea7737',
+                'node': {
+                    'src': 'F6KHESGKSVXCRXH7FEJHLJRP44QRORF7GEMIJM4YPBDSMAMF',
+                    'start': 127,
+                    'stop': 205,
+                    'type': 'video/slice',
+                },
+                'relative': [
+                    {
+                        'offset': 0,
+                        'id': audio['_id'],
+                    },
+                ],
+                'time': 1343379567.943,
+                'type': 'novacut/node',
+            },
+        )
+        schema.check_video_slice(video)
+
+        # Test when stream=video
+        doc = db.get('JDQPJVFJOEPYR64FRTEULTBB')
+        doc['node']['stream'] = 'video'
+        new = list(migration.migrate_slice(db, doc))
+        self.assertEqual(len(new), 1)
 
         video = new[0]
         self.assertEqual(video,
@@ -237,18 +281,3 @@ class TestFunctions(CouchTestCase):
         )
         schema.check_video_slice(video)
 
-        audio = new[1]
-        self.assertEqual(set(audio), set(['_id', 'type', 'time', 'node']))
-        self.assertEqual(audio['node']['type'], 'audio/slice')
-        self.assertEqual(audio['node']['src'], video['node']['src'])
-        self.assertEqual(audio['node']['start'],
-            frame_to_sample(127, (25, 1), 48000)
-        )
-        self.assertEqual(audio['node']['stop'],
-            frame_to_sample(205, (25, 1), 48000)
-        )
-        self.assertEqual(audio['node']['start'], 243840)
-        self.assertEqual(audio['node']['stop'], 393600)
-        self.assertNotIn('_rev', audio)
-        schema.check_audio_slice(audio)
-    

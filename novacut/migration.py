@@ -52,7 +52,6 @@ def migrate_slice(db, doc):
     video['node']['stop'] = stop
     remove_unneeded(video)
     schema.check_video_slice(video)
-    yield video
 
     if node['stream'] == 'both':
         clip = db.get(node['src'])
@@ -63,5 +62,9 @@ def migrate_slice(db, doc):
             frame_to_sample(stop, framerate, samplerate),
         )
         schema.check_audio_slice(audio)
+        video['relative'] = [
+            {'offset': 0, 'id': audio['_id']}
+        ]
         yield audio
 
+    yield video
