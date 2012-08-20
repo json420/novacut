@@ -68,3 +68,13 @@ def migrate_slice(db, doc):
         yield audio
 
     yield video
+
+
+def migrate_sequence(db, doc):
+    assert doc['type'] == 'novacut/node'
+    node = doc['node']
+    assert node['type'] == 'sequence'
+    new = deepcopy(doc)
+    new['node']['type'] = 'video/sequence'
+    remove_unneeded(new)
+    yield new

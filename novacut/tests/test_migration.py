@@ -281,3 +281,57 @@ class TestFunctions(CouchTestCase):
         )
         schema.check_video_slice(video)
 
+    def test_migrate_sequence(self):
+        db = Database('foo', self.env)
+        self.assertTrue(db.ensure())
+        docs = json.loads(docs_s)
+        db.save_many(docs)
+
+        doc = db.get('WPKFHBKX2LTHAIAILWAK7PEG')
+        new_docs = list(migration.migrate_sequence(db, doc))
+        self.assertEqual(len(new_docs), 1)
+        new = new_docs[0]
+        self.assertEqual(new,
+            {
+                '_id': 'WPKFHBKX2LTHAIAILWAK7PEG',
+                '_rev': '1-0449c9f5e1bbc672477f6180490a0c54',
+                'doodle': [
+                    {
+                        'id': 'shortcuts',
+                        'x': None,
+                        'y': None
+                    },
+                    {
+                        'id': 'ZZOAZZCEJIZV36SDRNGLNP3J',
+                        'x': 1302,
+                        'y': 408
+                    },
+                    {
+                        'id': 'N4ZQGJFX24SQH6OY6JDHXCT2',
+                        'x': 195,
+                        'y': 230
+                    }
+                ],
+                'node': {
+                    'src': [
+                        'JDQPJVFJOEPYR64FRTEULTBB',
+                        'GMWUVRRSBZFSD7PD6IKSQXLU',
+                        '7ENE3E3H2XWAETPU4E2SGMQY',
+                        'ZCVOKON745KTKOZTI5JKRMNP',
+                        'H3BN43ZC4OUI42R7K4BSQ67Q',
+                        'ZITFANVLNT36I4PQ54B7XTGI',
+                        'B56KMP2HVW4GHAXKFDYQQ5UD',
+                        '7BR63KHALAAFZNZJPWMUJ77X',
+                        'HYHA764RM4BDVBYPA7SQG4LW',
+                        '6VTAXG6PHUVR7NBLIBT63JCN',
+                        'VJF2TXN4IDEL4FHYWBTOMYPB'
+                    ],
+                    'type': 'video/sequence'
+                },
+                'selected': 'N4ZQGJFX24SQH6OY6JDHXCT2',
+                'time': 1342803135.184,
+                'type': 'novacut/node',
+            }
+        )
+        schema.check_video_sequence(new)
+  
