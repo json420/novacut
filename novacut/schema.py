@@ -366,6 +366,18 @@ def check_slice(doc):
     )
 
 
+def check_relative_audio(doc):
+    _check(doc, ['audio'], list)
+    for i in range(len(doc['audio'])):
+        _check(doc, ['audio', i], dict,
+            _nonempty,
+        )
+        _check(doc, ['audio', i, 'id'], str,
+            _random_id,
+        )
+        _check(doc, ['audio', i, 'offset'], int)
+
+
 def check_video_slice(doc):
     """
     Verify that *doc* is a valid video/slice node.

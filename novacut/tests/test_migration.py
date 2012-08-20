@@ -354,8 +354,11 @@ class TestFunctions(CouchTestCase):
             )
             counts[node['type']] = counts.get(node['type'], 0) + 1
             if node['type'] == 'video/sequence':
+                self.assertEqual(doc['audio'], [])
                 schema.check_video_sequence(doc)
             elif node['type'] == 'video/slice':
+                self.assertIsInstance(doc['audio'], list)
+                self.assertEqual(len(doc['audio']), 1)
                 schema.check_video_slice(doc)
             else:
                 schema.check_audio_slice(doc)
