@@ -140,6 +140,77 @@ class TestFunctions(TestCase):
         self.assertEqual(doc['node'],
             {'type': 'foo', 'src': marker}
         )
+ 
+    def test_check_relative_audio(self):
+        id1 = random_id()
+        id2 = random_id()
+        good = {
+            'audio': [
+                {'id': id1, 'offset': 17},
+                {'id': id2, 'offset': -300},
+            ],
+        }
+        schema.check_relative_audio(good)
+        schema.check_relative_audio({'audio': []})
+
+        # Test when audio is missing
+        with self.assertRaises(ValueError) as cm:
+            schema.check_relative_audio({})
+        self.assertEqual(str(cm.exception), "doc['audio'] does not exist")
+
+        # Test with bad audio type
+        with self.assertRaises(TypeError) as cm:
+            schema.check_relative_audio({'audio': tuple()})
+        self.assertEqual(
+            str(cm.exception),
+            "doc['audio']: need a <class 'list'>; got a <class 'tuple'>: ()"
+        )
+
+        bad = deepcopy(good)
+        bad['audio'][1] = 17
+        with self.assertRaises(TypeError) as cm:
+            schema.check_relative_audio(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['audio'][1]: need a <class 'dict'>; got a <class 'int'>: 17"
+        )
+
+        bad = deepcopy(good)
+        bad_id = random_id(5)
+        bad['audio'][0]['id'] = bad_id
+        with self.assertRaises(ValueError) as cm:
+            schema.check_relative_audio(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['audio'][0]['id']: random ID must be 24 characters, got 8: {!r}".format(bad_id)
+        )
+
+        bad = deepcopy(good)
+        bad['audio'][1]['offset'] = 18.0
+        with self.assertRaises(TypeError) as cm:
+            schema.check_relative_audio(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['audio'][1]['offset']: need a <class 'int'>; got a <class 'float'>: 18.0"
+        )
+
+        bad = deepcopy(good)
+        del bad['audio'][1]['id']
+        with self.assertRaises(ValueError) as cm:
+            schema.check_relative_audio(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['audio'][1]['id'] does not exist"
+        )
+
+        bad = deepcopy(good)
+        del bad['audio'][0]['offset']
+        with self.assertRaises(ValueError) as cm:
+            schema.check_relative_audio(bad)
+        self.assertEqual(
+            str(cm.exception),
+            "doc['audio'][0]['offset'] does not exist"
+        )
 
     def test_check_video_sequence(self):
         good = {
@@ -226,7 +297,7 @@ class TestFunctions(TestCase):
         schema.check_video_sequence(doc)
         self.assertEqual(doc['node']['type'], 'video/sequence')
         self.assertEqual(doc['node']['src'], [id1, id2])
- 
+
     def test_check_slice(self):
         good = {
             '_id': random_id(),
@@ -326,77 +397,6 @@ class TestFunctions(TestCase):
         self.assertEqual(
             str(cm.exception),
             "doc['node']['stop'] must be >= 1777; got 1776"
-        )
-
-    def test_check_relative_audio(self):
-        id1 = random_id()
-        id2 = random_id()
-        good = {
-            'audio': [
-                {'id': id1, 'offset': 17},
-                {'id': id2, 'offset': -300},
-            ],
-        }
-        schema.check_relative_audio(good)
-        schema.check_relative_audio({'audio': []})
-
-        # Test when audio is missing
-        with self.assertRaises(ValueError) as cm:
-            schema.check_relative_audio({})
-        self.assertEqual(str(cm.exception), "doc['audio'] does not exist")
-
-        # Test with bad audio type
-        with self.assertRaises(TypeError) as cm:
-            schema.check_relative_audio({'audio': tuple()})
-        self.assertEqual(
-            str(cm.exception),
-            "doc['audio']: need a <class 'list'>; got a <class 'tuple'>: ()"
-        )
-
-        bad = deepcopy(good)
-        bad['audio'][1] = 17
-        with self.assertRaises(TypeError) as cm:
-            schema.check_relative_audio(bad)
-        self.assertEqual(
-            str(cm.exception),
-            "doc['audio'][1]: need a <class 'dict'>; got a <class 'int'>: 17"
-        )
-
-        bad = deepcopy(good)
-        bad_id = random_id(5)
-        bad['audio'][0]['id'] = bad_id
-        with self.assertRaises(ValueError) as cm:
-            schema.check_relative_audio(bad)
-        self.assertEqual(
-            str(cm.exception),
-            "doc['audio'][0]['id']: random ID must be 24 characters, got 8: {!r}".format(bad_id)
-        )
-
-        bad = deepcopy(good)
-        bad['audio'][1]['offset'] = 18.0
-        with self.assertRaises(TypeError) as cm:
-            schema.check_relative_audio(bad)
-        self.assertEqual(
-            str(cm.exception),
-            "doc['audio'][1]['offset']: need a <class 'int'>; got a <class 'float'>: 18.0"
-        )
-
-        bad = deepcopy(good)
-        del bad['audio'][1]['id']
-        with self.assertRaises(ValueError) as cm:
-            schema.check_relative_audio(bad)
-        self.assertEqual(
-            str(cm.exception),
-            "doc['audio'][1]['id'] does not exist"
-        )
-
-        bad = deepcopy(good)
-        del bad['audio'][0]['offset']
-        with self.assertRaises(ValueError) as cm:
-            schema.check_relative_audio(bad)
-        self.assertEqual(
-            str(cm.exception),
-            "doc['audio'][0]['offset'] does not exist"
         )
 
     def test_check_video_slice(self):

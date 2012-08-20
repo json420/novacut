@@ -292,6 +292,18 @@ def create_node(node):
     }
 
 
+def check_relative_audio(doc):
+    _check(doc, ['audio'], list)
+    for i in range(len(doc['audio'])):
+        _check(doc, ['audio', i], dict,
+            _nonempty,
+        )
+        _check(doc, ['audio', i, 'id'], str,
+            _random_id,
+        )
+        _check(doc, ['audio', i, 'offset'], int) 
+
+
 def check_video_sequence(doc):
     """
     Verify that *doc* is a valid video/sequence node.
@@ -364,18 +376,6 @@ def check_slice(doc):
     _check(doc, ['node', 'stop'], int,
         (_at_least, doc['node']['start'] + 1)
     )
-
-
-def check_relative_audio(doc):
-    _check(doc, ['audio'], list)
-    for i in range(len(doc['audio'])):
-        _check(doc, ['audio', i], dict,
-            _nonempty,
-        )
-        _check(doc, ['audio', i, 'id'], str,
-            _random_id,
-        )
-        _check(doc, ['audio', i, 'offset'], int)
 
 
 def check_video_slice(doc):
