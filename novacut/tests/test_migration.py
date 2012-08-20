@@ -28,7 +28,8 @@ import json
 from usercouch.misc import CouchTestCase
 from microfiber import Database
 
-from novacut import migration
+from novacut.timefuncs import frame_to_sample
+from novacut import schema, migration
 
 
 docs_s = """
@@ -217,7 +218,10 @@ class TestFunctions(CouchTestCase):
 
         doc = db.get('JDQPJVFJOEPYR64FRTEULTBB')
         new = list(migration.migrate_slice(db, doc))
-        self.assertEqual(new[0],
+        self.assertEqual(len(new), 2)
+
+        video = new[0]
+        self.assertEqual(video,
             {
                 '_id': 'JDQPJVFJOEPYR64FRTEULTBB',
                 '_rev': '1-b109ac525743bbdee75fc03476ea7737',
@@ -231,4 +235,20 @@ class TestFunctions(CouchTestCase):
                 'type': 'novacut/node',
             },
         )
+        schema.check_video_slice(video)
 
+        audio = new[1]
+        self.assertEqual(set(audio), set(['_id', 'type', 'time', 'node']))
+        self.assertEqual(audio['node']['type'], 'audio/slice')
+        self.assertEqual(audio['node']['src'], video['node']['src'])
+        self.assertEqual(audio['node']['start'],
+            frame_to_sample(127, (25, 1), 48000)
+        )
+        self.assertEqual(audio['node']['stop'],
+            frame_to_sample(205, (25, 1), 48000)
+        )
+        self.assertEqual(audio['node']['start'], 243840)
+        self.assertEqual(audio['node']['stop'], 393600)
+        self.assertNotIn('_rev', audio)
+        schema.check_audio_slice(audio)
+    

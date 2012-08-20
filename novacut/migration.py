@@ -26,6 +26,7 @@ Lossless migration between schema versions.
 from copy import deepcopy
 
 from .timefuncs import frame_to_sample
+from . import schema
 
 
 def remove_unneeded(doc):
@@ -50,5 +51,17 @@ def migrate_slice(db, doc):
     video['node']['start'] = start
     video['node']['stop'] = stop
     remove_unneeded(video)
+    schema.check_video_slice(video)
     yield video
- 
+
+    if node['stream'] == 'both':
+        clip = db.get(node['src'])
+        framerate = clip['framerate']
+        samplerate = clip['samplerate']
+        audio = schema.create_audio_slice(node['src'],
+            frame_to_sample(start, framerate, samplerate),
+            frame_to_sample(stop, framerate, samplerate),
+        )
+        schema.check_audio_slice(audio)
+        yield audio
+
