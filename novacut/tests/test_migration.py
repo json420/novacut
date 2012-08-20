@@ -240,20 +240,18 @@ class TestFunctions(CouchTestCase):
             {
                 '_id': 'JDQPJVFJOEPYR64FRTEULTBB',
                 '_rev': '1-b109ac525743bbdee75fc03476ea7737',
+                'type': 'novacut/node',
+                'time': 1343379567.943,
                 'node': {
                     'src': 'F6KHESGKSVXCRXH7FEJHLJRP44QRORF7GEMIJM4YPBDSMAMF',
                     'start': 127,
                     'stop': 205,
                     'type': 'video/slice',
                 },
-                'relative': [
-                    {
-                        'offset': 0,
-                        'id': audio['_id'],
-                    },
+                'audio': [
+                    {'offset': 0, 'id': audio['_id']},
                 ],
-                'time': 1343379567.943,
-                'type': 'novacut/node',
+
             },
         )
         schema.check_video_slice(video)
@@ -269,14 +267,15 @@ class TestFunctions(CouchTestCase):
             {
                 '_id': 'JDQPJVFJOEPYR64FRTEULTBB',
                 '_rev': '1-b109ac525743bbdee75fc03476ea7737',
+                'type': 'novacut/node',
+                'time': 1343379567.943,
                 'node': {
                     'src': 'F6KHESGKSVXCRXH7FEJHLJRP44QRORF7GEMIJM4YPBDSMAMF',
                     'start': 127,
                     'stop': 205,
                     'type': 'video/slice',
                 },
-                'time': 1343379567.943,
-                'type': 'novacut/node',
+                'audio': [],
             },
         )
         schema.check_video_slice(video)
@@ -295,6 +294,26 @@ class TestFunctions(CouchTestCase):
             {
                 '_id': 'WPKFHBKX2LTHAIAILWAK7PEG',
                 '_rev': '1-0449c9f5e1bbc672477f6180490a0c54',
+                'type': 'novacut/node',
+                'time': 1342803135.184,
+                'node': {
+                    'type': 'video/sequence',
+                    'src': [
+                        'JDQPJVFJOEPYR64FRTEULTBB',
+                        'GMWUVRRSBZFSD7PD6IKSQXLU',
+                        '7ENE3E3H2XWAETPU4E2SGMQY',
+                        'ZCVOKON745KTKOZTI5JKRMNP',
+                        'H3BN43ZC4OUI42R7K4BSQ67Q',
+                        'ZITFANVLNT36I4PQ54B7XTGI',
+                        'B56KMP2HVW4GHAXKFDYQQ5UD',
+                        '7BR63KHALAAFZNZJPWMUJ77X',
+                        'HYHA764RM4BDVBYPA7SQG4LW',
+                        '6VTAXG6PHUVR7NBLIBT63JCN',
+                        'VJF2TXN4IDEL4FHYWBTOMYPB',
+                    ],
+                },
+                'selected': 'N4ZQGJFX24SQH6OY6JDHXCT2',
+                'audio': [],
                 'doodle': [
                     {
                         'id': 'shortcuts',
@@ -312,25 +331,6 @@ class TestFunctions(CouchTestCase):
                         'y': 230
                     }
                 ],
-                'node': {
-                    'src': [
-                        'JDQPJVFJOEPYR64FRTEULTBB',
-                        'GMWUVRRSBZFSD7PD6IKSQXLU',
-                        '7ENE3E3H2XWAETPU4E2SGMQY',
-                        'ZCVOKON745KTKOZTI5JKRMNP',
-                        'H3BN43ZC4OUI42R7K4BSQ67Q',
-                        'ZITFANVLNT36I4PQ54B7XTGI',
-                        'B56KMP2HVW4GHAXKFDYQQ5UD',
-                        '7BR63KHALAAFZNZJPWMUJ77X',
-                        'HYHA764RM4BDVBYPA7SQG4LW',
-                        '6VTAXG6PHUVR7NBLIBT63JCN',
-                        'VJF2TXN4IDEL4FHYWBTOMYPB'
-                    ],
-                    'type': 'video/sequence'
-                },
-                'selected': 'N4ZQGJFX24SQH6OY6JDHXCT2',
-                'time': 1342803135.184,
-                'type': 'novacut/node',
             }
         )
         schema.check_video_sequence(new)

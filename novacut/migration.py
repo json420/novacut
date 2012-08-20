@@ -46,6 +46,7 @@ def migrate_slice(db, doc):
     stop = node['stop']['frame']
 
     video = deepcopy(doc)
+    video['audio'] = []
     del video['node']['stream']
     video['node']['type'] = 'video/slice'
     video['node']['start'] = start
@@ -60,9 +61,9 @@ def migrate_slice(db, doc):
             frame_to_sample(start, framerate, samplerate),
             frame_to_sample(stop, framerate, samplerate),
         )
-        video['relative'] = [
+        video['audio'].append(
             {'offset': 0, 'id': audio['_id']}
-        ]
+        )
         schema.check_audio_slice(audio)
         yield audio
 
@@ -76,6 +77,7 @@ def migrate_sequence(db, doc):
     assert node['type'] == 'sequence'
     new = deepcopy(doc)
     new['node']['type'] = 'video/sequence'
+    new['audio'] = []
     remove_unneeded(new)
     yield new
 
