@@ -61,27 +61,27 @@ class TestFunctions(TestCase):
 
     def test_frame_to_nanosecond(self):
         self.assertEqual(
-            timefuncs.frame_to_nanosecond(0, {'num': 24, 'denom': 1}),
+            timefuncs.frame_to_nanosecond(0, Fraction(24, 1)),
             0
         )
         self.assertEqual(
-            timefuncs.frame_to_nanosecond(0, {'num': 30000, 'denom': 1001}),
+            timefuncs.frame_to_nanosecond(0, Fraction(30000, 1001)),
             0
         )
         self.assertEqual(
-            timefuncs.frame_to_nanosecond(1, {'num': 24, 'denom': 1}),
+            timefuncs.frame_to_nanosecond(1, Fraction(24, 1)),
             41666666
         )
         self.assertEqual(
-            timefuncs.frame_to_nanosecond(1, {'num': 30000, 'denom': 1001}),
+            timefuncs.frame_to_nanosecond(1, Fraction(30000, 1001)),
             33366666
         )
         self.assertEqual(
-            timefuncs.frame_to_nanosecond(24, {'num': 24, 'denom': 1}),
+            timefuncs.frame_to_nanosecond(24, Fraction(24, 1)),
             1000000000
         )
         self.assertEqual(
-            timefuncs.frame_to_nanosecond(30, {'num': 30000, 'denom': 1001}),
+            timefuncs.frame_to_nanosecond(30, Fraction(30000, 1001)),
             1001000000
         )
 
@@ -89,8 +89,9 @@ class TestFunctions(TestCase):
         # nanosecond_to_frame() rounds to the nearest int, so we should be able
         # to round-trip the values
         framerates = [
-            {'num': 30000, 'denom': 1001},
-            {'num': 24, 'denom': 1},
+            Fraction(30000, 1001),
+            Fraction(25, 1),
+            Fraction(24, 1),
         ]
         for framerate in framerates:
             for i in range(100000):
@@ -120,26 +121,26 @@ class TestFunctions(TestCase):
                 )
 
     def test_frame_to_sample(self):
-        framerate = {'num': 30000, 'denom': 1001}
+        framerate = Fraction(30000, 1001)
         self.assertEqual(timefuncs.frame_to_sample(0, framerate, 48000), 0)
         self.assertEqual(timefuncs.frame_to_sample(0, framerate, 44100), 0)
         self.assertEqual(timefuncs.frame_to_sample(1, framerate, 48000), 1601)
         self.assertEqual(timefuncs.frame_to_sample(1, framerate, 44100), 1471)
-        framerate = {'num': 24, 'denom': 1}
+        framerate = Fraction(24, 1)
         self.assertEqual(timefuncs.frame_to_sample(0, framerate, 48000), 0)
         self.assertEqual(timefuncs.frame_to_sample(0, framerate, 44100), 0)
         self.assertEqual(timefuncs.frame_to_sample(1, framerate, 48000), 2000)
         self.assertEqual(timefuncs.frame_to_sample(1, framerate, 44100), 1837)
 
     def test_sample_to_frame(self):
-        framerate = {'num': 30000, 'denom': 1001}
+        framerate = Fraction(30000, 1001)
         self.assertEqual(timefuncs.sample_to_frame(0, 48000, framerate), 0)
         self.assertEqual(timefuncs.sample_to_frame(0, 44100, framerate), 0)
         self.assertEqual(timefuncs.sample_to_frame(1601, 48000, framerate), 0)
         self.assertEqual(timefuncs.sample_to_frame(1471, 44100, framerate), 0)
         self.assertEqual(timefuncs.sample_to_frame(1602, 48000, framerate), 1)
         self.assertEqual(timefuncs.sample_to_frame(1472, 44100, framerate), 1)
-        framerate = {'num': 24, 'denom': 1}
+        framerate = Fraction(24, 1)
         self.assertEqual(timefuncs.sample_to_frame(0, 48000, framerate), 0)
         self.assertEqual(timefuncs.sample_to_frame(0, 44100, framerate), 0)
         self.assertEqual(timefuncs.sample_to_frame(1999, 48000, framerate), 0)
@@ -148,7 +149,7 @@ class TestFunctions(TestCase):
         self.assertEqual(timefuncs.sample_to_frame(1838, 44100, framerate), 1)
 
     def test_video_pts_and_duration(self):
-        framerate = {'num': 30000, 'denom': 1001}
+        framerate = Fraction(30000, 1001)
         self.assertEqual(
             timefuncs.video_pts_and_duration(0, 1, framerate),
             (0, 33366666),
@@ -165,7 +166,7 @@ class TestFunctions(TestCase):
             self.assertIn(dur, (33366666, 33366667))
             accum += dur
 
-        framerate = {'num': 24, 'denom': 1}
+        framerate = Fraction(24, 1)
         self.assertEqual(
             timefuncs.video_pts_and_duration(0, 1, framerate),
             (0, 41666666),
@@ -218,7 +219,7 @@ class TestFunctions(TestCase):
             accum += dur
 
     def test_video_pts_and_duration2(self):
-        rate = (30000, 1001)
+        rate = Fraction(30000, 1001)
         count = 500
         accum = 0
         offset = 0
