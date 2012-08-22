@@ -32,35 +32,30 @@ SECOND = 1000000000
 
 def get_fraction(value):
     """
-    Get numerator and denominator independent of exact fraction representation.
+    Get a ``Fraction`` independent of exact fraction representation.
 
     From a ``dict``:
 
     >>> get_fraction({'num': 30000, 'denom': 1001})
-    (30000, 1001)
-    
+    Fraction(30000, 1001)
+
     From a ``list``:
 
     >>> get_fraction([30000, 1001])
-    (30000, 1001)
+    Fraction(30000, 1001)
 
-    From a ``tuple``:
+    Or from a ``tuple``:
 
     >>> get_fraction((30000, 1001))
-    (30000, 1001)
-
-    Or from a ``fractions.Fraction``:
-
-    >>> get_fraction(Fraction(30000, 1001))
-    (30000, 1001)
+    Fraction(30000, 1001)
 
     """
-    if isinstance(value, dict):
-        return (value['num'], value['denom'])
-    if isinstance(value, (list, tuple)):
-        return (value[0], value[1])
     if isinstance(value, Fraction):
-        return (value.numerator, value.denominator)
+        return value
+    if isinstance(value, dict):
+        return Fraction(value['num'], value['denom'])
+    if isinstance(value, (list, tuple)):
+        return Fraction(value[0], value[1])
     raise TypeError(
         'invalid fraction type {!r}: {!r}'.format(type(value), value)
     )
@@ -74,8 +69,8 @@ def frame_to_nanosecond(frame, framerate):
     1001000000
 
     """
-    (num, denom) = get_fraction(framerate)
-    return frame * SECOND * denom // num
+    framerate = get_fraction(framerate)
+    return frame * SECOND * framerate.denominator // framerate.numerator
 
 
 def nanosecond_to_frame(nanosecond, framerate):
@@ -87,8 +82,10 @@ def nanosecond_to_frame(nanosecond, framerate):
 
     This is designed to round-trip values with `frame_to_nanosecond()`.
     """
-    (num, denom) = get_fraction(framerate)
-    return int(round(nanosecond * num / denom / SECOND))
+    framerate = get_fraction(framerate)
+    return int(round(
+        nanosecond * framerate.numerator / framerate.denominator / SECOND
+    ))
 
 
 def sample_to_nanosecond(sample, samplerate):
@@ -123,8 +120,8 @@ def frame_to_sample(frame, framerate, samplerate):
 
     Note that this is *not* designed to round-trip with `sample_to_frame()`.
     """
-    (num, denom) = get_fraction(framerate)
-    return frame * samplerate * denom // num
+    framerate = get_fraction(framerate)
+    return frame * samplerate * framerate.denominator // framerate.numerator
 
 
 def sample_to_frame(sample, samplerate, framerate):
@@ -136,8 +133,8 @@ def sample_to_frame(sample, samplerate, framerate):
 
     Note that this is *not* designed to round-trip with `frame_to_sample()`.
     """
-    (num, denom) = get_fraction(framerate)
-    return sample * num // (samplerate * denom)
+    framerate = get_fraction(framerate)
+    return sample * framerate.numerator // (samplerate * framerate.denominator)
 
 
 def video_pts_and_duration(start, stop, framerate):

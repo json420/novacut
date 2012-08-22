@@ -34,23 +34,19 @@ class TestFunctions(TestCase):
     def test_get_fraction(self):
         self.assertEqual(
             timefuncs.get_fraction({'num': 30000, 'denom': 1001}),
-            (30000, 1001)
+            Fraction(30000, 1001)
         )
         self.assertEqual(
             timefuncs.get_fraction([30000, 1001]),
-            (30000, 1001)
+            Fraction(30000, 1001)
         )
         self.assertEqual(
             timefuncs.get_fraction((30000, 1001)),
-            (30000, 1001)
+            Fraction(30000, 1001)
         )
         self.assertEqual(
             timefuncs.get_fraction((30000, 1001, True)),
-            (30000, 1001)
-        )
-        self.assertEqual(
-            timefuncs.get_fraction(Fraction(30000, 1001)),
-            (30000, 1001)
+            Fraction(30000, 1001)
         )
         with self.assertRaises(TypeError) as cm:
             timefuncs.get_fraction('24/1')
