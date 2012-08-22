@@ -136,9 +136,14 @@ test.run()
 #assert len(expected) == len(test.hashes)
 match = True
 for i in range(len(expected)):
-    print(expected[i], test.hashes[i])
-    if expected[i] != test.hashes[i]:
+    a = expected[i]
+    b = test.hashes[i]
+    if a != b:
         match = False
+        status = '!'
+    else:
+        status = '='
+    print(status, a, b)
 
 print(match)
     
