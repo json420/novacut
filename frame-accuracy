@@ -26,8 +26,11 @@ frames = 107
 
 
 class Test:
-    def __init__(self, slices):
-        self.hashes = []
+    def __init__(self, slices, expected):
+        self.expected = expected
+        self.i = 0
+        self.match = True
+
         self.mainloop = GObject.MainLoop()
         self.pipeline = Gst.Pipeline()
         self.bus = self.pipeline.get_bus()
@@ -104,10 +107,17 @@ class Test:
             pad.link(self.identity.get_static_pad('sink'))
 
     def on_handoff(self, element, buf, pad):
-        print(buf.pts)
         map_info = buf.map_range(0, -1, Gst.MapFlags.READ)[1]
         data = map_info.to_bytes().unref_to_array()
-        self.hashes.append(md5(data).hexdigest())
+        got = md5(data).hexdigest()
+        expected = self.expected[self.i]
+        if got != expected:
+            self.match = False
+            status = '!'
+        else:
+            status = '='
+        print(status, got, expected, self.i)
+        self.i += 1
 
     def on_eos(self, bus, msg):
         print('on_eos()')
@@ -120,31 +130,17 @@ class Test:
 
 hashes = json.load(open('frames.json', 'r'))
 expected = []
-
 slices = []
-for i in range(5):
+for i in range(25):
     s = random_slice(frames)
-    print(s)
     slices.append(s)
     expected.extend(
         hashes[f] for f in range(s.start, s.stop)  
     )
 
-test = Test(slices)
+test = Test(tuple(slices), tuple(expected))
 test.run()
-
-#assert len(expected) == len(test.hashes)
-match = True
-for i in range(len(expected)):
-    a = expected[i]
-    b = test.hashes[i]
-    if a != b:
-        match = False
-        status = '!'
-    else:
-        status = '='
-    print(status, a, b)
-
-print(match)
+print('match:', test.match)
+print('frames:', len(expected))
     
 
