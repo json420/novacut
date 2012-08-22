@@ -70,7 +70,7 @@ def frame_to_nanosecond(frame, framerate):
     """
     Convert from frame to nanosecond (GStreamer time).
 
-    >>> frame_to_nanosecond(30, {'num': 30000, 'denom': 1001})
+    >>> frame_to_nanosecond(30, Fraction(30000, 1001))
     1001000000
 
     """
@@ -82,7 +82,7 @@ def nanosecond_to_frame(nanosecond, framerate):
     """
     Convert from nanosecond (GStreamer time) to frame.
 
-    >>> nanosecond_to_frame(1001000000, {'num': 30000, 'denom': 1001})
+    >>> nanosecond_to_frame(1001000000, Fraction(30000, 1001))
     30
 
     This is designed to round-trip values with `frame_to_nanosecond()`.
@@ -118,7 +118,7 @@ def frame_to_sample(frame, framerate, samplerate):
     """
     Convert from frame to sample.
 
-    >>> frame_to_sample(30, {'num': 30000, 'denom': 1001}, 48000)
+    >>> frame_to_sample(30, Fraction(30000, 1001), 48000)
     48048
 
     Note that this is *not* designed to round-trip with `sample_to_frame()`.
@@ -131,7 +131,7 @@ def sample_to_frame(sample, samplerate, framerate):
     """
     Convert from sample to frame.
 
-    >>> sample_to_frame(48048, 48000, {'num': 30000, 'denom': 1001})
+    >>> sample_to_frame(48048, 48000, Fraction(30000, 1001))
     30
 
     Note that this is *not* designed to round-trip with `frame_to_sample()`.
@@ -146,12 +146,12 @@ def video_pts_and_duration(start, stop, framerate):
 
     It can be for a single frame:
 
-    >>> video_pts_and_duration(1, 2, (24, 1))
+    >>> video_pts_and_duration(1, 2, Fraction(24, 1))
     (41666666, 41666667)
 
     Or for a multi-frame slice:
 
-    >>> video_pts_and_duration(1, 101, (24, 1))
+    >>> video_pts_and_duration(1, 101, Fraction(24, 1))
     (41666666, 4166666667)
 
     """
