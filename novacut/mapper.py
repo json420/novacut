@@ -38,6 +38,8 @@ There are 2 reasons to separate this functionality from `renderer`:
 
 from fractions import Fraction
 
+from .timefuncs import video_pts_and_duration, audio_pts_and_duration
+
 
 def get_fraction(value):
     """
@@ -68,4 +70,42 @@ def get_fraction(value):
     raise TypeError(
         'invalid fraction type {!r}: {!r}'.format(type(value), value)
     )
+
+
+def video_slice_to_gnl(offset, start, stop, framerate):
+    assert 0 <= start < stop
+
+    # These properties are about the slice itself
+    (pts1, dur1) = video_pts_and_duration(start, stop, framerate)
+
+    # These properties are about the position of the slice in the composition
+    frames = stop - start
+    (pts2, dur2) = video_pts_and_duration(offset, offset + frames, framerate)
+
+    assert abs(dur1 - dur2) <= 1
+    return {
+        'media-start': pts1,
+        'media-duration': dur1,
+        'start': pts2,
+        'duration': dur2,
+    }
+
+
+def audio_slice_to_gnl(offset, start, stop, samplerate):
+    assert 0 <= start < stop
+
+    # These properties are about the slice itself
+    (pts1, dur1) = audio_pts_and_duration(start, stop, samplerate)
+
+    # These properties are about the position of the slice in the composition
+    samples = stop - start
+    (pts2, dur2) = audio_pts_and_duration(offset, offset + samples, samplerate)
+
+    assert abs(dur1 - dur2) <= 1
+    return {
+        'media-start': pts1,
+        'media-duration': dur1,
+        'start': pts2,
+        'duration': dur2,
+    }
 
