@@ -26,6 +26,7 @@ Unit tests for the `novacut.timefuncs` module.
 from unittest import TestCase
 from fractions import Fraction
 
+from novacut.misc import random_slice
 from novacut import timefuncs
 
 
@@ -215,4 +216,48 @@ class TestFunctions(TestCase):
             self.assertEqual(pts, timefuncs.sample_to_nanosecond(i, samplerate))
             self.assertIn(dur, (22675, 22676))
             accum += dur
+
+    def test_video_pts_and_duration2(self):
+        rate = (30000, 1001)
+        count = 500
+        accum = 0
+        offset = 0
+        for i in range(2000):
+            s = random_slice(count)
+            frames = s.stop - s.start
+
+            # The slice
+            (pts, dur) = timefuncs.video_pts_and_duration(
+                    s.start, s.stop, rate)
+
+            # Global position and duration in the edit
+            (g_pts, g_dur) = timefuncs.video_pts_and_duration(
+                    offset, offset + frames, rate)
+
+            self.assertEqual(g_pts, accum)
+            self.assertLessEqual(abs(g_dur - dur), 1)
+            accum += g_dur
+            offset += frames
+
+    def test_audio_pts_and_duration2(self):
+        rate = 48000
+        count = rate * 10
+        accum = 0
+        offset = 0
+        for i in range(2000):
+            s = random_slice(count)
+            samples = s.stop - s.start
+
+            # The slice
+            (pts, dur) = timefuncs.audio_pts_and_duration(
+                    s.start, s.stop, rate)
+
+            # Global position and duration in the edit
+            (g_pts, g_dur) = timefuncs.audio_pts_and_duration(
+                    offset, offset + samples, rate)
+
+            self.assertEqual(g_pts, accum)
+            self.assertLessEqual(abs(g_dur - dur), 1)
+            accum += g_dur
+            offset += samples
 
