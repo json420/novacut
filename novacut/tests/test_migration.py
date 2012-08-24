@@ -24,6 +24,7 @@ Unit tests for the `novacut.migration` module.
 """
 
 import json
+from fractions import Fraction
 
 from usercouch.misc import CouchTestCase
 from microfiber import Database
@@ -226,10 +227,10 @@ class TestFunctions(CouchTestCase):
         self.assertEqual(audio['node']['type'], 'audio/slice')
         self.assertEqual(audio['node']['src'], video['node']['src'])
         self.assertEqual(audio['node']['start'],
-            frame_to_sample(127, (25, 1), 48000)
+            frame_to_sample(127, Fraction(25, 1), 48000)
         )
         self.assertEqual(audio['node']['stop'],
-            frame_to_sample(205, (25, 1), 48000)
+            frame_to_sample(205, Fraction(25, 1), 48000)
         )
         self.assertEqual(audio['node']['start'], 243840)
         self.assertEqual(audio['node']['stop'], 393600)

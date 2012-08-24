@@ -182,7 +182,7 @@ def frame_to_sample(frame, framerate, samplerate):
 
     Note that this is *not* designed to round-trip with `sample_to_frame()`.
     """
-    framerate = get_fraction(framerate)
+    assert isinstance(framerate, Fraction)
     return frame * samplerate * framerate.denominator // framerate.numerator
 
 
@@ -195,7 +195,7 @@ def sample_to_frame(sample, samplerate, framerate):
 
     Note that this is *not* designed to round-trip with `frame_to_sample()`.
     """
-    framerate = get_fraction(framerate)
+    assert isinstance(framerate, Fraction)
     return sample * framerate.numerator // (samplerate * framerate.denominator)
 
 

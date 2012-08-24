@@ -25,6 +25,7 @@ Lossless migration between schema versions.
 
 from copy import deepcopy
 
+from .mapper import get_fraction
 from .timefuncs import frame_to_sample
 from . import schema
 
@@ -55,7 +56,7 @@ def migrate_slice(db, doc):
 
     if node['stream'] == 'both':
         clip = db.get(node['src'])
-        framerate = clip['framerate']
+        framerate = get_fraction(clip['framerate'])
         samplerate = clip['samplerate']
         audio = schema.create_audio_slice(node['src'],
             frame_to_sample(start, framerate, samplerate),
