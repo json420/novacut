@@ -26,6 +26,8 @@ Unit tests for the `novacut.mapper` module.
 from unittest import TestCase
 from fractions import Fraction
 
+from novacut.misc import random_slice
+from novacut.timefuncs import video_pts_and_duration
 from novacut import mapper
 
 
@@ -56,3 +58,82 @@ class TestFunctions(TestCase):
             "invalid fraction type <class 'str'>: '24/1'"
         )
 
+    def test_video_slice_to_gnl(self):
+        framerate = Fraction(30000, 1001)
+        self.assertEqual(
+            mapper.video_slice_to_gnl(0, 0, 1, framerate),
+            {
+                'media-start': 0,
+                'media-duration': 33366666,
+                'start': 0,
+                'duration': 33366666,   
+            }
+        )
+        self.assertEqual(
+            mapper.video_slice_to_gnl(0, 1, 2, framerate),
+            {
+                'media-start': 33366666,
+                'media-duration': 33366667,
+                'start': 0,
+                'duration': 33366666,   
+            }
+        )
+        self.assertEqual(
+            mapper.video_slice_to_gnl(1, 0, 1, framerate),
+            {
+                'media-start': 0,
+                'media-duration': 33366666,
+                'start': 33366666,
+                'duration': 33366667,   
+            }
+        )
+
+        # Test random slices at different offsets:
+        for i in range(10):
+            (start, stop) = random_slice(30 * 120)
+            frames = stop - start
+            self.assertGreaterEqual(frames, 1)
+            for offset in range(1000):
+                (pts1, dur1) = video_pts_and_duration(
+                    start, stop, framerate
+                )
+                (pts2, dur2) = video_pts_and_duration(
+                    offset, offset + frames, framerate
+                )
+                self.assertEqual(
+                    mapper.video_slice_to_gnl(offset, start, stop, framerate),
+                    {
+                        'media-start': pts1,
+                        'media-duration': dur1,
+                        'start': pts2,
+                        'duration': dur2,   
+                    }
+                )
+                self.assertLessEqual(abs(dur1 - dur2), 1)
+
+        # Test accumulating random slices (as if in a sequence):
+        offset = 0
+        accum = 0
+        for i in range(1000):
+            (start, stop) = random_slice(30 * 120)
+            frames = stop - start
+            self.assertGreaterEqual(frames, 1)
+            (pts1, dur1) = video_pts_and_duration(
+                start, stop, framerate
+            )
+            (pts2, dur2) = video_pts_and_duration(
+                offset, offset + frames, framerate
+            )
+            self.assertEqual(
+                mapper.video_slice_to_gnl(offset, start, stop, framerate),
+                {
+                    'media-start': pts1,
+                    'media-duration': dur1,
+                    'start': pts2,
+                    'duration': dur2,   
+                }
+            )
+            self.assertLessEqual(abs(dur1 - dur2), 1)
+            self.assertEqual(pts2, accum)
+            offset += frames
+            accum += dur2
