@@ -26,7 +26,8 @@ Although a nanosecond is a very precise unit, nanoseconds can't *exactly*
 represent the timestamps and durations in typical media.  To do this, you
 need to use rational (fractional) timestamps.
 
-This will show what we mean by "perfect" timestamps:
+Here you can see what "perfect" timestamps look like when converted to
+nanoseconds:
 
 >>> for i in range(10):
 ...     (pts, dur) = video_pts_and_duration(i, i + 1, Fraction(24, 1))
