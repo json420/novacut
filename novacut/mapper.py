@@ -77,6 +77,20 @@ def get_framerate(doc):
 
 
 def video_slice_to_gnl(offset, start, stop, framerate):
+    """
+    Map a video slice into gnlurisource properties.
+
+    For example, say you have a 7:42 slice at offset 200:
+
+    >>> video_slice_to_gnl(200, 7, 42, Fraction(24, 1)) == {
+    ...     'media-start': 291666666,
+    ...     'media-duration': 1458333334,
+    ...     'start': 8333333333,
+    ...     'duration': 1458333333,
+    ... }
+    True
+    
+    """
     assert 0 <= start < stop
 
     # These properties are about the slice itself
