@@ -24,6 +24,7 @@ Unit tests for the `novacut.renderer` module.
 """
 
 from unittest import TestCase
+from fractions import Fraction
 
 from microfiber import random_id
 from gi.repository import Gst
@@ -432,10 +433,10 @@ class TestFunctions(TestCase):
 
     def test_build_video_slice(self):
         file_id = random_file_id()
-        rate = {'num': 30000, 'denom': 1001}
+        rate = Fraction(30000, 1001)
         file = {
             '_id': file_id,
-            'framerate': rate,
+            'framerate': {'num': 30000, 'denom': 1001},
         }
         b = DummyBuilder([file])
 

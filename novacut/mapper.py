@@ -72,6 +72,10 @@ def get_fraction(value):
     )
 
 
+def get_framerate(doc):
+    return get_fraction(doc['framerate'])
+
+
 def video_slice_to_gnl(offset, start, stop, framerate):
     assert 0 <= start < stop
 

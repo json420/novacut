@@ -30,6 +30,7 @@ gi.require_version('Gst', '1.0')
 from gi.repository import GObject, Gst
 
 from .timefuncs import video_pts_and_duration, audio_pts_and_duration
+from .mapper import get_framerate
 
 
 GObject.threads_init()
@@ -204,7 +205,8 @@ def build_slice(builder, doc, offset=0):
 
 def build_video_slice(builder, doc, offset):
     node = doc['node']
-    framerate = builder.get_doc(node['src'])['framerate']
+    clip = builder.get_doc(node['src'])
+    framerate = get_framerate(clip)
     start = node['start']
     stop = node['stop']
     frames = stop - start

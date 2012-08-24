@@ -131,7 +131,7 @@ def frame_to_nanosecond(frame, framerate):
     1001000000
 
     """
-    framerate = get_fraction(framerate)
+    assert isinstance(framerate, Fraction)
     return frame * SECOND * framerate.denominator // framerate.numerator
 
 
@@ -144,7 +144,7 @@ def nanosecond_to_frame(nanosecond, framerate):
 
     This is designed to round-trip values with `frame_to_nanosecond()`.
     """
-    framerate = get_fraction(framerate)
+    assert isinstance(framerate, Fraction)
     return int(round(
         nanosecond * framerate.numerator / framerate.denominator / SECOND
     ))
