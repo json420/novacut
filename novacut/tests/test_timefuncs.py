@@ -30,31 +30,7 @@ from novacut.misc import random_slice
 from novacut import timefuncs
 
 
-class TestFunctions(TestCase):
-    def test_get_fraction(self):
-        self.assertEqual(
-            timefuncs.get_fraction({'num': 30000, 'denom': 1001}),
-            Fraction(30000, 1001)
-        )
-        self.assertEqual(
-            timefuncs.get_fraction([30000, 1001]),
-            Fraction(30000, 1001)
-        )
-        self.assertEqual(
-            timefuncs.get_fraction((30000, 1001)),
-            Fraction(30000, 1001)
-        )
-        self.assertEqual(
-            timefuncs.get_fraction((30000, 1001, True)),
-            Fraction(30000, 1001)
-        )
-        with self.assertRaises(TypeError) as cm:
-            timefuncs.get_fraction('24/1')
-        self.assertEqual(
-            str(cm.exception),
-            "invalid fraction type <class 'str'>: '24/1'"
-        )   
-
+class TestFunctions(TestCase):   
     def test_frame_to_nanosecond(self):
         self.assertEqual(
             timefuncs.frame_to_nanosecond(0, Fraction(24, 1)),

@@ -87,40 +87,10 @@ same duration as above:
 
 from fractions import Fraction
 
+
 # In case we want to use these functions when GStreamer isn't available, we
 # define our own nanosecond constant:
 SECOND = 1000000000
-
-
-def get_fraction(value):
-    """
-    Get a ``Fraction`` independent of exact fraction representation.
-
-    From a ``dict``:
-
-    >>> get_fraction({'num': 30000, 'denom': 1001})
-    Fraction(30000, 1001)
-
-    From a ``list``:
-
-    >>> get_fraction([30000, 1001])
-    Fraction(30000, 1001)
-
-    Or from a ``tuple``:
-
-    >>> get_fraction((30000, 1001))
-    Fraction(30000, 1001)
-
-    """
-    if isinstance(value, Fraction):
-        return value
-    if isinstance(value, dict):
-        return Fraction(value['num'], value['denom'])
-    if isinstance(value, (list, tuple)):
-        return Fraction(value[0], value[1])
-    raise TypeError(
-        'invalid fraction type {!r}: {!r}'.format(type(value), value)
-    )
 
 
 def frame_to_nanosecond(frame, framerate):
