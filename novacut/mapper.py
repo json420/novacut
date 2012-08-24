@@ -89,7 +89,7 @@ def video_slice_to_gnl(offset, start, stop, framerate):
     ...     'duration': 1458333333,
     ... }
     True
-    
+
     """
     assert 0 <= start < stop
 

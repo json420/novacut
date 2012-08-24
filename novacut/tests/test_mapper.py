@@ -27,7 +27,7 @@ from unittest import TestCase
 from fractions import Fraction
 
 from novacut.misc import random_slice
-from novacut.timefuncs import video_pts_and_duration
+from novacut.timefuncs import video_pts_and_duration, audio_pts_and_duration
 from novacut import mapper
 
 
@@ -136,4 +136,84 @@ class TestFunctions(TestCase):
             self.assertLessEqual(abs(dur1 - dur2), 1)
             self.assertEqual(pts2, accum)
             offset += frames
+            accum += dur2
+
+    def test_audio_slice_to_gnl(self):
+        samplerate = 44100
+        self.assertEqual(
+            mapper.audio_slice_to_gnl(0, 0, 1, samplerate),
+            {
+                'media-start': 0,
+                'media-duration': 22675,
+                'start': 0,
+                'duration': 22675,   
+            }
+        )
+        self.assertEqual(
+            mapper.audio_slice_to_gnl(0, 1, 2, samplerate),
+            {
+                'media-start': 22675,
+                'media-duration': 22676,
+                'start': 0,
+                'duration': 22675,   
+            }
+        )
+        self.assertEqual(
+            mapper.audio_slice_to_gnl(1, 0, 1, samplerate),
+            {
+                'media-start': 0,
+                'media-duration': 22675,
+                'start': 22675,
+                'duration': 22676,   
+            }
+        )
+
+        # Test random slices at different offsets:
+        for i in range(10):
+            (start, stop) = random_slice(samplerate * 120)
+            samples = stop - start
+            self.assertGreaterEqual(samples, 1)
+            for offset in range(1000):
+                (pts1, dur1) = audio_pts_and_duration(
+                    start, stop, samplerate
+                )
+                (pts2, dur2) = audio_pts_and_duration(
+                    offset, offset + samples, samplerate
+                )
+                self.assertEqual(
+                    mapper.audio_slice_to_gnl(offset, start, stop, samplerate),
+                    {
+                        'media-start': pts1,
+                        'media-duration': dur1,
+                        'start': pts2,
+                        'duration': dur2,   
+                    }
+                )
+                self.assertLessEqual(abs(dur1 - dur2), 1)
+
+        # Test accumulating random slices (as if in a sequence):
+        offset = 0
+        accum = 0
+        for i in range(1000):
+            (start, stop) = random_slice(samplerate * 120)
+            samples = stop - start
+            self.assertGreaterEqual(samples, 1)
+            (pts1, dur1) = audio_pts_and_duration(
+                start, stop, samplerate
+            )
+            (pts2, dur2) = audio_pts_and_duration(
+                offset, offset + samples, samplerate
+            )
+            self.assertEqual(
+                mapper.audio_slice_to_gnl(offset, start, stop, samplerate),
+                {
+                    'media-start': pts1,
+                    'media-duration': dur1,
+                    'start': pts2,
+                    'duration': dur2,   
+                }
+            )
+            self.assertLessEqual(abs(dur1 - dur2), 1)
+            self.assertEqual(pts2, accum)
+            offset += samples
             accum += dur2
