@@ -78,9 +78,10 @@ def get_framerate(doc):
 
 def video_slice_to_gnl(offset, start, stop, framerate):
     """
-    Map a video slice into gnlurisource properties.
+    Map a video slice at global *offset* into gnlurisource properties.
 
-    For example, say you have a 7:42 slice at offset 200:
+    For example, say at global frame offset 200 you have a slice from frame
+    7 to frame 42:
 
     >>> video_slice_to_gnl(200, 7, 42, Fraction(24, 1)) == {
     ...     'media-start': 291666666,
@@ -110,6 +111,21 @@ def video_slice_to_gnl(offset, start, stop, framerate):
 
 
 def audio_slice_to_gnl(offset, start, stop, samplerate):
+    """
+    Map an audio slice at global *offset* into gnlurisource properties.
+
+    For example, say at global sample offset 2000 you have a slice from
+    sample 30,000 to sample 90,000:
+
+    >>> audio_slice_to_gnl(2000, 30000, 90000, 48000) == {
+    ...     'media-start': 625000000,
+    ...     'media-duration': 1250000000,
+    ...     'start': 41666666,
+    ...     'duration': 1250000000,
+    ... }
+    True
+
+    """
     assert 0 <= start < stop
 
     # These properties are about the slice itself

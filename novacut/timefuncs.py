@@ -73,7 +73,7 @@ does:
 >>> frame_to_nanosecond(104, Fraction(30000, 1001))
 3470133333
 
-And the slice duration is simple ``stop - start``:
+And the slice duration is simply ``stop - start``:
 
 >>> 3470133333 - 767433333
 2702700000
