@@ -21,6 +21,68 @@
 
 """
 Convert between frames, samples, and nanoseconds.
+
+Although a nanosecond is a very precise unit, nanoseconds can't *exactly*
+represent the timestamps and durations in typical media.  To do this, you
+need to use rational (fractional) timestamps.
+
+This will show what we mean by "perfect" timestamps:
+
+>>> for i in range(10):
+...     (pts, dur) = video_pts_and_duration(i, i + 1, Fraction(24, 1))
+...     print(dur, pts)
+...
+41666666 0
+41666667 41666666
+41666667 83333333
+41666666 125000000
+41666667 166666666
+41666667 208333333
+41666666 250000000
+41666667 291666666
+41666667 333333333
+41666666 375000000
+
+The first thing to notice is that the duration isn't constant.  This is
+because it's impossible to exactly represent the duration in nanoseconds.
+So the duration is different depending on which frame (globally) you're
+considering.
+
+FYI, MOV files from Canon HDSLR cameras have exactly the sort of "perfect"
+timestamps illustrated above.  And in our testing, GStreamer has been able to
+produce flawless frame accuracy when it comes to cutting slices out of such
+video (confirmed by doing md5sums of the video buffers).
+
+It's easy to calculate perfect timestamps for selecting a slice because it
+only involves local time.
+
+For example, the start and stop timestamps for the slice ``23:104`` from
+30000/1001 video can be calculated like this:
+
+>>> 23 * SECOND * 1001 // 30000  # start
+767433333
+>>> 104 * SECOND * 1001 // 30000  # stop
+3470133333
+
+Which is exactly the calculation that the `frame_to_nanosecond()` function
+does:
+
+>>> frame_to_nanosecond(23, Fraction(30000, 1001))
+767433333
+>>> frame_to_nanosecond(104, Fraction(30000, 1001))
+3470133333
+
+And the slice duration is simple ``stop - start``:
+
+>>> 3470133333 - 767433333
+2702700000
+
+The `video_pts_and_duration()` function returns the start timestamp and the
+same duration as above:
+
+>>> video_pts_and_duration(23, 104, Fraction(30000, 1001))
+(767433333, 2702700000)
+
 """
 
 from fractions import Fraction
