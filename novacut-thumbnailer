@@ -30,6 +30,7 @@ from os import path
 import json
 from base64 import b64encode
 import optparse
+from fractions import Fraction
 
 
 parser = optparse.OptionParser(
@@ -181,7 +182,8 @@ class Thumbnailer(object):
         string = caps.to_string()
         print('on_pad_added', string)
         if string.startswith('video/'):
-            self.framerate = caps.get_structure(0).get_fraction('framerate')[1:3]
+            (num, denom) = caps.get_structure(0).get_fraction('framerate')[1:3]
+            self.framerate = Fraction(num, denom)
             print('framerate', self.framerate)
             pad.link(self.scale.get_static_pad('sink'))
 
