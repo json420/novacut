@@ -48,9 +48,9 @@ var UI = {
 	UI.proj.style.height = window.innerHeight-50+"px";
 
 
-	UI.binDesc ="<p>Here you can find your removed projects<br>Click on <img style=\"width:13px;\" src=\"delete.png\"></img>&nbsp;&nbsp;&nbsp;to remove a project<br>Drag a project out of here to restore it</p>";
+	UI.binDesc ="<p>Here You Can Find Your Removed Projects<br>Click on <img style=\"width:13px;\" src=\"delete.png\"></img>&nbsp;&nbsp;&nbsp;to Remove a Project<br>Drag a Project Out of Here to Restore It</p>";
 	UI.binMax = 5;
-	UI.binSearch = "<input id=\"s\" onkeyup=\"UI.Search()\"><img id=\"lens\" src=\"search.png\"></img></input>";
+	UI.binSearch = "<input id=\"s\" onkeyup=\"UI.Search()\" autofocus/>";
 
 	UI.removed = new Array();
         UI.load_items();

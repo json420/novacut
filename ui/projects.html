@@ -2,7 +2,6 @@
 <html>
     <head>
         <link rel="stylesheet" href="/_apps/dmedia/grid.css">
-        <link rel="stylesheet" href="/_apps/dmedia/common.css" />
         <link rel="stylesheet" href="common.css" />
         <script src="/_apps/userwebkit/couch.js"></script>
         <script src="/_apps/userwebkit/base.js"></script>
@@ -53,123 +52,147 @@
            ev.preventDefault();
 	}
 	</script>
-	<style>
-	.el{
-		cursor: move;
-	}
-#menu{
-	float: right;
-	padding: 3px 8px 0 0;
-        list-style: none;
-	cursor: default;
-}
+<style>
+    .el{
+		    cursor: move;
+	    }
+    #menu{
+	    float: right;
+	    padding: 3px 8px 0 0;
+            list-style: none;
+	    cursor: default;
+    }
 
-#menu img{
-width: 31px;
-margin-top: -7px;
-margin-right: -8px;
--webkit-animation-duration: .8s;
-    -webkit-animation-iteration-count: 1;
-    -webkit-animation-timing-function: linear;
+    #menu img{
+    width: 31px;
+    margin-top: -7px;
+    margin-right: -8px;
+    -webkit-animation-duration: .8s;
+        -webkit-animation-iteration-count: 1;
+        -webkit-animation-timing-function: linear;
 
-}
-#menu li{
-        float: left;
-        padding: 0 0 10px 0;
-        position: relative;
-}
+    }
+    #menu li{
+            float: left;
+            padding: 0 0 10px 0;
+            position: relative;
+    }
 
-#menu li:hover > a{
-        color: #fafafa;
-}
-#menu li:hover > #bi{
+    #menu li:hover > a{
+            color: #fafafa;
+    }
+    #menu li:hover > #bi{
+            display: block;
+    }
+
+    #bi{ /*container*/
+	    min-width: 320px;
+	    min-height: 26px;
+	    list-style: none;
+	    margin: -1px -304px;
+	    padding: 4px;
+	    display: none;
+	    position: absolute;
+	    top: 39px;
+	    left: 0;
+	    z-index: 99999;
+	    background: -webkit-linear-gradient(top,rgb(87,87,87),rgb(65,65,65));
+	    border-radius: 10px;
+	    box-shadow: 1px 1px 10px rgba(0,0,0,0.5);
+    }
+
+    #menu input{
+	    /*width: 282px;
+	    margin: 6px 3px 2px 5px;
+	    border-radius: 15px;
+	    background: -webkit-linear-gradient(top,#E6E6E6,#FAFAFA);
+	    border: solid 1px rgba(0, 0, 0, 0.72);
+	    box-shadow: none;
+	    padding-left: 28px;
+	    color: black;*/
+	    width: 285px;
+        margin: 7px 3px 0px 5px;
+        border-radius: 13px;
+        background: url(search16d.png) no-repeat 8px 5px rgba(0, 0, 0, 0.12);
+        border: none 0;
+        box-shadow: 0 1px 0 rgba(255,255,255,0.1),0 1px 3px rgba(0,0,0,0.3) inset;
+        height: 25px;
+        font-size: 15px;
+        padding-left: 29px;
+    }
+
+    #lens{
+        margin-left: -313px;
+        margin-bottom: -11px;
+    }
+    #menu ul ul li{ /* projects*/
+        float: none;
+        margin: 10px;
+        padding: 0;
         display: block;
-}
+        cursor: move;
+    }
 
-#bi{ /*container*/
-	min-width: 320px;
-	min-height: 26px;
-	list-style: none;
-	margin: 0px -302px;
-	padding: 4px;
-	display: none;
-	position: absolute;
-	top: 39px;
-	left: 0;
-	z-index: 99999;
-	background: -webkit-linear-gradient(top,rgb(87,87,87),rgb(65,65,65));
-	border-radius: 10px;
-	box-shadow: 1px 1px 10px rgba(0,0,0,0.5);
-}
+    #menu ul:after{
+        border-bottom-color: #444;
+    }
+    
+    #menu .project{
+        margin-left: 9px;
+    }
+    
+    .project{
+        -webkit-animation-duration: 0.3s;
+        -webkit-animation-iteration-count: 1;
+        -webkit-animation-timing-function: cubic-bezier(0.4,0,0.8,1);
+    }
 
-#menu input{
-	width: 282px;
-	margin: 6px 3px 2px 5px;
-	border-radius: 15px;
-	background: -webkit-linear-gradient(top,#E6E6E6,#FAFAFA);
-	border: solid 1px rgba(0, 0, 0, 0.72);
-	box-shadow: none;
-	padding-left: 28px;
-	color: black;
-}
+    .project img{
+    opacity: 0.6;
+    }
 
-#lens{
-margin-left: -313px;
-margin-bottom: -11px;
-}
-#menu ul ul li{ /* projects*/
-    float: none;
-    margin: 10px;
-    padding: 0;
-    display: block;
-    cursor: move;
-}
+    .project img:hover{
+    opacity: 1;
+    }
 
-#menu ul:after{
-    border-bottom-color: #444;
-}
+    #cont p{
+    margin: 5px;
+    margin-left: 7px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
 
-.project{
--webkit-animation-duration: 0.3s;
-    -webkit-animation-iteration-count: 1;
-    -webkit-animation-timing-function: cubic-bezier(0.4,0,0.8,1);
-}
-
-.project img{
-opacity: 0.7;
-}
-
-.project img:hover{
-opacity: 1;
-}
-
-#cont p{
-margin: 5px;
-margin-left: 7px;
-text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-}
-
-#inv{/*invisible div used to make bin menu easier to use*/
-height:60px;
-width:300px;
-margin-top:-60px;
-}
-
-	</style>
+    #inv{/*invisible div used to make bin menu easier to use*/
+    height:60px;
+    width:300px;
+    margin-top:-60px;
+    }
+    
+    #new{
+    box-shadow: 0 2px 3px rgba(0,0,0,0.4) inset,0 1px 0 rgba(255,255,255,0.2),0 11px 15px rgba(0,0,0,0.25) inset;
+    border-radius: 13px;
+    border: none 0;
+    height: 23px;
+    background: 
+    rgb(68, 68, 68);
+    padding: 3px 10px 0px;
+    }
+</style>
     </head>
     <body>
         <form id="new_project" class="head">
             <div class="grid_row">
                 <input placeholder="New project name" type="text" class="grid_4" autofocus>
                 <button class="grid_4" disabled>Create Project</button>
-                <ul id="menu"><li>
+        <ul id="menu">
+            <li>
                 <img src="bin2.png" class="ico" id="ico"/>
-		<ul id="bi">
-		<div id="inv"></div>
-		<div id="cont"></div>
-  		<ul id="list"></ul>
+		        <ul id="bi">
+		            <div id="inv"></div>
+		            <div id="cont"></div>
+              		<ul id="list"></ul>
+		        </ul>
+		    </li>
 		</ul>
-		</li></ul>
             </div>
         </form>
 <ul style="min-width = 800px;" id="projects" ondragenter="enter(event)" ondragleave="leave(event)" ondrop="d(event)" ondragover="over(event);"></ul>
