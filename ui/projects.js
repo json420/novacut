@@ -50,7 +50,7 @@ var UI = {
 
 	UI.binDesc ="<p>Here You Can Find Your Removed Projects<br>Click on <img style=\"width:13px;\" src=\"delete.png\"></img>&nbsp;&nbsp;&nbsp;to Remove a Project<br>Drag a Project Out of Here to Restore It</p>";
 	UI.binMax = 5;
-	UI.binSearch = "<input id=\"s\" onkeyup=\"UI.Search()\" autofocus/>";
+	UI.binSearch = "<input id=\"s\" onkeyup=\"UI.Search()\" autofocus/><p id='help'>To restore a project drag it out of here</p>";
 
 	UI.removed = new Array();
         UI.load_items();

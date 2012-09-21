@@ -17,7 +17,8 @@ video{
 
 .head {
     height: 39px;
-    background: -webkit-linear-gradient(top, rgb(60, 28, 70), rgb(32, 4, 40));
+    background: -webkit-linear-gradient(top, rgb(62, 30, 72), rgb(34, 5, 42));
+    box-shadow: 0 0 40px rgba(0,0,0,0.55);
     border-bottom:1px solid #222;
 }
 
@@ -163,7 +164,7 @@ button:active{
 }
 
 button:focus {
-    box-shadow: 0px 1px 1px rgba(0,0,0,0.7), 0px 0px 1px #e81f3b;
+    /*box-shadow: 0px 1px 1px rgba(0,0,0,0.7), 0px 0px 1px #e81f3b;*/
     outline:none;
 }
 
@@ -173,12 +174,12 @@ input:focus, textarea:focus, .inset:focus{
 }
 
 button:focus{
-    background:-webkit-linear-gradient(top, #5d2b32, #333);
+    /*background:-webkit-linear-gradient(top, #5d2b32, #333);*/
 }
 
 @-webkit-keyframes appear{
     0% {
-        -webkit-transform: scale(1) translate(0px, -2px);
+        -webkit-transform: scale(1) translate(0px, -5px);
         opacity:0;
     }
     100% {
