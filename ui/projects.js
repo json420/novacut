@@ -155,7 +155,7 @@ var UI = {
 		    generateAnimation(end.x-pos.x,end.y-pos.y-30);
 		    this.parentNode.style.webkitAnimationName = "arg";
 		    var s = this;
-		    setTimeout(function(){s.parentNode.parentNode.removeChild(s.parentNode)},320,s);
+		    setTimeout(function(){s.parentNode.parentNode.removeChild(s.parentNode)},300,s);
  		    Hub.send('delete_project', id)
 		    var doc = novacut.get_sync(id)
 		    UI.removed.push(Array(id,doc.title,doc.time,countFiles(id)));
