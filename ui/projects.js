@@ -48,9 +48,9 @@ var UI = {
 	UI.proj.style.height = window.innerHeight-50+"px";
 
 
-	UI.binDesc ="<p>Here you can find your removed projects<br>Click on <img style=\"width:13px;\" src=\"delete.png\"></img>&nbsp;&nbsp;&nbsp;to remove a project<br>Drag a project out of here to restore it</p>";
+	UI.binDesc ="<p>Here You Can Find Your Removed Projects<br>Click on <img style=\"width:13px;\" src=\"delete.png\"></img>&nbsp;&nbsp;&nbsp;to Remove a Project<br>Drag a Project Out of Here to Restore It</p>";
 	UI.binMax = 5;
-	UI.binSearch = "<input id=\"s\" onkeyup=\"UI.Search()\"><img id=\"lens\" src=\"search.png\"></img></input>";
+	UI.binSearch = "<input id=\"s\" onkeyup=\"UI.Search()\" autofocus/><p id='help'>To restore a project drag it out of here</p>";
 
 	UI.removed = new Array();
         UI.load_items();
@@ -155,7 +155,7 @@ var UI = {
 		    generateAnimation(end.x-pos.x,end.y-pos.y-30);
 		    this.parentNode.style.webkitAnimationName = "arg";
 		    var s = this;
-		    setTimeout(function(){s.parentNode.parentNode.removeChild(s.parentNode)},320,s);
+		    setTimeout(function(){s.parentNode.parentNode.removeChild(s.parentNode)},300,s);
  		    Hub.send('delete_project', id)
 		    var doc = novacut.get_sync(id)
 		    UI.removed.push(Array(id,doc.title,doc.time,countFiles(id)));
