@@ -34,6 +34,7 @@ import os
 from os import path
 from threading import Thread
 import subprocess
+import signal
 import logging
 
 import dbus
@@ -58,6 +59,7 @@ IFACE = BUS
 GObject.threads_init()
 DBusGMainLoop(set_as_default=True)
 session = dbus.SessionBus()
+mainloop = GObject.MainLoop()
 log = logging.getLogger()
 
 
@@ -69,6 +71,12 @@ assert path.isfile(renderer)
 thumbnailer = path.join(bindir, 'novacut-thumbnailer')
 assert path.isfile(thumbnailer)
 
+
+def on_sighup(signum, frame):
+    log.info('<SIGHUP>')
+    mainloop.quit()
+
+signal.signal(signal.SIGHUP, on_sighup)
 
 
 def _start_thread(target, *args):
@@ -82,18 +90,18 @@ class Service(dbus.service.Object):
     def __init__(self, bus):
         self._workers = {}
         self.bus = bus
-        self.mainloop = GObject.MainLoop()
+        mainloop = GObject.MainLoop()
         super(Service, self).__init__(session, object_path='/')
         self.busname = dbus.service.BusName(bus, session)
 
     def run(self):
         self.Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
         self.env = json.loads(self.Dmedia.GetEnv())
-        self.mainloop.run()
+        mainloop.run()
 
     def kill(self):
         log.info('kill()')
-        self.mainloop.quit()
+        mainloop.quit()
 
     def start_worker(self, key, *args):
         if key in self._workers:
