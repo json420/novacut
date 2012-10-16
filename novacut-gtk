@@ -26,6 +26,7 @@ import time
 from userwebkit import BaseApp
 from microfiber import Conflict, NotFound
 import dbus
+from dmedia.service import init_if_needed
 from dmedia.util import init_views
 
 import novacut
@@ -33,6 +34,7 @@ from novacut import schema
 from novacut import views
 
 
+init_if_needed()
 session = dbus.SessionBus()
 
 
