@@ -9,11 +9,11 @@ override_dh_auto_clean:
 	python2.7 setup2.py clean -a
 
 override_dh_auto_build:
-	python3.2 setup.py build --force
+	python3 setup.py build --force
 	python2.7 setup2.py build --force
 
 override_dh_auto_install:
-	python3.2 setup.py install \
+	python3 setup.py install \
 			--install-layout=deb \
 			--root $(CURDIR)/debian/novacut
 	python2.7 setup2.py install \
