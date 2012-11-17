@@ -5,7 +5,7 @@
 
 
 override_dh_auto_clean:
-	python3.2 setup.py clean -a
+	python3 setup.py clean -a
 	python2.7 setup2.py clean -a
 
 override_dh_auto_build:
