@@ -82,16 +82,20 @@ The `video_pts_and_duration()` function returns the start timestamp and the
 same duration as above:
 
 >>> video_pts_and_duration(23, 104, Fraction(30000, 1001))
-(767433333, 2702700000)
+Timestamp(pts=767433333, duration=2702700000)
 
 """
 
 from fractions import Fraction
+from collections import namedtuple
 
 
 # In case we want to use these functions when GStreamer isn't available, we
 # define our own nanosecond constant:
 SECOND = 1000000000
+
+# namedtuple with pts, duration
+Timestamp = namedtuple('Timestamp', 'pts duration')
 
 
 def frame_to_nanosecond(frame, framerate):
@@ -177,18 +181,27 @@ def video_pts_and_duration(start, stop, framerate):
     It can be for a single frame:
 
     >>> video_pts_and_duration(1, 2, Fraction(24, 1))
-    (41666666, 41666667)
+    Timestamp(pts=41666666, duration=41666667)
 
     Or for a multi-frame slice:
 
     >>> video_pts_and_duration(1, 101, Fraction(24, 1))
-    (41666666, 4166666667)
+    Timestamp(pts=41666666, duration=4166666667)
+
+    This function returns a `Timestamp` namedtuple with *pts* and *duration*
+    attributes. For example:
+
+    >>> ts = video_pts_and_duration(1, 101, Fraction(24, 1))
+    >>> ts.pts
+    41666666
+    >>> ts.duration
+    4166666667
 
     """
     assert 0 <= start < stop
     pts = frame_to_nanosecond(start, framerate)
     duration = frame_to_nanosecond(stop, framerate) - pts
-    return (pts, duration)
+    return Timestamp(pts, duration)
 
 
 def audio_pts_and_duration(start, stop, samplerate):

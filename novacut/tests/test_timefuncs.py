@@ -122,6 +122,13 @@ class TestFunctions(TestCase):
 
     def test_video_pts_and_duration(self):
         framerate = Fraction(30000, 1001)
+
+        ts = timefuncs.video_pts_and_duration(0, 1, framerate)
+        self.assertIsInstance(ts, timefuncs.Timestamp)
+        self.assertEqual(ts.pts, 0)
+        self.assertEqual(ts.duration, 33366666)
+        self.assertEqual(ts, timefuncs.Timestamp(0, 33366666))
+
         self.assertEqual(
             timefuncs.video_pts_and_duration(0, 1, framerate),
             (0, 33366666),
