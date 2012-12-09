@@ -218,6 +218,15 @@ def audio_pts_and_duration(start, stop, samplerate):
     >>> audio_pts_and_duration(1, 101, 48000)
     Timestamp(pts=20833, duration=2083333)
 
+    This function returns a `Timestamp` namedtuple with *pts* and *duration*
+    attributes. For example:
+
+    >>> ts = audio_pts_and_duration(1, 101, 48000)
+    >>> ts.pts
+    20833
+    >>> ts.duration
+    2083333
+
     """
     assert 0 <= start < stop
     pts = sample_to_nanosecond(start, samplerate)
