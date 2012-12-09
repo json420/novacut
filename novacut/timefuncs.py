@@ -211,18 +211,18 @@ def audio_pts_and_duration(start, stop, samplerate):
     It can be for a single sample:
 
     >>> audio_pts_and_duration(1, 2, 48000)
-    (20833, 20833)
+    Timestamp(pts=20833, duration=20833)
 
     Or for a multi-sample slice:
 
     >>> audio_pts_and_duration(1, 101, 48000)
-    (20833, 2083333)
+    Timestamp(pts=20833, duration=2083333)
 
     """
     assert 0 <= start < stop
     pts = sample_to_nanosecond(start, samplerate)
     duration = sample_to_nanosecond(stop, samplerate) - pts
-    return (pts, duration)
+    return Timestamp(pts, duration)
 
 
 def video_slice_to_gnl(offset, start, stop, framerate):

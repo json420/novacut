@@ -164,6 +164,13 @@ class TestFunctions(TestCase):
 
     def test_audio_pts_and_duration(self):
         samplerate = 48000
+
+        ts = timefuncs.audio_pts_and_duration(0, 1, samplerate)
+        self.assertIsInstance(ts, timefuncs.Timestamp)
+        self.assertEqual(ts.pts, 0)
+        self.assertEqual(ts.duration, 20833)
+        self.assertEqual(ts, timefuncs.Timestamp(0, 20833))
+
         self.assertEqual(
             timefuncs.audio_pts_and_duration(0, 1, samplerate),
             (0, 20833),
