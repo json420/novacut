@@ -25,6 +25,8 @@
 A quick and dirty GStreamer thumbnailer.
 """
 
+from __future__ import print_function
+
 import sys
 from os import path
 import json
