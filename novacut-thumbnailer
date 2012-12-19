@@ -25,31 +25,23 @@
 A quick and dirty GStreamer thumbnailer.
 """
 
-from __future__ import print_function
-
 import sys
 from os import path
 import json
 from base64 import b64encode
-import optparse
+import argparse
 
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument('FILE_ID')
+parser.add_argument('FRAMES', metavar='FRAME', type=int, nargs='*')
+args = parser.parse_args()
 
-parser = optparse.OptionParser(
-    usage='%prog FILE_ID [FRAME1...]',
-)
-(options, args) = parser.parse_args()
+_id = args.FILE_ID
 
-
-if not args:
-    print('takes at least 1 argument FILE_ID')
-    sys.exit(1)
-_id = args[0]
-
-if len(args) == 1:
+if not args.FRAMES:
     frames = [0]
 else:
-    frames = [int(f) for f in args[1:]]
-
+    frames = args.FRAMES
 
 import dbus
 import gst
