@@ -211,7 +211,7 @@ class Thumbnailer(object):
                 'data': b64encode(buf.data),
             }
         else:
-            print('got buffer for frame we arleady have', frame)
+            print('got buffer for frame we already have', frame)
         self.count += 1
         if frame >= self.frame and self.count >= KEYFRAME:
             print('done', self.count, frame)
