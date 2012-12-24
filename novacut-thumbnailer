@@ -132,7 +132,7 @@ class Thumbnailer(object):
         # Set properties
         self.src.set_property('location', filename)
         self.scale.set_property('method', 10)
-        self.enc.set_property('quality', 95)
+        self.enc.set_property('quality', 90)
         self.sink.set_property('signal-handoffs', True)
 
         # Signals
