@@ -94,6 +94,7 @@ var UI = {
         var dnd = new DragEvent(event, UI.on_drag, UI.on_drop);
         UI.start_value = UI.value;
         UI.activate(dnd.x);
+        $show('status');
     },
 
     on_drag: function(dnd) {
@@ -119,6 +120,7 @@ var UI = {
             UI.doc.playhead = UI.value;
             db.save(UI.doc);
         }
+        $hide('status');
     },
 
     set_value: function(value) {

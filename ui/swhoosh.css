@@ -1,7 +1,12 @@
-#text {
+#status {
     font-family: "Ubuntu Mono";
     font-size: 30px;
-    
+    text-align: center;
+    color: #e81f3b;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 200px;
 }
 
 #scrubber {
