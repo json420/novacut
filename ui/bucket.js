@@ -172,6 +172,7 @@ function $position(element) {
         height: element.offsetHeight,
     };
     while (element.offsetParent) {
+        console.log(element);
         element = element.offsetParent;
         pos.left += (element.offsetLeft - element.scrollLeft);
         pos.top += (element.offsetTop - element.scrollTop);
