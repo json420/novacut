@@ -1,8 +1,9 @@
-'''apport package hook for novacut.
+"""
+Apport package hook for novacut (requires Apport 2.5 or newer).
 
 (c) 2012 Novacut Inc
 Author: Jason Gerard DeRose <jderose@novacut.com>
-'''
+"""
 
 import os
 from os import path
@@ -16,7 +17,7 @@ LOGS = (
 )
 
 def add_info(report):
-    report['CrashDB'] = 'novacut'
+    report['CrashDB'] = "{'impl': 'launchpad', 'project': 'novacut'}"
     cache = path.join(os.environ['HOME'], '.cache', 'novacut')
     for (key, name) in LOGS:
         log = path.join(cache, name)

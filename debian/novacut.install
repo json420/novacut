@@ -1,2 +1,1 @@
-debian/novacut-crashdb.conf etc/apport/crashdb.conf.d/
 debian/source_novacut.py usr/share/apport/package-hooks/
