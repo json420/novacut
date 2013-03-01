@@ -26,7 +26,7 @@ This will go away once we can build our renderer with GStreamer 1.0, PyGI, and
 Python3.
 """
 
-__version__ = '13.02.0'
+__version__ = '13.03.0'
 
 
 def configure_logging():
