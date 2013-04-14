@@ -179,8 +179,8 @@ class App(BaseApp):
     def post_env_init(self):
         init_views(self.db, views.novacut_main)
 
-    def dmedia_resolver(self, uri):
-        return self.proxy.ResolveURI(uri)
+    def dmedia_resolver(self, _id):
+        return self.proxy.Resolve(_id)
 
     def on_create_project(self, hub, title):
         print('create_project', title)
