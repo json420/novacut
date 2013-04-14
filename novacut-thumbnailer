@@ -67,25 +67,13 @@ def ns_to_frame(ns, num, denom):
     return int(round(ns * num / denom / FLOAT_SECOND))
 
 
-def get_filename(doc):
-    if doc.get('proxies'):
-        for _id in doc['proxies']:
-            try:
-                return Dmedia.Resolve(_id)
-            except Exception:
-                pass
-    return Dmedia.Resolve(doc['_id']) 
-
 
 env = json.loads(Dmedia.GetEnv())
 
-
-# See if file is available locally, preferring proxy files:
 dmedia_0 = Database('dmedia-0', env)
 doc = dmedia_0.get(_id)
-try:
-    filename = get_filename(doc)
-except Exception:
+(_id, status, filename) = Dmedia.Resolve(_id)
+if status != 0:
     print('not local:', _id)
     sys.exit(0)
 print(filename)

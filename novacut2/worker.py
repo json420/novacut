@@ -50,7 +50,8 @@ class LiveBuilder(Builder):
         self._cache = {}
 
     def resolve_file(self, _id):
-        return self.Dmedia.Resolve(_id)
+        (_id, status, filename) = self.Dmedia.Resolve(_id)
+        return filename
 
     def get_doc(self, _id):
         try:
