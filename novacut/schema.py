@@ -132,7 +132,8 @@ from copy import deepcopy
 from collections import namedtuple
 
 from skein import skein512
-from microfiber import random_id, RANDOM_B32LEN, Conflict
+from dbase32.rfc3548 import random_id
+from microfiber import RANDOM_B32LEN, Conflict
 from dmedia.schema import (
     _label,
     _value,
