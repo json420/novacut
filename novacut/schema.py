@@ -41,11 +41,11 @@ must:
 Example of a slice node:
 
 >>> doc = {
-...     '_id': '3HHSRSVXT5ZGY2B6LJPN457P',
+...     '_id': '3HHSRSVXT5YGY2B6LJPN457P',
 ...     'type': 'novacut/node',
 ...     'node': {
 ...         'type': 'slice',
-...         'src': 'VYUG4ON2APZK3GEJULB4I7PHJTKZLXTOIRGU2LU2LW7JBOCU',
+...         'src': 'VYUG4ON2APYK3GEJULB4I7PHJTKYLXTOIRGU2LU2LW7JBOCU',
 ...         'start': {
 ...             'frame': 123,
 ...         },
@@ -59,11 +59,11 @@ Example of a slice node:
 Another slice from of the same clip:
 
 >>> doc = {
-...     '_id': 'RXJM24DMCRZ4YS6L6FOPDQRX',
+...     '_id': 'RXJM24DMCRY4YS6L6FOPDQRX',
 ...     'type': 'novacut/node',
 ...     'node': {
 ...         'type': 'slice',
-...         'src': 'VYUG4ON2APZK3GEJULB4I7PHJTKZLXTOIRGU2LU2LW7JBOCU',
+...         'src': 'VYUG4ON2APYK3GEJULB4I7PHJTKYLXTOIRGU2LU2LW7JBOCU',
 ...         'start': {
 ...             'frame': 1023,
 ...         },
@@ -82,8 +82,8 @@ A sequence with these two slices back-to-back:
 ...     'node': {
 ...         'type': 'sequence',
 ...         'src': [
-...             '3HHSRSVXT5ZGY2B6LJPN457P',
-...             'RXJM24DMCRZ4YS6L6FOPDQRX',
+...             '3HHSRSVXT5YGY2B6LJPN457P',
+...             'RXJM24DMCRY4YS6L6FOPDQRX',
 ...         ],
 ...     },
 ... }
@@ -127,12 +127,14 @@ is enormously useful for two reasons:
 
 import time
 import json
-from base64 import b32encode, b64encode
+from base64 import b64encode
 from copy import deepcopy
 from collections import namedtuple
 
-from skein import skein512
-from dbase32.rfc3548 import random_id
+from dbase32 import db32enc
+
+from _skein import skein512
+from dbase32 import random_id
 from microfiber import RANDOM_B32LEN, Conflict
 from dmedia.schema import (
     _label,
@@ -184,7 +186,7 @@ def hash_node(data):
     For example:
 
     >>> node = {
-    ...     'src': 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N',
+    ...     'src': 'VQIXPULW3G77W4XLGROMEDGFAH3XJBN4SAVFUGOZRFSIVU7N',
     ...     'type': 'slice',
     ...     'stream': 'video',
     ...     'start': {
@@ -196,18 +198,18 @@ def hash_node(data):
     ... }
     ...
     >>> hash_node(normalized_dumps(node))
-    'JCQ3YMFDNOBY4V5LB6IFTRYMJT5BLPFQUINEZNKU7W6DKC7S'
+    'OPSR5CE69VM3F4DJFT87XOMCEYNUT5PTUXUBGTCQN8D9ANB7'
 
 
     Note that even a small change in the edit will result in a different hash:
 
     >>> node['start']['frame'] = 201
     >>> hash_node(normalized_dumps(node))
-    'SPD2YAMBM3YP3I2L32BKMXQ5JAU2PD6XUQHCEC4LPERAS54J'
+    '5MYNMRJG8HVG47AUWDAMAEUL5W9FWCUEMLOB5UKR3MDJVFTN'
 
     """
     skein = skein512(data, digest_bits=DIGEST_BITS, pers=PERS_NODE)
-    return b32encode(skein.digest()).decode('utf-8')
+    return db32enc(skein.digest())
 
 
 def iter_src(src):
@@ -292,7 +294,7 @@ def check_novacut(doc):
     For example, a conforming value:
 
     >>> doc = {
-    ...     '_id': 'NZXXMYLDOV2F6ZTUO5PWM5DX',
+    ...     '_id': 'NYXXMYLDOV3F6YTUO5PWM5DX',
     ...     'ver': 0,
     ...     'type': 'novacut/foo',
     ...     'time': 1234567890,
@@ -336,11 +338,11 @@ def check_project(doc):
     For example, a conforming value:
 
     >>> doc = {
-    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
     ...     'ver': 0,
     ...     'type': 'novacut/project',
     ...     'time': 1234567890,
-    ...     'db_name': 'novacut-0-hb6ysckay27kiwutwkgkctni',
+    ...     'db_name': 'novacut-0-hb6ysckay37kiwutwkgkctni',
     ...     'title': 'Bewitched, Bothered and Bewildered',
     ... }
     ...
@@ -382,13 +384,13 @@ def check_node(doc):
     For example, a conforming value:
 
     >>> doc = {
-    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
     ...     'ver': 0,
     ...     'type': 'novacut/node',
     ...     'time': 1234567890,
     ...     'node': {
     ...         'type': 'foo',
-    ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
+    ...         'src': 'XBU6VM3QW76FLGOIJY34GMRMXSIEICIV733NX4AGR3B4Q44M',
     ...     },
     ... }
     ...

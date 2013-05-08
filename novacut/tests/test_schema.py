@@ -25,7 +25,7 @@ Unit tests for the `novacut.schema` module.
 
 from unittest import TestCase
 
-from dbase32.rfc3548 import random_id
+from dbase32 import random_id
 
 from novacut import schema
 
