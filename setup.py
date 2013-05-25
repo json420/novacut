@@ -26,8 +26,8 @@ Install `novacut`.
 """
 
 import sys
-if sys.version_info < (3, 2):
-    sys.exit('Novacut requires Python 3.2 or newer')
+if sys.version_info < (3, 3):
+    sys.exit('Novacut requires Python 3.3 or newer')
 
 import os
 from os import path
