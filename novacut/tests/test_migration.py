@@ -25,6 +25,7 @@ Unit tests for the `novacut.migration` module.
 
 import json
 from fractions import Fraction
+from unittest import TestCase
 
 from usercouch.misc import CouchTestCase
 from microfiber import Database
@@ -210,11 +211,53 @@ docs_s = """
 """
 
 
-class TestFunctions(CouchTestCase):
-    def setUp(self):
-        self.skipTest('FIXME: Migration')
+def get_id_map():
+    return {
+        'NYJOQ4KHVZ3SM5SODHWFAUZ5GIJXNPDLHKASMAO2K6Y4V2LT': 'SLNSQE6YLRLBVWFCLNBBFSAKVWXM4GB3S6IMGKVPD4EI6UJR',
+        'F6KHESGKSVXCRXH7FEJHLJRP44QRORF7GEMIJM4YPBDSMAMF': 'C5NJAVGPS9H8LXRYMYVGB8J6IHIIF8CTTWYOT5G75ELXAEYA',
+    }
 
+
+class TestFunctions(TestCase):
+    def test_migrate_sequence(self):
+        old = json.loads(docs_s)[0]
+        new = migration.migrate_sequence(old)
+        self.assertIsNot(old, new)
+        self.assertEqual(old, json.loads(docs_s)[0])
+        self.maxDiff = None
+        self.assertEqual(new, {
+            '_id': 'PID8A4DQTEMA3B3BEP3DYI79',
+            'type': 'novacut/node',
+            'time': 1342803135.184,
+            'selected': 'GVSJ9C8QTVLJAXHRXC6AQ5MT',
+            'node': {
+                'type': 'video/sequence',
+                'src': [
+                    'C6JICO8CH7IRKXV8KM7NEM44',
+                    '9FPNOKKL4S8L6YI6XBDLJQEN',
+                    'Y7G7U7UATQP37MINV7TL9FJR',
+                    'S5OHDHGYVWDMDHSMBWCDKFGI',
+                    'AU4GVUS5VHNBVTKYDV4LJXYJ',
+                    'SBM83GOEGMUXBVIJWV4YQM9B',
+                    '4WXDFITAOPV9A3QD86RJJWN6',
+                    'Y4KXUDA3E338SGSCIPFNCYYQ',
+                    'ARA3YXVKFV46O4RI3YLJ9VEP',
+                    'XOM3Q9XIANOKYG4EB4MXUC5G',
+                    'OC8TMQGVB67EV8ARP4MHFRI4',
+                ],
+            },
+            'audio': [],
+            'doodle': [
+                {'id': 'SSH3SS57CBSOUXL6KG9EGIUC', 'x': 1302, 'y': 408},
+                {'id': 'GVSJ9C8QTVLJAXHRXC6AQ5MT', 'x':  195, 'y': 230},
+            ], 
+        })
+        schema.check_video_sequence(new)
+
+
+class TestCouchFunctions(CouchTestCase):
     def test_migrate_slice(self):
+        self.skipTest('fix')
         db = Database('foo', self.env)
         self.assertTrue(db.ensure())
         docs = json.loads(docs_s)
@@ -285,6 +328,7 @@ class TestFunctions(CouchTestCase):
         schema.check_video_slice(video)
 
     def test_migrate_sequence(self):
+        self.skipTest('fix')
         db = Database('foo', self.env)
         self.assertTrue(db.ensure())
         docs = json.loads(docs_s)
@@ -340,6 +384,7 @@ class TestFunctions(CouchTestCase):
         schema.check_video_sequence(new)
 
     def test_migrate_db(self):
+        self.skipTest('fix')
         db = Database('foo', self.env)
         self.assertTrue(db.ensure())
         docs = json.loads(docs_s)

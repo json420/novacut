@@ -25,6 +25,8 @@ Lossless migration between schema versions.
 
 from copy import deepcopy
 
+from dmedia.migration import b32_to_db32
+
 from .mapper import get_fraction
 from .timefuncs import frame_to_sample
 from . import schema
@@ -72,15 +74,39 @@ def migrate_slice(db, doc):
     yield video
 
 
-def migrate_sequence(db, doc):
-    assert doc['type'] == 'novacut/node'
-    node = doc['node']
+def migrate_sequence(old):
+    assert old['type'] == 'novacut/node'
+    node = old['node']
+    assert isinstance(node, dict)
     assert node['type'] == 'sequence'
-    new = deepcopy(doc)
-    new['node']['type'] = 'video/sequence'
-    new['audio'] = []
-    remove_unneeded(new)
-    yield new
+    src = node['src']
+    assert isinstance(src, list)
+    doodle = old.get('doodle', [])
+    assert isinstance(doodle, list)
+
+    new = {
+        '_id': b32_to_db32(old['_id']),
+        'type': 'novacut/node',
+        'time': old.get('time', 0),
+        'node': {
+            'type': 'video/sequence',
+            'src': [b32_to_db32(src_id) for src_id in src],
+        },
+        'audio': [],
+        'doodle': [],
+    }
+
+    for d in doodle:
+        if d['id'] == 'shortcuts':
+            continue
+        new['doodle'].append(
+            {'id': b32_to_db32(d['id']), 'x': d.get('x'), 'y': d.get('y')}
+        )
+
+    if old.get('selected'):
+        new['selected'] = b32_to_db32(old['selected'])
+    return new
+    
 
 
 def migrate_db(db):
