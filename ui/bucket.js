@@ -438,9 +438,9 @@ Slice.prototype = {
         }
         this.doc = doc;
         var node = doc.node;
-        this.start.set_index(node.start.frame);
-        this.end.set_index(node.stop.frame - 1);
-        this.indicator.update(node.start.frame, node.stop.frame, this.frames);
+        this.start.set_index(node.start);
+        this.end.set_index(node.stop - 1);
+        this.indicator.update(node.start, node.stop, this.frames);
         Thumbs.flush();
     },
 
@@ -465,11 +465,11 @@ Slice.prototype = {
             this.reset_adjustment_ux();
         }
         var delta = wheel_delta(event);
-        var start = this.doc.node.start.frame;
-        var stop = this.doc.node.stop.frame;
+        var start = this.doc.node.start;
+        var stop = this.doc.node.stop;
         var proposed = Math.max(0, Math.min(start + delta, stop - 1));
         if (start != proposed) {
-            this.doc.node.start.frame = proposed;
+            this.doc.node.start = proposed;
             this.session.save(this.doc);
             this.session.delayed_commit();
         }   
@@ -481,11 +481,11 @@ Slice.prototype = {
             this.reset_adjustment_ux();
         }
         var delta = wheel_delta(event);
-        var start = this.doc.node.start.frame;
-        var stop = this.doc.node.stop.frame;
+        var start = this.doc.node.start;
+        var stop = this.doc.node.stop;
         var proposed = Math.max(start + 1, Math.min(stop + delta, this.frames));
         if (stop != proposed) {
-            this.doc.node.stop.frame = proposed;
+            this.doc.node.stop = proposed;
             this.session.save(this.doc);
             this.session.delayed_commit();
         }   
@@ -1260,8 +1260,8 @@ RoughCut.prototype = {
     sync_from_slice: function() {
         this._start = 0;
         this._stop = this.frames;
-        this.start = this.slice.node.start.frame;
-        this.stop = this.slice.node.stop.frame;
+        this.start = this.slice.node.start;
+        this.stop = this.slice.node.stop;
         this.update_bar();
     },
 
@@ -1273,8 +1273,8 @@ RoughCut.prototype = {
         session.commit().  This is for cases when you also need to update the
         sequence doc, so you can send both in a single CouchDB request.
         */
-        this.slice.node.start.frame = this.start;
-        this.slice.node.stop.frame = this.stop;
+        this.slice.node.start = this.start;
+        this.slice.node.stop = this.stop;
         this.session.save(this.slice);
     },
 
@@ -1288,7 +1288,7 @@ RoughCut.prototype = {
         this.start = 0; 
         this.bar.style.left = this.left + 'px';
         this.bar.style.width = '1px';
-        this.slice = create_slice(this.clip._id, this.frames);
+        this.slice = create_video_slice(this.clip._id, 0, this.frames);
         this.bind_mousemove();
     },
 
@@ -1572,7 +1572,7 @@ Clips.prototype = {
             dnd.ondrag = null;
             UI.copy_clip(dnd.id);
             var clip = this.session.get_doc(dnd.id);
-            var doc = create_slice(clip._id, clip.duration.frames);
+            var doc = create_video_slice(clip._id, 0, clip.duration.frames);
             this.session.save(doc, true);
             var slice = new Slice(UI.session, doc);
             slice.x = dnd.x - 64;
@@ -1748,8 +1748,8 @@ var UI = {
     duplicate_selected: function(dnd) {
 	var element = $(UI.selected);
 	var doc = UI.session.get_doc(element.id);
-	var ndoc = create_slice(doc.node.src,doc.node.stop.frame);
-	ndoc.node.start.frame = doc.node.start.frame;
+	var node = doc.node;
+	var ndoc = create_video_slice(node.src, node.start, node.stop);
 	UI.session.save(ndoc);
 	var slice = new Slice(UI.session, ndoc);
 	slice.x = 64;
@@ -1810,7 +1810,7 @@ var UI = {
             // FIXME: create default sequence if needed
             if (!UI.doc.root_id) {
                 console.log('creating default sequence');
-                var seq = create_sequence();
+                var seq = create_video_sequence();
                 UI.doc.root_id = seq._id;
                 UI.session.save(UI.doc, true);
                 UI.session.save(seq, true);
