@@ -118,6 +118,13 @@ class App(BaseApp):
 
     def post_env_init(self):
         init_views(self.db, views.novacut_main)
+        local_id = '_local/novacut'
+        try:
+            doc = self.db.get(local_id)
+        except NotFound:
+            doc = {'_id': local_id}
+        doc['version'] = novacut.__version__
+        self.db.save(doc)
 
     def dmedia_resolver(self, _id):
         return self.proxy.Resolve(_id)

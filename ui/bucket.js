@@ -1628,7 +1628,13 @@ LoveOrb.prototype = {
         }
         else {
             this.logo.classList.add('open');
+            novacut.get(this.on_req.bind(this), '_local/novacut');
         }
+    },
+
+    on_req: function(req) {
+        var doc = req.read();
+        $('version').textContent = doc.version;
     },
 
     on_mousedown: function(event) {
