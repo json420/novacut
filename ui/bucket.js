@@ -2,7 +2,7 @@
 
 
 var Thumbs = {
-    db: new couch.Database('thumbnails'), 
+    db: new couch.Database('thumbnails-1'), 
 
     docs: {},
 
