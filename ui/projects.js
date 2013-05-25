@@ -191,3 +191,47 @@ var UI = {
 
 
 window.addEventListener('load', UI.init);
+
+
+function dragstart(ev){
+       ev.dataTransfer.setData("Text", ev.target.id);
+    ev.dataTransfer.effectAllowed = 'move';
+}
+function enter(ev){
+        ev.preventDefault();
+    //ev.target.setAttribute("style","cursor: ;");
+    return false;
+}
+function leave(ev){
+    return false;
+}
+function d(ev){
+        ev.preventDefault();
+    var data=ev.dataTransfer.getData("Text");
+    Hub.send('sos_project', data);
+    element = document.getElementById(data);
+    element.parentNode.removeChild(element);
+    var doc = novacut.get_sync(data)        
+    UI.add_item(data,doc.title,doc.time,countFiles(data));
+    var old = UI.removed.length;
+    for(var b in UI.removed){//remove the project from the list
+        if(UI.removed[b][0] == data){
+            UI.removed.splice(b,1);
+            break;
+        }
+    }
+    if(UI.removed.length == 0)document.getElementById("cont").innerHTML=UI.binDesc;
+    else if(UI.removed.length > UI.binMax)UI.add_history(UI.removed[UI.binMax-1][0],UI.removed[UI.binMax-1][1],UI.removed[UI.binMax-1][2],UI.removed[UI.binMax-1][3]);
+    if(UI.removed.length == UI.binMax){
+        document.getElementById("cont").innerHTML="";
+        document.getElementById("list").innerHTML="";
+        for(var b = 0;b<UI.binMax;b++){
+            var a = UI.removed[b];
+            UI.add_history(a[0],a[1],a[2],a[3]);
+        }
+    }
+    return false;
+}
+function over(ev){
+       ev.preventDefault();
+}
