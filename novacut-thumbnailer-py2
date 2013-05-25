@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 
 # dmedia: distributed media library
 # Copyright (C) 2011 Novacut Inc
@@ -25,76 +25,60 @@
 A quick and dirty GStreamer thumbnailer.
 """
 
+from __future__ import print_function
+
 import sys
 from os import path
 import json
 from base64 import b64encode
-import optparse
-from fractions import Fraction
+import argparse
 
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument('FILE_ID')
+parser.add_argument('FRAMES', metavar='FRAME', type=int, nargs='*')
+args = parser.parse_args()
 
-parser = optparse.OptionParser(
-    usage='%prog FILE_ID [FRAME1...]',
-)
-(options, args) = parser.parse_args()
+_id = args.FILE_ID
 
-
-if not args:
-    print('takes at least 1 argument FILE_ID')
-    sys.exit(1)
-_id = args[0]
-
-if len(args) == 1:
+if not args.FRAMES:
     frames = [0]
 else:
-    frames = [int(f) for f in args[1:]]
-
+    frames = args.FRAMES
 
 import dbus
-import gi
-gi.require_version('Gst', '1.0')
-from gi.repository import GObject, Gst
-from microfiber import Database, NotFound
-
-from novacut.renderer import make_element
-from novacut.timefuncs import frame_to_nanosecond, nanosecond_to_frame
+import gst
+import gobject
+from dc3lib.microfiber import Database, NotFound
 
 
-GObject.threads_init()
-Gst.init(None)
+gobject.threads_init()
 session = dbus.SessionBus()
 Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
 
-
 KEYFRAME = 15
+FLOAT_SECOND = float(gst.SECOND)
 
 
+def frame_to_ns(frame, num, denom):
+    return frame * gst.SECOND * denom / num
 
-def get_filename(doc):
-    if doc.get('proxies'):
-        for _id in doc['proxies']:
-            try:
-                return Dmedia.Resolve(_id)
-            except Exception:
-                pass
-    return Dmedia.Resolve(doc['_id']) 
+
+def ns_to_frame(ns, num, denom):
+    return int(round(ns * num / denom / FLOAT_SECOND))
+
 
 
 env = json.loads(Dmedia.GetEnv())
 
 
-# See if file is available locally, preferring proxy files:
-dmedia_0 = Database('dmedia-0', env)
-doc = dmedia_0.get(_id)
-try:
-    filename = get_filename(doc)
-except Exception:
+(_id, status, filename) = Dmedia.Resolve(_id)
+if status != 0:
     print('not local:', _id)
     sys.exit(0)
 print(filename)
 
 # Thumbnail DB
-db = Database('thumbnails', env)
+db = Database('thumbnails-1', env)
 db.ensure()
 
 
@@ -107,9 +91,6 @@ class Thumbnailer(object):
                 '_id': _id,
                 '_attachments': {},
             }
-            db.save(self.doc)
-        if '_attachments' not in self.doc:
-            self.doc['_attachments'] = {}
         self.attachments = self.doc['_attachments']
         self.changed = False
 
@@ -118,8 +99,8 @@ class Thumbnailer(object):
         self.frames = sorted(set(frames))
         self.framerate = None
 
-        self.mainloop = GObject.MainLoop()
-        self.pipeline = Gst.Pipeline()
+        self.mainloop = gobject.MainLoop()
+        self.pipeline = gst.Pipeline()
 
         # Create bus and connect several handlers
         self.bus = self.pipeline.get_bus()
@@ -128,45 +109,53 @@ class Thumbnailer(object):
         self.bus.connect('message::error', self.on_error)
 
         # Create elements
-        self.src = make_element('filesrc', {'location': filename})
-        self.dec = make_element('decodebin')
-        self.scale = make_element('videoscale', {'method': 3})
-        self.enc = make_element('jpegenc', {'quality': 95})
-        self.sink = make_element('fakesink', {'signal-handoffs': True})
+        self.src = gst.element_factory_make('filesrc')
+        self.dec = gst.element_factory_make('decodebin2')
+        self.rate = gst.element_factory_make('videorate')
+        self.scale = gst.element_factory_make('ffvideoscale')
+        self.enc = gst.element_factory_make('jpegenc')
+        self.sink = gst.element_factory_make('fakesink')
+
+        # Set properties
+        self.src.set_property('location', filename)
+        self.scale.set_property('method', 10)
+        self.enc.set_property('quality', 90)
+        self.sink.set_property('signal-handoffs', True)
 
         # Signals
         self.dec.connect('pad-added', self.on_pad_added)
-        self.dec.connect('no-more-pads', self.on_no_more_pads)
         self.sink.connect('handoff', self.on_handoff)
+        self.rate.get_pad('sink').connect('notify::caps', self.on_notify_caps)
 
         # Add elements to pipeline
         self.pipeline.add(self.src)
         self.pipeline.add(self.dec)
+
+        self.pipeline.add(self.rate)
         self.pipeline.add(self.scale)
         self.pipeline.add(self.enc)
         self.pipeline.add(self.sink)
 
         # Link elements
         self.src.link(self.dec)
-        self.scale.link_filtered(self.enc,
-            Gst.caps_from_string('video/x-raw, width=192, height=108')
-        )
+        self.rate.link(self.scale)
+        self.scale.link(self.enc, gst.caps_from_string('video/x-raw-yuv, width=192, height=108'))
         self.enc.link(self.sink)
 
     def seek_to_frame(self, frame):
         print('seek_to_frame', self.frame)
         self.count = 0
         self.pipeline.seek_simple(
-            Gst.Format.TIME,
-            Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
-            frame_to_nanosecond(frame, self.framerate)
+            gst.FORMAT_TIME,
+            gst.SEEK_FLAG_FLUSH | gst.SEEK_FLAG_KEY_UNIT, #gst.SEEK_FLAG_ACCURATE,
+            frame_to_ns(frame, self.framerate.num, self.framerate.denom)
         )
 
     def next(self):
         print('next')
         while True:
             if self.i >= len(self.frames):
-                GObject.idle_add(self.kill)
+                gobject.idle_add(self.kill)
                 return
             self.frame = self.frames[self.i]
             self.i += 1
@@ -178,45 +167,45 @@ class Thumbnailer(object):
                 return
 
     def on_pad_added(self, element, pad):
-        caps = pad.query_caps(None)
-        string = caps.to_string()
-        print('on_pad_added', string)
-        if string.startswith('video/'):
-            (num, denom) = caps.get_structure(0).get_fraction('framerate')[1:3]
-            self.framerate = Fraction(num, denom)
-            print('framerate', self.framerate)
-            pad.link(self.scale.get_static_pad('sink'))
+        caps = pad.get_caps()[0]
+        name = caps.get_name()
+        print('on_pad_added', name)
+        if name.startswith('video/'):
+            pad.link(self.rate.get_pad('sink'))
 
-    def on_no_more_pads(self, element):
-        print('on_no_more_pads')
-        GObject.idle_add(self.next)
+    def on_notify_caps(self, pad, args):
+        caps = pad.get_negotiated_caps()
+        if not caps:
+            return
+        self.framerate = caps[0]['framerate']
+        print('on_notify_caps', self.framerate)
+        gobject.idle_add(self.next)
 
     def on_handoff(self, element, buf, pad):
-        frame = nanosecond_to_frame(buf.pts, self.framerate)
+        frame = ns_to_frame(buf.timestamp, self.framerate.num, self.framerate.denom)
         print('handoff', frame)
         key = str(frame)
         if key not in self.attachments:
             self.changed = True
-            map_info = buf.map_range(0, -1, Gst.MapFlags.READ)[1]
-            data = map_info.to_bytes().unref_to_array()
             self.attachments[key] = {
                 'content_type': 'image/jpeg',
-                'data': b64encode(data).decode('ascii'),
+                'data': b64encode(buf.data),
             }
         else:
-            print('got buffer for frame we arleady have', frame)
+            print('got buffer for frame we already have', frame)
         self.count += 1
         if frame >= self.frame and self.count >= KEYFRAME:
             print('done', self.count, frame)
-            GObject.idle_add(self.next)
+            gobject.idle_add(self.next)
 
     def run(self):
-        self.pipeline.set_state(Gst.State.PLAYING)
+        self.pipeline.set_state(gst.STATE_PLAYING)
         self.mainloop.run()
 
     def kill(self):
         print('kill')
-        self.pipeline.set_state(Gst.State.NULL)
+        self.pipeline.set_state(gst.STATE_NULL)
+        self.pipeline.get_state()
         self.mainloop.quit()
 
     def on_eos(self, bus, msg):
@@ -224,8 +213,11 @@ class Thumbnailer(object):
         self.kill()
 
     def on_error(self, bus, msg):
-        print('on_error():', msg.parse_error())
+        error = msg.parse_error()[1]
+        print(error)
         self.kill()
+        sys.exit(2)
+
 
 thumbnailer = Thumbnailer(_id, frames, filename)
 thumbnailer.run()

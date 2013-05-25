@@ -1,22 +1,27 @@
 #!/usr/bin/make -f
 
 %:
-	dh $@ --with=python3 --with=python2
+	dh $@ --with=python3
 
 
 override_dh_auto_clean:
-	python3 setup.py clean -a
-	python2.7 setup2.py clean -a
+	rm -rf build/
 
 override_dh_auto_build:
-	python3 setup.py build --force
-	python2.7 setup2.py build --force
+	set -ex; for python in $(shell py3versions -r); do \
+		$$python setup.py build \
+				--executable=/usr/bin/python3; \
+	done
+
+override_dh_auto_test:
+	set -ex; for python in $(shell py3versions -r); do \
+		LC_ALL=C.UTF-8 $$python setup.py test; \
+	done
 
 override_dh_auto_install:
-	python3 setup.py install \
-			--install-layout=deb \
-			--root $(CURDIR)/debian/novacut
-	python2.7 setup2.py install \
-			--install-layout=deb \
-			--root $(CURDIR)/debian/novacut
+	set -ex; for python in $(shell py3versions -r); do \
+		$$python setup.py install \
+				--install-layout=deb \
+				--root=$(CURDIR)/debian/novacut; \
+	done
 

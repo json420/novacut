@@ -25,6 +25,10 @@
 Install `novacut`.
 """
 
+import sys
+if sys.version_info < (3, 3):
+    sys.exit('Novacut requires Python 3.3 or newer')
+
 import os
 from os import path
 import stat
@@ -32,11 +36,6 @@ from distutils.core import setup
 from distutils.cmd import Command
 from unittest import TestLoader, TextTestRunner
 from doctest import DocTestSuite
-import sys
-
-if sys.version_info.major != 3:
-    print(sys.argv)
-    sys.exit(1)
 
 import novacut
 
@@ -95,10 +94,6 @@ class Test(Command):
 
     def run(self):
         pynames = list(self._pynames_iter())
-        pynames.remove('novacut.dbus')
-        for name in pynames:
-            print(name)
-        #raise SystemExit()
 
         # Add unit-tests:
         if self.no_unittest:
@@ -136,7 +131,10 @@ setup(
     author_email='jderose@novacut.com',
     license='AGPLv3+',
     packages=['novacut'],
-    scripts=['novacut-gtk', 'novacut-cli'],
+    scripts=[
+        'novacut-gtk',
+        'novacut-cli',
+    ],
     data_files=[
         ('share/couchdb/apps/novacut',
             [path.join('ui', name) for name in os.listdir('ui')]
@@ -148,7 +146,7 @@ setup(
             ['data/novacut.svg']
         ),
         ('lib/novacut',
-            ['novacut-service'],
+            ['novacut-service', 'novacut-thumbnailer-py2', 'novacut-renderer'],
         ),
         ('share/dbus-1/services/',
             ['data/com.novacut.Renderer.service']

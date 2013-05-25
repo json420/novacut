@@ -32,6 +32,7 @@ def configure_logging():
     import os
     from os import path
     import logging
+    import platform
 
     script = path.abspath(sys.argv[0])
     namespace = path.basename(script)
@@ -56,7 +57,14 @@ def configure_logging():
         level=logging.DEBUG,
         format='\t'.join(format),
     )
-    logging.info('script: %r', script)
-    logging.info('novacut.__file__: %r', __file__)
-    logging.info('novacut.__version__: %r', __version__)
+    log = logging.getLogger()
+    log.info('======== Process Start ========')
+    log.info('script: %r', script)
+    log.info('__file__: %r', __file__)
+    log.info('__version__: %r', __version__)
+    log.info('Python: %s, %s, %s',
+        platform.python_version(), platform.machine(), platform.system()
+    )
+    log.info('===============================')
+    return log
 

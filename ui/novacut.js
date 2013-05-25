@@ -1,7 +1,7 @@
 "use strict";
 
-var novacut = new couch.Database('novacut-0');
-var dmedia = new couch.Database('dmedia-0');
+var novacut = new couch.Database('novacut-1');
+var dmedia = new couch.Database('dmedia-1');
 
 function parse_hash() {
     return window.location.hash.slice(1).split('/');
@@ -27,12 +27,12 @@ function project_db(base, ver, project_id) {
 
 
 function novacut_project_db(project_id) {
-    return project_db('novacut', 0, project_id);
+    return project_db('novacut', 1, project_id);
 }
 
 
 function dmedia_project_db(project_id) {
-    return project_db('dmedia', 0, project_id);
+    return project_db('dmedia', 1, project_id);
 }
 
 
@@ -50,7 +50,6 @@ function seconds_to_frame(seconds, framerate) {
 function create_node(node) {
     return {
         '_id': couch.random_id(),
-        'ver': 0,
         'type': 'novacut/node',
         'time': couch.time(),
         'node': node,
@@ -58,21 +57,20 @@ function create_node(node) {
 }
 
 
-function create_slice(src, frame_count) {
+function create_video_slice(src, start, stop) {
     var node = {
-        'type': 'slice',
+        'type': 'video/slice',
         'src': src,
-        'start': {'frame': 0},
-        'stop': {'frame': frame_count},
-        'stream': 'both',
+        'start': start,
+        'stop': stop,
     }
     return create_node(node);
 }
 
 
-function create_sequence() {
+function create_video_sequence() {
     var node = {
-        'type': 'sequence',
+        'type': 'video/sequence',
         'src': [],
     }
     var doc = create_node(node);
@@ -111,11 +109,11 @@ SlicePlayer.prototype = {
     },
 
     on_canplaythrough: function(event) {
-        this.seek(this.slice.node.start.frame);
+        this.seek(this.slice.node.start);
     },
 
     on_seeked: function(event) {
-        //this.log_event('seeked', this.slice.node.start.frame);
+        //this.log_event('seeked', this.slice.node.start);
         if (!this.ready) {
             this.ready = true;
             if (this.onready) {
@@ -127,7 +125,7 @@ SlicePlayer.prototype = {
     on_ended: function(event) {
         this.video.pause();
         this.clear_timeout();
-        //this.log_event('ended', this.slice.node.stop.frame);
+        //this.log_event('ended', this.slice.node.stop);
         this.ended = true;
         if (this.onended) {
             this.onended(this);
@@ -171,7 +169,7 @@ SlicePlayer.prototype = {
         this.playing = true;
         this.video.style.visibility = 'visible';
         if (this.slice.node.stop.frame != this.clip.duration.frames) {     
-            var stop = this.frame_to_seconds(this.slice.node.stop.frame);
+            var stop = this.frame_to_seconds(this.slice.node.stop);
             var duration = 1000 * (stop - this.video.currentTime);
             this.set_timeout(duration);
         }

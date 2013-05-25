@@ -1,0 +1,38 @@
+#status {
+    font-family: "Ubuntu Mono";
+    font-size: 30px;
+    text-align: center;
+    color: #e81f3b;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 200px;
+}
+
+#scrubber {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 22px;
+    background-color: #000;
+}
+
+#scrubber.active {
+    height: 66px;
+    background-color: #301438;
+    
+}
+
+#playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: #fff;
+}
+
+/*
+Novacut Pink: #e81f3b
+Novacut Purple: #301438
+*/

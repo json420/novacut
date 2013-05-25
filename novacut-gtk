@@ -26,81 +26,17 @@ import time
 from userwebkit import BaseApp
 from microfiber import Conflict, NotFound
 import dbus
+
 from dmedia.service import init_if_needed
 from dmedia.util import init_views
 
 import novacut
-from novacut import schema
-from novacut import views
+from novacut import schema, views
+from novacut.settings import default_settings
 
 
+log = novacut.configure_logging()
 init_if_needed()
-session = dbus.SessionBus()
-
-
-def default_settings():
-#    node = {
-#        'muxer': {'name': 'oggmux'},
-#        'ext': 'ogv',
-#        'video': {
-#            'encoder': {
-#                'name': 'theoraenc',
-#                'props': {
-#                    'speed-level': 2,
-#                },
-#            },
-#            'filter': {
-#                'mime': 'video/x-raw-yuv',
-#                'caps': {
-#                    'width': 960,
-#                    'height': 540,
-#                },
-#            },
-#        },
-#        'audio': {
-#            'encoder': {
-#                'name': 'vorbisenc',
-#            },
-#        },
-#    }
-    node = {
-        'muxer': {'name': 'avimux'},
-        'ext': 'avi',
-        'video': {
-            'encoder': {
-                'name': 'x264enc',
-                'props': {
-                    'pass': 5,  # Quality-based encoding
-                    'quantizer': 15,  # Lower means higher-quality, default=21
-                    'psy-tune': 5,  # Tune for SSIM
-                },
-            },
-            'filter': {
-                'mime': 'video/x-raw-yuv',
-                'caps': {
-                    'width': 1280,
-                    'height': 720,
-                },
-            },
-        },
-#        'audio': {
-#            'encoder': {
-#                'name': 'identity',
-#            },
-#            'filter': {
-#                'mime': 'audio/x-raw-int',
-#            },
-#        },
-        'audio': {
-            'encoder': {
-                'name': 'ffenc_aac',
-                'props': {
-                    'bitrate': 256000,
-                },
-            },
-        },
-    }
-    return schema.create_settings(node)
 
 
 class App(BaseApp):
@@ -110,9 +46,7 @@ class App(BaseApp):
     title = 'Novacut Video Editor'
     splash = 'splash.html'
     page = 'projects.html'
-
     proxy_bus = 'org.freedesktop.Dmedia'
-
     maximize = True
 
     # For using gtk-recordmydesktop with the select window option:
@@ -128,6 +62,7 @@ class App(BaseApp):
         'copy_docs': ['src_db_name', 'dst_db_name', 'doc_ids'],
         'thumbnail': ['file_id', 'frames'],
         'thumbnail_finished': ['file_id'],
+        'thumbnail_error': ['file_id'],
 
         'hash_edit': ['project_id', 'node_id'],
         'edit_hashed': ['project_id', 'node_id', 'intrinsic_id'],
@@ -137,8 +72,8 @@ class App(BaseApp):
 
         'render_job': ['job_id'],
         'job_rendered': ['job_id', 'file_id', 'link'],
- 	'delete_project': ['project_id'],
- 	'sos_project': ['project_id'],
+        'delete_project': ['project_id'],
+        'sos_project': ['project_id'],
     }
 
     __Renderer = None
@@ -146,8 +81,10 @@ class App(BaseApp):
     @property
     def Renderer(self):
         if self.__Renderer is None:
+            session = dbus.SessionBus()
             self.__Renderer = session.get_object('com.novacut.Renderer', '/')
             self.__Renderer.connect_to_signal('ThumbnailFinished', self.on_ThumbnailFinished)
+            self.__Renderer.connect_to_signal('ThumbnailError', self.on_ThumbnailError)
             self.__Renderer.connect_to_signal('EditHashed', self.on_EditHashed)
             self.__Renderer.connect_to_signal('JobHashed', self.on_JobHashed)
             self.__Renderer.connect_to_signal('JobRendered', self.on_JobRendered)
@@ -155,6 +92,9 @@ class App(BaseApp):
 
     def on_ThumbnailFinished(self, file_id):
         self.hub.send('thumbnail_finished', file_id)
+
+    def on_ThumbnailError(self, file_id):
+        self.hub.send('thumbnail_error', file_id)
 
     def on_EditHashed(self, project_id, node_id, intrinsic_id):
         self.hub.send('edit_hashed', project_id, node_id, intrinsic_id)
@@ -178,12 +118,19 @@ class App(BaseApp):
 
     def post_env_init(self):
         init_views(self.db, views.novacut_main)
+        local_id = '_local/novacut'
+        try:
+            doc = self.db.get(local_id)
+        except NotFound:
+            doc = {'_id': local_id}
+        doc['version'] = novacut.__version__
+        self.db.save(doc)
 
     def dmedia_resolver(self, _id):
         return self.proxy.Resolve(_id)
 
     def on_create_project(self, hub, title):
-        print('create_project', title)
+        log.info('on_create_project(%r)', title)
         doc = schema.create_project(title)
         self.db.post(doc)
         project = self.server.database(doc['db_name'])
@@ -194,21 +141,19 @@ class App(BaseApp):
         #self.hub.send('project_created', doc['_id'])
 
     def on_delete_project(self, hub, project_id):
-        print('delete_project', project_id)
-        doc = self.db.get(project_id)		
-       	doc['isdeleted'] = True
+        log.info('on_delete_project(%r)', project_id)
+        doc = self.db.get(project_id)
+        doc['isdeleted'] = True
         self.db.post(doc)
 
     def on_sos_project(self,hub,project_id):
-        print('sos_project', project_id)
+        log.info('on_sos_project(%r)', project_id)
         doc = self.db.get(project_id)
-        print(doc)
-       	doc['isdeleted'] = False
+        doc['isdeleted'] = False
         self.db.post(doc)
-	
 
     def on_load_project(self, hub, project_id):
-        print('load_project', project_id)
+        log.info('on_load_project(%r)', project_id)
         doc = self.db.get(project_id)
         doc['atime'] = time.time()
         self.db.save(doc)
@@ -226,14 +171,15 @@ class App(BaseApp):
         self.server.post({'docs': docs}, dst_db, '_bulk_docs')
 
     def on_thumbnail(self, hub, file_id, frames):
+        log.info('on_thumbnail(%r, %r)', file_id, frames)
         self.Renderer.Thumbnail(file_id, frames)
 
     def on_hash_edit(self, hub, project_id, root_id):
-        print('hash_edit', project_id, root_id)
+        log.info('on_hash_edit(%r, %r)', project_id, root_id)
         self.Renderer.HashEdit(project_id, root_id)
 
     def on_hash_job(self, hub, intrinsic_id, settings_id):
-        print('hash_job', intrinsic_id, settings_id)
+        log.info('on_hash_job(%r, %r)', intrinsic_id, settings_id)
         if settings_id is None:
             settings = default_settings()
             settings_id = settings['_id']
@@ -244,13 +190,8 @@ class App(BaseApp):
         self.Renderer.HashJob(intrinsic_id, settings_id)
 
     def on_render_job(self, hub, job_id):
-        print('render_job', job_id)
+        log.info('on_render_job(%r)', job_id)
         job = self.db.get(job_id)
-        if job.get('renders'):
-            file_id = list(job['renders'])[0]
-            print('using existing render', file_id)
-            self.hub.send('job_rendered', job_id, file_id, '')
-            return
         self.Renderer.RenderJob(job_id)
 
 app = App()

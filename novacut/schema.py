@@ -20,7 +20,7 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 """
-Test-driven definition of novacut edit node schema.
+Test-driven definition of Novacut edit description and CouchDB schema.
 
 UX wise, the schema is perhaps the most important aspect of Novacut.  The schema
 must:
@@ -38,55 +38,56 @@ must:
        manipulating edit state
 
 
-Example of a slice node:
+Example of a video/slice node:
 
 >>> doc = {
-...     '_id': '3HHSRSVXT5YGY2B6LJPN457P',
+...     '_id': '3HHSRSVXT5YGY3B6LJPN457P',
 ...     'type': 'novacut/node',
+...     'time': 1234567890,
+...     'audio': [],
 ...     'node': {
-...         'type': 'slice',
-...         'src': 'VYUG4ON2APYK3GEJULB4I7PHJTKYLXTOIRGU2LU2LW7JBOCU',
-...         'start': {
-...             'frame': 123,
-...         },
-...         'stop': {
-...             'frame': 456,
-...         },
+...         'type': 'video/slice',
+...         'src': 'VYUG4ON3APYK3GEJULB4I7PHJTKYLXTOIRGU3LU3LW7JBOCU',
+...         'start': 123,
+...         'stop': 456,
 ...     },
 ... }
+>>> check_video_slice(doc)
 
 
-Another slice from of the same clip:
+Another video/slice from of the same clip:
 
 >>> doc = {
-...     '_id': 'RXJM24DMCRY4YS6L6FOPDQRX',
+...     '_id': 'RXJM34DMCRY4YS6L6FOPDQRX',
 ...     'type': 'novacut/node',
+...     'time': 1234567891,
+...     'audio': [],
 ...     'node': {
-...         'type': 'slice',
-...         'src': 'VYUG4ON2APYK3GEJULB4I7PHJTKYLXTOIRGU2LU2LW7JBOCU',
-...         'start': {
-...             'frame': 1023,
-...         },
-...         'stop': {
-...             'frame': 1776,
-...         },
+...         'type': 'video/slice',
+...         'src': 'VYUG4ON3APYK3GEJULB4I7PHJTKYLXTOIRGU3LU3LW7JBOCU',
+...         'start': 1023,
+...         'stop': 1776,
 ...     },
 ... }
+>>> check_video_slice(doc)
 
 
-A sequence with these two slices back-to-back:
+A video/sequence with these two slices back-to-back:
 
 >>> doc = {
 ...     '_id': 'JG444OBNF5JUUNSPCCE5YPIK',
 ...     'type': 'novacut/node',
+...     'time': 1234567892,
+...     'audio': [],
 ...     'node': {
-...         'type': 'sequence',
+...         'type': 'video/sequence',
 ...         'src': [
-...             '3HHSRSVXT5YGY2B6LJPN457P',
-...             'RXJM24DMCRY4YS6L6FOPDQRX',
+...             '3HHSRSVXT5YGY3B6LJPN457P',
+...             'RXJM34DMCRY4YS6L6FOPDQRX',
 ...         ],
 ...     },
 ... }
+>>> check_video_sequence(doc)
 
 
 
@@ -127,15 +128,13 @@ is enormously useful for two reasons:
 
 import time
 import json
-from base64 import b64encode
+from base64 import b32encode, b64encode
 from copy import deepcopy
 from collections import namedtuple
+import re
 
-from dbase32 import db32enc
-
-from _skein import skein512
-from dbase32 import random_id
-from microfiber import RANDOM_B32LEN, Conflict
+from skein import skein512
+from microfiber import random_id, RANDOM_B32LEN, Conflict
 from dmedia.schema import (
     _label,
     _value,
@@ -155,10 +154,17 @@ from dmedia.schema import (
 
 
 # schema-compatibility version:
-VER = 0
+VER = 1
 
 # versioned primary database name:
 DB_NAME = 'novacut-{}'.format(VER)
+
+# Pattern to match a project DB name
+PROJECT_DB_PAT = '-'.join([
+    '^novacut',
+    str(VER),
+    '([3456789abcdefghijklmnopqrstuvwxy]{24})$'
+])
 
 # Skein personalization string
 PERS_NODE = b'20120117 jderose@novacut.com novacut/node'
@@ -186,7 +192,7 @@ def hash_node(data):
     For example:
 
     >>> node = {
-    ...     'src': 'VQIXPULW3G77W4XLGROMEDGFAH3XJBN4SAVFUGOZRFSIVU7N',
+    ...     'src': 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N',
     ...     'type': 'slice',
     ...     'stream': 'video',
     ...     'start': {
@@ -198,18 +204,390 @@ def hash_node(data):
     ... }
     ...
     >>> hash_node(normalized_dumps(node))
-    'OPSR5CE69VM3F4DJFT87XOMCEYNUT5PTUXUBGTCQN8D9ANB7'
+    'JCQ3YMFDNOBY4V5LB6IFTRYMJT5BLPFQUINEZNKU7W6DKC7S'
 
 
     Note that even a small change in the edit will result in a different hash:
 
     >>> node['start']['frame'] = 201
     >>> hash_node(normalized_dumps(node))
-    '5MYNMRJG8HVG47AUWDAMAEUL5W9FWCUEMLOB5UKR3MDJVFTN'
+    'SPD2YAMBM3YP3I2L32BKMXQ5JAU2PD6XUQHCEC4LPERAS54J'
 
     """
     skein = skein512(data, digest_bits=DIGEST_BITS, pers=PERS_NODE)
-    return db32enc(skein.digest())
+    return b32encode(skein.digest()).decode('utf-8')
+
+
+def check_novacut(doc):
+    """
+    Verify the common schema that all Novacut docs should have.
+
+    All Novacut and Dmedia docs must contain a small amount of common schema.
+
+    For example, a conforming Novacut value:
+
+    >>> doc = {
+    ...     '_id': 'NYXXMYLDOV3F6YTUO5PWM5DX',
+    ...     'type': 'novacut/foo',
+    ...     'time': 1234567890,
+    ... }
+    ...
+    >>> check_novacut(doc)
+
+    """
+    _check(doc, [], dict)
+    _check(doc, ['_id'], None,
+        _any_id,
+    )
+    _check(doc, ['type'], str,
+        (_matches, 'novacut/[a-z]+$'),
+    )
+    _check(doc, ['time'], (int, float),
+        (_at_least, 0),
+    )
+
+
+def check_node(doc):
+    """
+    Verify that *doc* is a valid novacut/node document.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
+    ...     'type': 'novacut/node',
+    ...     'time': 1234567890,
+    ...     'node': {
+    ...         'type': 'foo',
+    ...         'src': 'XBU6VM3QW76FLGOIJY34GMRMXSIEICIV733NX4AGR3B4Q44M',
+    ...     },
+    ... }
+    ...
+    >>> check_node(doc)
+
+    """
+    check_novacut(doc)
+    _check(doc, ['_id'], None,
+        _random_id,
+    )
+    _check(doc, ['type'], str,
+        (_equals, 'novacut/node'),
+    )
+    _check(doc, ['node'], dict)
+    _check(doc, ['node', 'type'], str,
+        _nonempty,
+    )
+    _check(doc, ['node', 'src'], (str, list, dict))
+
+
+def create_node(node):
+    """
+    Create a novacut/node document.
+    
+    For example:
+
+    >>> doc = create_node({'type': 'video/sequence', 'src': []})
+    >>> check_node(doc)
+
+    """
+    assert isinstance(node, dict)
+    return {
+        '_id': random_id(),
+        'type': 'novacut/node',
+        'time': time.time(),
+        'node': node,
+    }
+
+
+def check_relative_audio(doc):
+    _check(doc, ['audio'], list)
+    for i in range(len(doc['audio'])):
+        _check(doc, ['audio', i], dict,
+            _nonempty,
+        )
+        _check(doc, ['audio', i, 'id'], str,
+            _random_id,
+        )
+        _check(doc, ['audio', i, 'offset'], int) 
+
+
+def check_video_sequence(doc):
+    """
+    Verify that *doc* is a valid video/sequence node.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'YLJMJVTGCN4YUKXNPXCJGER3',
+    ...     'time': 1234567890,
+    ...     'type': 'novacut/node',
+    ...     'audio': [],
+    ...     'node': {
+    ...         'type': 'video/sequence',
+    ...         'src': [
+    ...             'HB6YSCKAY37KIWUTWKGKCTNI',
+    ...             'NYXXMYLDOV3F6YTUO5PWM5DX',
+    ...         ],
+    ...     },
+    ... }
+    ...
+    >>> check_video_sequence(doc)
+
+    """
+    check_node(doc)
+    check_relative_audio(doc)
+    _check(doc, ['node', 'type'], str,
+        (_equals, 'video/sequence')
+    )
+    _check(doc, ['node', 'src'], list)
+    for i in range(len(doc['node']['src'])):
+        _check(doc, ['node', 'src', i], str,
+            _random_id,
+        )
+
+
+def create_video_sequence(src):
+    """
+    Create a video/sequence node document.
+
+    For example:
+
+    >>> src_ids = ['A7MJVLM7F5YY7N6FB5LXTWVI', 'A7MJVLM7F5YY7N6FB5LXTWVI']
+    >>> doc = create_video_sequence(src_ids)
+    >>> check_video_sequence(doc)
+
+    """
+    assert isinstance(src, list)
+    node = {
+        'type': 'video/sequence',
+        'src': src,
+    }
+    doc = create_node(node)
+    doc['audio'] = []
+    return doc
+
+
+def check_slice(doc):
+    """
+    Check common schema between video/slice and audio/slice nodes.
+    """
+    check_node(doc)
+    _check(doc, ['node', 'type'], str,
+        (_is_in, 'video/slice', 'audio/slice')
+    )
+    _check(doc, ['node', 'src'], str,
+        _intrinsic_id
+    )
+    _check(doc, ['node', 'start'], int,
+        (_at_least, 0),
+    )
+    _check(doc, ['node', 'stop'], int,
+        (_at_least, 1),
+    )
+    _check(doc, ['node', 'stop'], int,
+        (_at_least, doc['node']['start'] + 1)
+    )
+
+
+def check_video_slice(doc):
+    """
+    Verify that *doc* is a valid video/slice node.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
+    ...     'time': 1234567890,
+    ...     'type': 'novacut/node',
+    ...     'audio': [],
+    ...     'node': {
+    ...         'type': 'video/slice',
+    ...         'src': 'XBU6VM3QW76FLGOIJY34GMRMXSIEICIV733NX4AGR3B4Q44M',
+    ...         'start': 17,
+    ...         'stop': 69,
+    ...     },
+    ... }
+    ...
+    >>> check_video_slice(doc)
+
+    """
+    check_slice(doc)
+    check_relative_audio(doc)
+    _check(doc, ['node', 'type'], str,
+        (_equals, 'video/slice')
+    )
+
+
+def create_video_slice(src, start, stop):
+    """
+    Create a video/slice node document.
+
+    For example:
+
+    >>> file_id = 'SM3GS4DUDVXOEU3DTTTWU5HKNRK777IWNSI5UQ4YWNQGRXAN'
+    >>> doc = create_video_slice(file_id, 17, 55)
+    >>> check_video_slice(doc)
+
+    """
+    node = {
+        'type': 'video/slice',
+        'src': src,
+        'start': start,
+        'stop': stop,
+    }
+    doc = create_node(node)
+    doc['audio'] = []
+    return doc
+
+
+def check_audio_slice(doc):
+    """
+    Verify that *doc* is a valid audio/slice node.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
+    ...     'time': 1234567890,
+    ...     'type': 'novacut/node',
+    ...     'node': {
+    ...         'type': 'audio/slice',
+    ...         'src': 'XBU6VM3QW76FLGOIJY34GMRMXSIEICIV733NX4AGR3B4Q44M',
+    ...         'start': 48000,
+    ...         'stop': 96000,
+    ...     },
+    ... }
+    ...
+    >>> check_audio_slice(doc)
+
+    """
+    check_slice(doc)
+    _check(doc, ['node', 'type'], str,
+        (_equals, 'audio/slice')
+    )
+
+
+def create_audio_slice(src, start, stop):
+    """
+    Create a audio/slice node document.
+
+    For example:
+
+    >>> file_id = 'SM3GS4DUDVXOEU3DTTTWU5HKNRK777IWNSI5UQ4YWNQGRXAN'
+    >>> doc = create_audio_slice(file_id, 27227, 88088)
+    >>> check_audio_slice(doc)
+
+    """
+    node = {
+        'type': 'audio/slice',
+        'src': src,
+        'start': start,
+        'stop': stop,
+    }
+    return create_node(node)
+
+
+# FIXME: This is replaced by create_video_sequence()
+def create_sequence(src):
+    assert isinstance(src, list)
+    node = {
+        'type': 'sequence',
+        'src': src,
+    }
+    doc = create_node(node)
+    doc['doodle'] = []
+    return doc
+
+
+# FIXME: This is replaced by create_video_slice(), create_audio_slice()
+def create_slice(src, start, stop, stream='video'):
+    node = {
+        'type': 'slice',
+        'src': src,
+        'start': start,
+        'stop': stop,
+        'stream': stream,
+    }
+    return create_node(node)
+
+
+def project_db_name(_id):
+    """
+    Return the CouchDB database name for the project with *_id*.
+
+    For example:
+
+    >>> project_db_name('HB6YSCKAY37KIWUTWKGKCTNI')
+    'novacut-1-hb6ysckay37kiwutwkgkctni'
+
+    """
+    return '-'.join(['novacut', str(VER), _id.lower()])
+
+
+def get_project_id(db_name):
+    """
+    Return project ID from CouchDB database name.
+
+    For example:
+
+    >>> get_project_id('novacut-1-hb6ysckay37kiwutwkgkctni')
+    'HB6YSCKAY37KIWUTWKGKCTNI'
+
+    If *db_name* doesn't match the expected naming convention, ``None`` is
+    returned:
+
+    >>> get_project_id('novacut-hb6ysckay37kiwutwkgkctni') is None
+    True
+
+    Also see `project_db_name()`.
+    """
+    match = re.match(PROJECT_DB_PAT, db_name)
+    if match:
+        return match.group(1).upper()
+
+
+def check_project(doc):
+    """
+    Verify that *doc* is a valid novacut/project document.
+
+    For example, a conforming value:
+
+    >>> doc = {
+    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
+    ...     'type': 'novacut/project',
+    ...     'time': 1234567890,
+    ...     'db_name': 'novacut-1-hb6ysckay37kiwutwkgkctni',
+    ...     'title': 'Bewitched, Bothered and Bewildered',
+    ... }
+    ...
+    >>> check_project(doc)
+
+    """
+    check_novacut(doc)
+    _check(doc, ['_id'], None,
+        _random_id,
+    )
+    _check(doc, ['type'], str,
+        (_equals, 'novacut/project'),
+    )
+    _check(doc, ['db_name'], str,
+        (_equals, project_db_name(doc['_id'])),
+    )
+    _check(doc, ['title'], str),
+
+
+def create_project(title=''):
+    _id = random_id()
+    ts = time.time()
+    return {
+        '_id': _id,
+        'type': 'novacut/project',
+        'time': ts,
+        'atime': ts,
+        'db_name': project_db_name(_id),
+        'title': title,
+        'isdeleted': False,
+    }
 
 
 def iter_src(src):
@@ -287,140 +665,6 @@ def save_to_intrinsic(root, src, dst):
     return iroot
 
 
-def check_novacut(doc):
-    """
-    Verify the common schema that all Novacut docs should have.
-
-    For example, a conforming value:
-
-    >>> doc = {
-    ...     '_id': 'NYXXMYLDOV3F6YTUO5PWM5DX',
-    ...     'ver': 0,
-    ...     'type': 'novacut/foo',
-    ...     'time': 1234567890,
-    ... }
-    ...
-    >>> check_novacut(doc)
-
-    """
-    _check(doc, [], dict)
-    _check(doc, ['_id'], None,
-        _any_id,
-    )
-    _check(doc, ['ver'], int,
-        (_equals, VER),
-    )
-    _check(doc, ['type'], str,
-        (_matches, 'novacut/[a-z]+$'),
-    )
-    _check(doc, ['time'], (int, float),
-        (_at_least, 0),
-    )
-
-
-def project_db_name(_id):
-    """
-    Return the CouchDB database name for the project with *_id*.
-
-    For example:
-
-    >>> project_db_name('HB6YSCKAY27KIWUTWKGKCTNI')
-    'novacut-0-hb6ysckay27kiwutwkgkctni'
-
-    """
-    return '-'.join(['novacut', str(VER), _id.lower()])
-
-
-def check_project(doc):
-    """
-    Verify that *doc* is a valid novacut/project document.
-
-    For example, a conforming value:
-
-    >>> doc = {
-    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
-    ...     'ver': 0,
-    ...     'type': 'novacut/project',
-    ...     'time': 1234567890,
-    ...     'db_name': 'novacut-0-hb6ysckay37kiwutwkgkctni',
-    ...     'title': 'Bewitched, Bothered and Bewildered',
-    ... }
-    ...
-    >>> check_project(doc)
-
-    """
-    check_novacut(doc)
-    _check(doc, ['_id'], None,
-        _random_id,
-    )
-    _check(doc, ['type'], str,
-        (_equals, 'novacut/project'),
-    )
-    _check(doc, ['db_name'], str,
-        (_equals, project_db_name(doc['_id'])),
-    )
-    _check(doc, ['title'], str),
-
-
-def create_project(title=''):
-    _id = random_id()
-    ts = time.time()
-    return {
-        '_id': _id,
-        'ver': VER,
-        'type': 'novacut/project',
-        'time': ts,
-        'atime': ts,
-        'db_name': project_db_name(_id),
-        'title': title,
-	'isdeleted': False,
-    }
-
-
-def check_node(doc):
-    """
-    Verify that *doc* is a valid novacut/node document.
-
-    For example, a conforming value:
-
-    >>> doc = {
-    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
-    ...     'ver': 0,
-    ...     'type': 'novacut/node',
-    ...     'time': 1234567890,
-    ...     'node': {
-    ...         'type': 'foo',
-    ...         'src': 'XBU6VM3QW76FLGOIJY34GMRMXSIEICIV733NX4AGR3B4Q44M',
-    ...     },
-    ... }
-    ...
-    >>> check_node(doc)
-
-    """
-    check_novacut(doc)
-    _check(doc, ['_id'], None,
-        _random_id,
-    )
-    _check(doc, ['type'], str,
-        (_equals, 'novacut/node'),
-    )
-    _check(doc, ['node'], dict)
-    _check(doc, ['node', 'type'], str,
-        _nonempty,
-    )
-    _check(doc, ['node', 'src'], (str, list, dict))
-
-
-def create_node(node):
-    return {
-        '_id': random_id(),
-        'ver': VER,
-        'type': 'novacut/node',
-        'time': time.time(),
-        'node': node,
-    }
-
-
 def create_inode(inode):
     return {
         '_id': inode.id,
@@ -430,7 +674,6 @@ def create_inode(inode):
                 'content_type': 'application/json',
             }
         },
-        'ver': VER,
         'type': 'novacut/inode',
         'time': time.time(),
         'node': inode.node,
@@ -448,7 +691,6 @@ def create_settings(node):
                 'content_type': 'application/json',
             }
         },
-        'ver': VER,
         'type': 'novacut/settings',
         'time': time.time(),
         'node': inode.node,
@@ -469,53 +711,8 @@ def create_job(root, settings):
                 'content_type': 'application/json',
             }
         },
-        'ver': VER,
         'type': 'novacut/job',
         'time': time.time(),
         'node': inode.node,
         'renders': {},
     }
-
-
-def check_slice(doc):
-    check_node(doc)
-    _check(doc, ['node', 'type'], str,
-        (_equals, 'slice'),
-    )
-    _check(doc, ['node', 'src'], str,
-        _any_id,
-    )
-    _check(doc, ['node', 'start'], dict,
-        _nonempty
-    )
-    _check(doc, ['node', 'stop'], dict,
-        _nonempty
-    )
-    _check(doc, ['node', 'stream'], str,
-        (_is_in, 'video', 'audio'),
-    )
-
-
-def create_slice(src, start, stop, stream='video'):
-    node = {
-        'type': 'slice',
-        'src': src,
-        'start': start,
-        'stop': stop,
-        'stream': stream,
-    }
-    return create_node(node)
-
-
-def create_sequence(src):
-    assert isinstance(src, list)
-    node = {
-        'type': 'sequence',
-        'src': src,
-    }
-    doc = create_node(node)
-    doc['doodle'] = []
-    return doc
-            
-        
-

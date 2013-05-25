@@ -1,5 +1,5 @@
-# novacut: the collaborative video editor
-# Copyright (C) 2011 Novacut Inc
+# novacut: the distributed video editor
+# Copyright (C) 2012 Novacut Inc
 #
 # This file is part of `novacut`.
 #
@@ -19,7 +19,33 @@
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
+"""
+Misc functions, currently just for generating random edits.
+"""
 
-"""
-Unit tests for the `novacut2` package.
-"""
+from random import SystemRandom
+from collections import namedtuple
+
+
+random = SystemRandom()
+Slice = namedtuple('Slice', 'start stop')
+
+
+def random_slice(count):
+    """
+    Generate a random slice of media that is *count* units long.
+
+    For example, there is only one possible slice in a one-frame-long video:
+
+    >>> random_slice(1)
+    Slice(start=0, stop=1)
+
+    This function returns a ``(start,stop)`` tuple such that::
+
+        0 <= start < stop <= count
+    """
+    assert count >= 1
+    start = random.randrange(0, count)
+    stop = random.randrange(start + 1, count + 1)
+    return Slice(start, stop)
+

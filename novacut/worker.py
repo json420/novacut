@@ -27,31 +27,45 @@ import os
 from os import path
 import json
 from datetime import datetime
+import logging
 
 import dbus
 from dbus.mainloop.glib import DBusGMainLoop
-import gobject
-from dc3lib.microfiber import Database
+from gi.repository import GObject
+from microfiber import Database
 
-from renderer import Builder, Renderer
+from .renderer import Builder, Renderer
 
 
-gobject.threads_init()
+GObject.threads_init()
 DBusGMainLoop(set_as_default=True)
-session = dbus.SessionBus()
 HOME = path.abspath(os.environ['HOME'])
+log = logging.getLogger()
+
+
+def dumps(obj, pretty=False):
+    kw = dict(
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(',',':'),
+    )
+    if pretty:
+        kw.update(
+            separators=(',',': '),
+            indent=4,
+        )
+    return json.dumps(obj, **kw)
 
 
 class LiveBuilder(Builder):
     def __init__(self, Dmedia, db):
-        super(LiveBuilder, self).__init__()
+        super().__init__()
         self.Dmedia = Dmedia
         self.db = db
         self._cache = {}
 
     def resolve_file(self, _id):
-        (_id, status, filename) = self.Dmedia.Resolve(_id)
-        return filename
+        return 'file://' + self.Dmedia.Resolve(_id)
 
     def get_doc(self, _id):
         try:
@@ -62,18 +76,21 @@ class LiveBuilder(Builder):
             return doc
 
 
-class Worker(object):
+class Worker:
     def __init__(self):
+        session = dbus.SessionBus()
         self.Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
         env = json.loads(self.Dmedia.GetEnv())
-        env['url'] = env['url'].encode('utf-8')
         self.novacut = Database('novacut-0', env)
         self.dmedia = Database('dmedia-0', env)
 
     def run(self, job_id):
+        log.info('job_id = %s', job_id)
         job = self.novacut.get(job_id)
+        log.info("job['node']: %s", dumps(job['node'], True))
         root = job['node']['root']
         settings = self.novacut.get(job['node']['settings'])
+        log.info("settings['node']: %s", dumps(settings['node'], True))
         builder = LiveBuilder(self.Dmedia, self.novacut)
         dst = self.Dmedia.AllocateTmp()
         renderer = Renderer(root, settings['node'], builder, dst)

@@ -23,86 +23,119 @@
 Build GnonLin composition from Novacut edit description.
 """
 
-# FIXME: Some of this is duplicated in dmedia's transcoder.  For now we're doing
-# a bit of copy and paste to quickly get the render backend usable... then we'll
-# refine and consolidate with what's in dmedia.
-
 import logging
 
 import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import GObject, Gst
 
+from .timefuncs import video_pts_and_duration, audio_pts_and_duration
+from .mapper import get_framerate
+
+
 GObject.threads_init()
 Gst.init(None)
 log = logging.getLogger()
-
+log.info('**** Gst.version(): %r', Gst.version())
 
 
 stream_map = {
-    'video': 'video/x-raw-rgb',
-    'audio': 'audio/x-raw-int; audio/x-raw-float',
+    'video': 'video/x-raw',
+    'audio': 'audio/x-raw',
 }
 
+# Provide very clear TypeError messages:
+TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 
-def make_element(desc):
+
+def stream_caps(stream):
+    return Gst.caps_from_string(stream_map[stream])
+
+
+class NoSuchElement(Exception):
+    def __init__(self, name):
+        self.name = name
+        super().__init__('GStreamer element {!r} not available'.format(name))
+
+
+def make_element(name, props=None):
+    if not isinstance(name, str):
+        raise TypeError(
+            TYPE_ERROR.format('name', str, type(name), name)
+        )
+    if not (props is None or isinstance(props, dict)):
+        raise TypeError(
+            TYPE_ERROR.format('props', dict, type(props), props)
+        )
+    element = Gst.ElementFactory.make(name, None)
+    if element is None:
+        log.error('could not create GStreamer element %r', name)
+        raise NoSuchElement(name)
+    if props:
+        for (key, value) in props.items():
+            element.set_property(key, value)
+    return element
+
+
+def element_from_desc(desc):
     """
-    Create a GStreamer element and set its properties.
+    Create a GStreamer element from a JSON serializable description.
 
     For example:
 
-    >>> enc = make_element({'name': 'theoraenc'})
+    >>> enc = element_from_desc('theoraenc')
+    >>> enc.get_factory().get_name()
+    'theoraenc'
+    
+    Or from a ``dict`` with the element name:
+
+    >>> enc = element_from_desc({'name': 'theoraenc'})
+    >>> enc.get_factory().get_name()
+    'theoraenc'
     >>> enc.get_property('quality')
     48
 
-    Or with properties:
+    Or from a ``dict`` with the element name and props:
 
-    >>> enc = make_element({'name': 'theoraenc', 'props': {'quality': 40}})
+    >>> enc = element_from_desc({'name': 'theoraenc', 'props': {'quality': 40}})
+    >>> enc.get_factory().get_name()
+    'theoraenc'
     >>> enc.get_property('quality')
     40
 
     """
-    el = Gst.ElementFactory.make(desc['name'], None)
-    assert el is not None
-    if desc.get('props'):
-        for (key, value) in desc['props'].items():
-            el.set_property(key, value)
-    return el
+    if isinstance(desc, dict):
+        return make_element(desc['name'], desc.get('props'))
+    return make_element(desc)
 
 
-def caps_string(desc):
+def caps_string(mime, caps=None):
     """
     Build a GStreamer caps string.
 
     For example:
 
-    >>> desc = {'mime': 'video/x-raw-yuv'}
-    >>> caps_string(desc)
-    'video/x-raw-yuv'
+    >>> caps_string('video/x-raw')
+    'video/x-raw'
 
     Or with specific caps:
 
-    >>> desc = {
-    ...     'mime': 'video/x-raw-yuv',
-    ...     'caps': {'width': 800, 'height': 450},
-    ... }
-    ...
-    >>> caps_string(desc)
-    'video/x-raw-yuv, height=450, width=800'
+    >>> caps_string('video/x-raw', {'width': 800, 'height': 450})
+    'video/x-raw, height=450, width=800'
 
     """
-    accum = [desc['mime']]
-    if desc.get('caps'):
-        caps = desc['caps']
+    assert mime in ('audio/x-raw', 'video/x-raw')
+    accum = [mime]
+    if caps:
         for key in sorted(caps):
             accum.append('{}={}'.format(key, caps[key]))
     return ', '.join(accum)
 
 
-def make_caps(desc):
-    if not desc:
+def make_caps(mime, caps):
+    if caps is None:
         return None
-    return Gst.caps_from_string(caps_string(desc))
+    return Gst.caps_from_string(caps_string(mime, caps))
 
 
 
@@ -134,31 +167,102 @@ def to_gst_time(spec, doc):
     raise ValueError('invalid time spec: {!r}'.format(spec))
 
 
-def build_slice(doc, builder):
-    src = builder.get_doc(doc['node']['src'])
-    el = Gst.ElementFactory.make('gnlfilesource', None)
-    start = to_gst_time(doc['node']['start'], src)
-    stop = to_gst_time(doc['node']['stop'], src)
+def build_slice(builder, doc, offset=0):
+    node = doc['node']
+    clip = builder.get_doc(node['src'])
+    start = to_gst_time(node['start'], clip)
+    stop = to_gst_time(node['stop'], clip)
     duration = stop - start
-    el.set_property('media-start', start)
-    el.set_property('media-duration', duration)
-    el.set_property('duration', duration)
-    stream = doc['node']['stream']
-    el.set_property('caps', Gst.caps_from_string(stream_map[stream]))
-    el.set_property('location', builder.resolve_file(src['_id']))
-    return el
+
+    if node['stream'] == 'both':
+        streams = ['video', 'audio']
+    else:
+        streams = [node['stream']]
+
+    #streams = ['video', 'audio']
+    #streams = ['audio']
+
+    for stream in streams:
+        # Create the element, set the URI, and select the stream
+        element = make_element('gnlurisource')
+        element.set_property('uri', builder.resolve_file(clip['_id']))
+        element.set_property('caps', stream_caps(stream))
+
+        # These properties are about the slice itself
+        element.set_property('media-start', start)
+        element.set_property('media-duration', duration)
+
+        # These properties are about the position of the slice in the composition
+        element.set_property('start', offset)
+        element.set_property('duration', duration)
+        
+        log.info('%s %d:%d %s', stream, start, duration, clip['_id'])
+
+        builder.add(element, stream)
+
+    return duration
 
 
-def build_sequence(doc, builder):
-    el = Gst.ElementFactory.make('gnlcomposition', None)
-    start = 0
+def build_video_slice(builder, doc, offset):
+    node = doc['node']
+    clip = builder.get_doc(node['src'])
+    framerate = get_framerate(clip)
+    start = node['start']
+    stop = node['stop']
+    frames = stop - start
+    log.info('video/slice %d:%d %s', start, stop, node['src'])
+
+    element = make_element('gnlurisource')
+    element.set_property('caps', Gst.caps_from_string('video/x-raw'))
+    element.set_property('uri', builder.resolve_file(node['src']))
+
+    # These properties are about the slice itself
+    (pts, duration) = video_pts_and_duration(start, stop, framerate)
+    element.set_property('media-start', pts)
+    element.set_property('media-duration', duration)
+
+    # These properties are about the position of the slice in the composition
+    (pts, duration) = video_pts_and_duration(offset, offset+frames, framerate)
+    element.set_property('start', pts)
+    element.set_property('duration', duration)
+
+    return (frames, element)
+
+
+def build_audio_slice(builder, doc, offset):
+    node = doc['node']
+    samplerate = builder.get_doc(node['src'])['samplerate']
+    start = node['start']
+    stop = node['stop']
+    samples = stop - start
+    log.info('audio/slice %d:%d %s', start, stop, node['src'])
+
+    element = make_element('gnlurisource')
+    element.set_property('caps', Gst.caps_from_string('audio/x-raw'))
+    element.set_property('uri', builder.resolve_file(node['src']))
+
+    # These properties are about the slice itself
+    (pts, duration) = audio_pts_and_duration(start, stop, samplerate)
+    element.set_property('media-start', pts)
+    element.set_property('media-duration', duration)
+
+    # These properties are about the position of the slice in the composition
+    (pts, duration) = audio_pts_and_duration(
+        offset, offset + samples, samplerate
+    )
+    element.set_property('start', pts)
+    element.set_property('duration', duration)
+
+    return (samples, element)
+
+
+def build_sequence(builder, doc, offset=0):
+    sequence_duration = 0
     for src in doc['node']['src']:
-        child = builder.build(src)
-        el.add(child)
-        child.set_property('start', start)
-        start += child.get_property('duration')
-    el.set_property('duration', start)
-    return el
+        duration = builder.build(src, offset)
+        offset += duration
+        sequence_duration += duration
+    return sequence_duration
 
 
 _builders = {
@@ -167,11 +271,42 @@ _builders = {
 }
 
 
-class Builder(object):
-    def build(self, _id):
+class Builder:
+    def __init__(self):
+        self.last = None
+        self.audio = None
+        self.video = None
+
+    def get_audio(self):
+        if self.audio is None:
+            self.audio = make_element('gnlcomposition')
+        return self.audio
+
+    def get_video(self):
+        if self.video is None:
+            self.video = make_element('gnlcomposition')
+        return self.video
+
+    def add(self, element, stream):
+        assert stream in ('video', 'audio')
+        if stream == 'video':
+            target = self.get_video()
+        else:
+            target = self.get_audio()
+        target.add(element)
+        self.last = element
+
+    def build(self, _id, offset=0):
         doc = self.get_doc(_id)
         func = _builders[doc['node']['type']]
-        return func(doc, self)
+        return func(self, doc, offset)
+
+    def build_root(self, _id):
+        duration = self.build(_id, 0)
+        sources = tuple(filter(lambda s: s is not None, (self.video, self.audio)))
+        for src in sources:
+            src.set_property('duration', duration)
+        return sources
 
     def resolve_file(self, _id):
         pass
@@ -185,20 +320,23 @@ class EncoderBin(Gst.Bin):
     Base class for `AudioEncoder` and `VideoEncoder`.
     """
 
-    def __init__(self, d):
-        super(EncoderBin, self).__init__()
+    def __init__(self, d, mime):
+        super().__init__()
         self._d = d
+        assert mime in ('audio/x-raw', 'video/x-raw')
 
         # Create elements
+        self._identity = self._make('identity', {'single-segment': True})
         self._q1 = self._make('queue')
         self._q2 = self._make('queue')
         self._q3 = self._make('queue')
-        self._enc = self._make(d['encoder'])
+        self._enc = self._from_desc(d['encoder'])
 
         # Create the filter caps
-        self._caps = make_caps(d.get('filter'))
+        self._caps = make_caps(mime, d.get('caps'))
 
         # Link elements
+        self._identity.link(self._q1)
         if self._caps is None:
             self._q2.link(self._enc)
         else:
@@ -207,7 +345,7 @@ class EncoderBin(Gst.Bin):
 
         # Ghost Pads
         self.add_pad(
-            Gst.GhostPad.new('sink', self._q1.get_static_pad('sink'))
+            Gst.GhostPad.new('sink', self._identity.get_static_pad('sink'))
         )
         self.add_pad(
             Gst.GhostPad.new('src', self._q3.get_static_pad('src'))
@@ -216,25 +354,27 @@ class EncoderBin(Gst.Bin):
     def __repr__(self):
         return '{}({!r})'.format(self.__class__.__name__, self._d)
 
-    def _make(self, desc, props=None):
-        """
-        Create gst element, set properties, and add to this bin.
-        """
-        if isinstance(desc, str):
-            desc = {'name': desc, 'props': props}
-        el = make_element(desc)
-        self.add(el)
-        return el
+    def _make(self, name, props=None):
+        element = make_element(name, props)
+        self.add(element)
+        return element
+
+    def _from_desc(self, desc):
+        element = element_from_desc(desc)
+        self.add(element)
+        return element
 
 
 class AudioEncoder(EncoderBin):
     def __init__(self, d):
-        super(AudioEncoder, self).__init__(d)
+        super().__init__(d, 'audio/x-raw')
 
         # Create elements:
         self._conv = self._make('audioconvert')
         self._rsp = self._make('audioresample', {'quality': 10})
-        self._rate = self._make('audiorate')
+        self._rate = self._make('audiorate',
+            {'tolerance': Gst.SECOND * 4 // 48000}
+        )
 
         # Link elements:
         self._q1.link(self._conv)
@@ -245,29 +385,28 @@ class AudioEncoder(EncoderBin):
 
 class VideoEncoder(EncoderBin):
     def __init__(self, d):
-        super(VideoEncoder, self).__init__(d)
+        super().__init__(d, 'video/x-raw')
 
         # Create elements:
-        self._scale = self._make('videoscale', {'method': 10})
+        self._scale = self._make('videoscale', {'method': 3})
         self._color = self._make('videoconvert')
-        self._rate = self._make('videorate')
 
         # Link elements:
         self._q1.link(self._scale)
         self._scale.link(self._color)
-        self._color.link(self._rate)
-        self._rate.link(self._q2)
+        self._color.link(self._q2)
 
 
-class Renderer(object):
-    def __init__(self, job, builder, dst):
+class Renderer:
+    def __init__(self, root, settings, builder, dst):
         """
         Initialize.
 
         :param job: a ``dict`` describing the transcode to perform.
         :param fs: a `FileStore` instance in which to store transcoded file
         """
-        self.job = job
+        self.root = root
+        self.settings = settings
         self.builder = builder
         self.mainloop = GObject.MainLoop()
         self.pipeline = Gst.Pipeline()
@@ -279,20 +418,25 @@ class Renderer(object):
         self.bus.connect('message::error', self.on_error)
 
         # Create elements
-        self.src = builder.build(job['src'])
-        self.mux = make_element(job['muxer'])
-        self.sink = Gst.ElementFactory.make('filesink', None)
+        self.mux = element_from_desc(settings['muxer'])
+        self.sink = make_element('filesink')
 
-        # Add elements to pipeline
-        self.pipeline.add(self.src)
         self.pipeline.add(self.mux)
         self.pipeline.add(self.sink)
 
+        # Add elements to pipeline
+        self.sources = builder.build_root(root)
+        self.encoders = {}
+        for key in ('video', 'audio'):
+            src = getattr(builder, key)
+            if src is None:
+                continue
+            self.encoders[key] = self.create_encoder(key)
+            src.connect('pad-added', self.on_pad_added, key)
+            self.pipeline.add(src)
+
         # Set properties
         self.sink.set_property('location', dst)
-
-        # Connect handler for 'new-decoded-pad' signal
-        self.src.connect('pad-added', self.on_pad_added)
 
         # Link *some* elements
         # This is completed in self.on_pad_added()
@@ -300,46 +444,41 @@ class Renderer(object):
 
         self.audio = None
         self.video = None
-
+ 
     def run(self):
         self.pipeline.set_state(Gst.State.PLAYING)
         self.mainloop.run()
 
     def kill(self):
         self.pipeline.set_state(Gst.State.NULL)
-        self.pipeline.get_state()
         self.mainloop.quit()
 
-    def link_pad(self, pad, name, key):
-        log.info('link_pad: %r, %r, %r', pad, name, key)
-        if key in self.job:
+    def create_encoder(self, key):
+        if key in self.settings:
             klass = {'audio': AudioEncoder, 'video': VideoEncoder}[key]
-            el = klass(self.job[key])
+            el = klass(self.settings[key])
         else:
-            el = Gst.ElementFactory.make('fakesink', None)
+            el = make_element('fakesink')
         self.pipeline.add(el)
-        log.info('Linking pad %r with %r', name, el)
-        pad.link(el.get_compatible_pad(pad, pad.get_caps()))
-        if key in self.job:
+        if key in self.settings:
+            log.info(el)
             el.link(self.mux)
-        el.set_state(Gst.State.PLAYING)
         return el
 
-    def on_pad_added(self, element, pad):
-        name = pad.get_caps().to_string()
-        log.debug('pad-added: %r', name)
-        if name.startswith('audio/'):
-            assert self.audio is None
-            self.audio = self.link_pad(pad, name, 'audio')
-        elif name.startswith('video/'):
-            assert self.video is None
-            self.video = self.link_pad(pad, name, 'video')
+    def on_pad_added(self, element, pad, key):
+        try:
+            string = pad.query_caps(None).to_string()
+            log.info('pad-added: %r %r', key, string)
+            enc = self.encoders[key]
+            pad.link(enc.get_static_pad('sink'))
+        except Exception as e:
+            log.exception('Error in Renderer.on_pad_added():')
 
     def on_eos(self, bus, msg):
         log.info('eos')
         self.kill()
 
     def on_error(self, bus, msg):
-        error = msg.parse_error()[1]
-        log.error(error)
+        self.error = msg.parse_error()
+        log.error(self.error)
         self.kill()

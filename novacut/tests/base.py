@@ -27,37 +27,48 @@ import os
 from os import path
 import shutil
 import tempfile
-from subprocess import check_call
-from unittest import TestCase
 
+from microfiber import random_id
+from filestore import DIGEST_BYTES
 
-# FIXME: This will be improved by using dmedia to hold sample videos
-
-home = path.abspath(os.environ['HOME'])
-testdir = path.join(home, '.novacut-test-files')
 
 def resolve(_id):
-    return path.join(testdir, _id + '.mov')
+    """
+    A dummy Dmedia-like resolver.
+    
+    For example:
+    
+    >>> resolve('VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N')
+    'file:///home/.dmedia/files/VQ/IXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
 
-sample_url = 'http://uds-o.novacut.com/'
+    """
+    return 'file://' + path.join('/home', '.dmedia', 'files', _id[:2], _id[2:])
 
-sample1 = 'NPY3IW5SQJUNSP2KV47GVB24G7SWX6XF'
-sample2 = 'ENN6AVN2M42ZQULASQNKTTDISIL3YKHE'
-sample3 = 'ESK6ZSMJGEAUZNI2YZUCJBZFF5LYGYIB'
+
+sample1 = 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
+sample2 = 'W62OZLFQUSKE4K6SLJWJ4EHFDUTRLD7JKQXUQMDJSSUG6TAQ'
+
+
+
+def random_file_id():
+    return random_id(DIGEST_BYTES)
+
 
 
 class TempDir(object):
     def __init__(self, prefix='unit-tests.'):
         self.dir = tempfile.mkdtemp(prefix=prefix)
+        
+    def __del__(self):
+        self.rmtree()
+        
+    def rmtree(self):
+        if self.dir is not None:
+            shutil.rmtree(self.dir)
+            self.dir = None
 
     def join(self, *parts):
         return path.join(self.dir, *parts)
-
-    def rmtree(self):
-        if self.dir is not None:
-            check_call(['/bin/chmod', '-R', '+w', self.dir])
-            shutil.rmtree(self.dir)
-            self.dir = None
 
     def makedirs(self, *parts):
         d = self.join(*parts)
@@ -89,21 +100,13 @@ class TempDir(object):
         assert path.isfile(dst) and not path.islink(dst)
         return dst
 
+
+class TempHome(TempDir):
+    def __init__(self):
+        super().__init__()
+        self.orig = os.environ['HOME']
+        os.environ['HOME'] = self.dir
+
     def __del__(self):
-        self.rmtree()
-
-
-class LiveTestCase(TestCase):
-    """
-    Base class for tests that need the sample video files available locally.
-
-    If the needed files are not available, the tests are skipped.
-    """
-
-    samples = (sample1, sample2)
-
-    def setUp(self):
-        for _id in self.samples:
-            f = resolve(_id)
-            if not path.isfile(f):
-                self.skipTest('missing {!r}'.format(f))
+        os.environ['HOME'] = self.orig
+        super().__del__()
