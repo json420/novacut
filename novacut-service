@@ -66,7 +66,7 @@ in_tree = path.isfile(path.join(tree, 'setup.py'))
 libdir = (tree if in_tree else '/usr/lib/novacut')
 renderer = path.join(libdir, 'novacut-renderer')
 assert path.isfile(renderer)
-thumbnailer = path.join(libdir, 'novacut-thumbnailer')
+thumbnailer = path.join(libdir, 'novacut-thumbnailer-py2')
 assert path.isfile(thumbnailer)
 
 
