@@ -41,13 +41,13 @@ must:
 Example of a video/slice node:
 
 >>> doc = {
-...     '_id': '3HHSRSVXT5ZGY2B6LJPN457P',
+...     '_id': '3HHSRSVXT5YGY3B6LJPN457P',
 ...     'type': 'novacut/node',
 ...     'time': 1234567890,
 ...     'audio': [],
 ...     'node': {
 ...         'type': 'video/slice',
-...         'src': 'VYUG4ON2APZK3GEJULB4I7PHJTKZLXTOIRGU2LU2LW7JBOCU',
+...         'src': 'VYUG4ON3APYK3GEJULB4I7PHJTKYLXTOIRGU3LU3LW7JBOCU',
 ...         'start': 123,
 ...         'stop': 456,
 ...     },
@@ -58,13 +58,13 @@ Example of a video/slice node:
 Another video/slice from of the same clip:
 
 >>> doc = {
-...     '_id': 'RXJM24DMCRZ4YS6L6FOPDQRX',
+...     '_id': 'RXJM34DMCRY4YS6L6FOPDQRX',
 ...     'type': 'novacut/node',
 ...     'time': 1234567891,
 ...     'audio': [],
 ...     'node': {
 ...         'type': 'video/slice',
-...         'src': 'VYUG4ON2APZK3GEJULB4I7PHJTKZLXTOIRGU2LU2LW7JBOCU',
+...         'src': 'VYUG4ON3APYK3GEJULB4I7PHJTKYLXTOIRGU3LU3LW7JBOCU',
 ...         'start': 1023,
 ...         'stop': 1776,
 ...     },
@@ -82,8 +82,8 @@ A video/sequence with these two slices back-to-back:
 ...     'node': {
 ...         'type': 'video/sequence',
 ...         'src': [
-...             '3HHSRSVXT5ZGY2B6LJPN457P',
-...             'RXJM24DMCRZ4YS6L6FOPDQRX',
+...             '3HHSRSVXT5YGY3B6LJPN457P',
+...             'RXJM34DMCRY4YS6L6FOPDQRX',
 ...         ],
 ...     },
 ... }
@@ -160,7 +160,7 @@ VER = 0
 DB_NAME = 'novacut-{}'.format(VER)
 
 # Pattern to match a project DB name
-PROJECT_DB_PAT = '^novacut-0-([234567abcdefghijklmnopqrstuvwxyz]{24})$'
+PROJECT_DB_PAT = '^novacut-0-([3456789abcdefghijklmnopqrstuvwxy]{24})$'
 
 # Skein personalization string
 PERS_NODE = b'20120117 jderose@novacut.com novacut/node'
@@ -223,7 +223,7 @@ def check_novacut(doc):
     For example, a conforming Novacut value:
 
     >>> doc = {
-    ...     '_id': 'NZXXMYLDOV2F6ZTUO5PWM5DX',
+    ...     '_id': 'NYXXMYLDOV3F6YTUO5PWM5DX',
     ...     'type': 'novacut/foo',
     ...     'time': 1234567890,
     ... }
@@ -250,12 +250,12 @@ def check_node(doc):
     For example, a conforming value:
 
     >>> doc = {
-    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
     ...     'type': 'novacut/node',
     ...     'time': 1234567890,
     ...     'node': {
     ...         'type': 'foo',
-    ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
+    ...         'src': 'XBU6VM3QW76FLGOIJY34GMRMXSIEICIV733NX4AGR3B4Q44M',
     ...     },
     ... }
     ...
@@ -314,15 +314,15 @@ def check_video_sequence(doc):
     For example, a conforming value:
 
     >>> doc = {
-    ...     '_id': 'YLJMJVTGCN4ZUKXNPXCJGER2',
+    ...     '_id': 'YLJMJVTGCN4YUKXNPXCJGER3',
     ...     'time': 1234567890,
     ...     'type': 'novacut/node',
     ...     'audio': [],
     ...     'node': {
     ...         'type': 'video/sequence',
     ...         'src': [
-    ...             'HB6YSCKAY27KIWUTWKGKCTNI',
-    ...             'NZXXMYLDOV2F6ZTUO5PWM5DX',
+    ...             'HB6YSCKAY37KIWUTWKGKCTNI',
+    ...             'NYXXMYLDOV3F6YTUO5PWM5DX',
     ...         ],
     ...     },
     ... }
@@ -348,7 +348,7 @@ def create_video_sequence(src):
 
     For example:
 
-    >>> src_ids = ['A7MJVLM7F5YZ7N6FB5LXTWVI', 'A7MJVLM7F5YZ7N6FB5LXTWVI']
+    >>> src_ids = ['A7MJVLM7F5YY7N6FB5LXTWVI', 'A7MJVLM7F5YY7N6FB5LXTWVI']
     >>> doc = create_video_sequence(src_ids)
     >>> check_video_sequence(doc)
 
@@ -392,13 +392,13 @@ def check_video_slice(doc):
     For example, a conforming value:
 
     >>> doc = {
-    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
     ...     'time': 1234567890,
     ...     'type': 'novacut/node',
     ...     'audio': [],
     ...     'node': {
     ...         'type': 'video/slice',
-    ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
+    ...         'src': 'XBU6VM3QW76FLGOIJY34GMRMXSIEICIV733NX4AGR3B4Q44M',
     ...         'start': 17,
     ...         'stop': 69,
     ...     },
@@ -420,7 +420,7 @@ def create_video_slice(src, start, stop):
 
     For example:
 
-    >>> file_id = 'SM3GS4DUDVXOEU2DTTTWU5HKNRK777IWNSI5UQ4ZWNQGRXAN'
+    >>> file_id = 'SM3GS4DUDVXOEU3DTTTWU5HKNRK777IWNSI5UQ4YWNQGRXAN'
     >>> doc = create_video_slice(file_id, 17, 55)
     >>> check_video_slice(doc)
 
@@ -443,12 +443,12 @@ def check_audio_slice(doc):
     For example, a conforming value:
 
     >>> doc = {
-    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
     ...     'time': 1234567890,
     ...     'type': 'novacut/node',
     ...     'node': {
     ...         'type': 'audio/slice',
-    ...         'src': 'XBU6VM2QW76FLGOIJZ24GMRMXSIEICIV723NX4AGR2B4Q44M',
+    ...         'src': 'XBU6VM3QW76FLGOIJY34GMRMXSIEICIV733NX4AGR3B4Q44M',
     ...         'start': 48000,
     ...         'stop': 96000,
     ...     },
@@ -469,7 +469,7 @@ def create_audio_slice(src, start, stop):
 
     For example:
 
-    >>> file_id = 'SM3GS4DUDVXOEU2DTTTWU5HKNRK777IWNSI5UQ4ZWNQGRXAN'
+    >>> file_id = 'SM3GS4DUDVXOEU3DTTTWU5HKNRK777IWNSI5UQ4YWNQGRXAN'
     >>> doc = create_audio_slice(file_id, 27227, 88088)
     >>> check_audio_slice(doc)
 
@@ -513,8 +513,8 @@ def project_db_name(_id):
 
     For example:
 
-    >>> project_db_name('HB6YSCKAY27KIWUTWKGKCTNI')
-    'novacut-0-hb6ysckay27kiwutwkgkctni'
+    >>> project_db_name('HB6YSCKAY37KIWUTWKGKCTNI')
+    'novacut-0-hb6ysckay37kiwutwkgkctni'
 
     """
     return '-'.join(['novacut', str(VER), _id.lower()])
@@ -526,13 +526,13 @@ def get_project_id(db_name):
 
     For example:
 
-    >>> get_project_id('novacut-0-hb6ysckay27kiwutwkgkctni')
-    'HB6YSCKAY27KIWUTWKGKCTNI'
+    >>> get_project_id('novacut-0-hb6ysckay37kiwutwkgkctni')
+    'HB6YSCKAY37KIWUTWKGKCTNI'
 
     If *db_name* doesn't match the expected naming convention, ``None`` is
     returned:
 
-    >>> get_project_id('novacut-hb6ysckay27kiwutwkgkctni') is None
+    >>> get_project_id('novacut-hb6ysckay37kiwutwkgkctni') is None
     True
 
     Also see `project_db_name()`.
@@ -549,10 +549,10 @@ def check_project(doc):
     For example, a conforming value:
 
     >>> doc = {
-    ...     '_id': 'HB6YSCKAY27KIWUTWKGKCTNI',
+    ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
     ...     'type': 'novacut/project',
     ...     'time': 1234567890,
-    ...     'db_name': 'novacut-0-hb6ysckay27kiwutwkgkctni',
+    ...     'db_name': 'novacut-0-hb6ysckay37kiwutwkgkctni',
     ...     'title': 'Bewitched, Bothered and Bewildered',
     ... }
     ...
