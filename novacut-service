@@ -63,10 +63,10 @@ log = logging.getLogger()
 
 tree = path.dirname(path.dirname(path.abspath(novacut.__file__)))
 in_tree = path.isfile(path.join(tree, 'setup.py'))
-bindir = (tree if in_tree else '/usr/bin')
-renderer = path.join(bindir, 'novacut-renderer')
+libdir = (tree if in_tree else '/usr/lib/novacut')
+renderer = path.join(libdir, 'novacut-renderer')
 assert path.isfile(renderer)
-thumbnailer = path.join(bindir, 'novacut-thumbnailer')
+thumbnailer = path.join(libdir, 'novacut-thumbnailer')
 assert path.isfile(thumbnailer)
 
 

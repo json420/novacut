@@ -134,8 +134,6 @@ setup(
     scripts=[
         'novacut-gtk',
         'novacut-cli',
-        'novacut-renderer',
-        'novacut-thumbnailer',
     ],
     data_files=[
         ('share/couchdb/apps/novacut',
@@ -148,7 +146,7 @@ setup(
             ['data/novacut.svg']
         ),
         ('lib/novacut',
-            ['novacut-service'],
+            ['novacut-service', 'novacut-thumbnailer-py2', 'novacut-renderer'],
         ),
         ('share/dbus-1/services/',
             ['data/com.novacut.Renderer.service']
