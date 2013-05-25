@@ -35,6 +35,16 @@ from novacut.timefuncs import audio_pts_and_duration, video_pts_and_duration
 from novacut import renderer
 
 
+def missing_gnl():
+    return (Gst.ElementFactory.make('gnlurisource', None) is None)
+
+
+class GnlTestCase(TestCase):
+    def setUp(self):
+        if missing_gnl():
+            self.skipTest('gnonlin not available')
+
+
 
 clip1 = random_id()
 clip2 = random_id()
@@ -189,6 +199,7 @@ class DummyBuilder(renderer.Builder):
         return resolve(_id)
 
 
+
 class TestNoSuchElement(TestCase):
     def test_init(self):
         inst = renderer.NoSuchElement('foobar')
@@ -300,6 +311,21 @@ class TestFunctions(TestCase):
         self.assertEqual(
             c.to_string(),
             'audio/x-raw, channels=(int)1, rate=(int)44100'
+        )
+
+
+class TestGnlFunctions(GnlTestCase):
+    def test_build_sequence(self):
+        b = DummyBuilder(docs)
+        self.assertEqual(
+            renderer.build_sequence(b, b.get_doc(sequence1), 0),
+            7 * Gst.SECOND
+        )
+
+        b = DummyBuilder(docs)
+        self.assertEqual(
+            renderer.build_sequence(b, b.get_doc(sequence2), 0),
+            9 * Gst.SECOND
         )
 
     def test_build_slice(self):
@@ -417,19 +443,6 @@ class TestFunctions(TestCase):
             'audio/x-raw'
         )
         self.assertEqual(el.get_property('uri'), resolve(clip1))
-
-    def test_build_sequence(self):
-        b = DummyBuilder(docs)
-        self.assertEqual(
-            renderer.build_sequence(b, b.get_doc(sequence1), 0),
-            7 * Gst.SECOND
-        )
-
-        b = DummyBuilder(docs)
-        self.assertEqual(
-            renderer.build_sequence(b, b.get_doc(sequence2), 0),
-            9 * Gst.SECOND
-        )
 
     def test_build_video_slice(self):
         file_id = random_file_id()
@@ -596,7 +609,7 @@ class TestFunctions(TestCase):
                 self.assertLessEqual(abs(dur1 - dur2), 1)
 
 
-class TestBuilder(TestCase):
+class TestBuilder(GnlTestCase):
 
     def test_init(self):
         builder = renderer.Builder()
@@ -816,7 +829,7 @@ class TestVideoEncoder(TestCase):
         )
 
 
-class TestRenderer(TestCase):
+class TestRenderer(GnlTestCase):
     def test_init(self):
         tmp = TempDir()
         builder = DummyBuilder(docs)
