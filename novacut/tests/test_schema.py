@@ -522,23 +522,23 @@ class TestFunctions(TestCase):
     def test_project_db_name(self):
         self.assertEqual(
             schema.project_db_name('AAAAAAAAAAAAAAAAAAAAAAAA'),
-            'novacut-0-aaaaaaaaaaaaaaaaaaaaaaaa',
+            'novacut-1-aaaaaaaaaaaaaaaaaaaaaaaa',
         )
         _id = random_id()
         self.assertEqual(
             schema.project_db_name(_id),
-            'novacut-0-{}'.format(_id.lower())
+            'novacut-1-{}'.format(_id.lower())
         )
 
     def test_get_project_id(self):
         self.assertEqual(
-            schema.get_project_id('novacut-0-aaaaaaaaaaaaaaaaaaaaaaaa'),
+            schema.get_project_id('novacut-1-aaaaaaaaaaaaaaaaaaaaaaaa'),
             'AAAAAAAAAAAAAAAAAAAAAAAA'
         )
-        self.assertIsNone(schema.get_project_id('novacut-0'))
-        self.assertIsNone(schema.get_project_id('dmedia-0'))
+        self.assertIsNone(schema.get_project_id('novacut-1'))
+        self.assertIsNone(schema.get_project_id('dmedia-1'))
         self.assertIsNone(
-            schema.get_project_id('dmedia-0-aaaaaaaaaaaaaaaaaaaaaaaa')
+            schema.get_project_id('dmedia-1-aaaaaaaaaaaaaaaaaaaaaaaa')
         )
         # Make sure we can round-trip with project_db_name():
         for i in range(1000):

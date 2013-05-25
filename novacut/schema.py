@@ -154,13 +154,17 @@ from dmedia.schema import (
 
 
 # schema-compatibility version:
-VER = 0
+VER = 1
 
 # versioned primary database name:
 DB_NAME = 'novacut-{}'.format(VER)
 
 # Pattern to match a project DB name
-PROJECT_DB_PAT = '^novacut-0-([3456789abcdefghijklmnopqrstuvwxy]{24})$'
+PROJECT_DB_PAT = '-'.join([
+    '^novacut',
+    str(VER),
+    '([3456789abcdefghijklmnopqrstuvwxy]{24})$'
+])
 
 # Skein personalization string
 PERS_NODE = b'20120117 jderose@novacut.com novacut/node'
@@ -514,7 +518,7 @@ def project_db_name(_id):
     For example:
 
     >>> project_db_name('HB6YSCKAY37KIWUTWKGKCTNI')
-    'novacut-0-hb6ysckay37kiwutwkgkctni'
+    'novacut-1-hb6ysckay37kiwutwkgkctni'
 
     """
     return '-'.join(['novacut', str(VER), _id.lower()])
@@ -526,7 +530,7 @@ def get_project_id(db_name):
 
     For example:
 
-    >>> get_project_id('novacut-0-hb6ysckay37kiwutwkgkctni')
+    >>> get_project_id('novacut-1-hb6ysckay37kiwutwkgkctni')
     'HB6YSCKAY37KIWUTWKGKCTNI'
 
     If *db_name* doesn't match the expected naming convention, ``None`` is
@@ -552,7 +556,7 @@ def check_project(doc):
     ...     '_id': 'HB6YSCKAY37KIWUTWKGKCTNI',
     ...     'type': 'novacut/project',
     ...     'time': 1234567890,
-    ...     'db_name': 'novacut-0-hb6ysckay37kiwutwkgkctni',
+    ...     'db_name': 'novacut-1-hb6ysckay37kiwutwkgkctni',
     ...     'title': 'Bewitched, Bothered and Bewildered',
     ... }
     ...
@@ -582,7 +586,7 @@ def create_project(title=''):
         'atime': ts,
         'db_name': project_db_name(_id),
         'title': title,
-	'isdeleted': False,
+        'isdeleted': False,
     }
 
 
