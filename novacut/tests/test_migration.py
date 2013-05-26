@@ -224,7 +224,6 @@ class TestFunctions(TestCase):
         new = migration.migrate_sequence(old)
         self.assertIsNot(old, new)
         self.assertEqual(old, json.loads(docs_s)[0])
-        self.maxDiff = None
         self.assertEqual(new, {
             '_id': 'PID8A4DQTEMA3B3BEP3DYI79',
             'type': 'novacut/node',
@@ -253,6 +252,45 @@ class TestFunctions(TestCase):
             ], 
         })
         schema.check_video_sequence(new)
+
+    def test_migrate_slice(self):
+        old = json.loads(docs_s)[1]
+        id_map = get_id_map()
+        new = migration.migrate_slice(old, id_map)
+        self.assertIsNot(old, new)
+        self.assertEqual(old, json.loads(docs_s)[1])
+        self.assertEqual(new, {
+            '_id': 'C6JICO8CH7IRKXV8KM7NEM44',
+            'type': 'novacut/node',
+            'time': 1343379567.943,
+            'audio': [],
+            'node': {
+                'type': 'video/slice',
+                'src': 'C5NJAVGPS9H8LXRYMYVGB8J6IHIIF8CTTWYOT5G75ELXAEYA',
+                'start': 127,
+                'stop': 205,
+            },
+        })
+        schema.check_video_slice(new)
+
+        old = json.loads(docs_s)[2]
+        id_map = get_id_map()
+        new = migration.migrate_slice(old, id_map)
+        self.assertIsNot(old, new)
+        self.assertEqual(old, json.loads(docs_s)[2])
+        self.assertEqual(new, {
+            '_id': '9FPNOKKL4S8L6YI6XBDLJQEN',
+            'type': 'novacut/node',
+            'time': 1343379504.205,
+            'audio': [],
+            'node': {
+                'type': 'video/slice',
+                'src': 'SLNSQE6YLRLBVWFCLNBBFSAKVWXM4GB3S6IMGKVPD4EI6UJR',
+                'start': 238,
+                'stop': 557,
+            },
+        })
+        schema.check_video_slice(new)
 
 
 class TestCouchFunctions(CouchTestCase):

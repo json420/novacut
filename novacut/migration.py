@@ -40,7 +40,7 @@ def remove_unneeded(doc):
             pass
 
 
-def migrate_slice(db, doc):
+def migrate_slice_old(db, doc):
     assert doc['type'] == 'novacut/node'
     node = doc['node']
     assert node['type'] == 'slice'
@@ -105,8 +105,37 @@ def migrate_sequence(old):
 
     if old.get('selected'):
         new['selected'] = b32_to_db32(old['selected'])
+        
+    schema.check_video_sequence(new)
     return new
-    
+
+
+def migrate_slice(old, id_map):
+    assert old['type'] == 'novacut/node'
+    node = old['node']
+    assert node['type'] == 'slice'
+    assert node.get('stream', 'video') in ('video', 'both')
+    start = node['start']['frame']
+    stop = node['stop']['frame']
+    src_id = node['src']
+    assert isinstance(start, int)
+    assert isinstance(stop, int)
+    assert 0 <= start < stop
+    assert src_id in id_map
+
+    new = {
+        '_id': b32_to_db32(old['_id']),
+        'type': 'novacut/node',
+        'time': old.get('time', 0),
+        'audio': [],
+        'node': {
+            'type': 'video/slice',
+            'src': id_map[src_id],
+            'start': start,
+            'stop': stop,
+        },
+    }
+    return new
 
 
 def migrate_db(db):
