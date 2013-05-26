@@ -137,7 +137,7 @@ def migrate_slice(old, id_map):
     src_id = node['src']
     assert isinstance(start, int)
     assert isinstance(stop, int)
-    assert 0 <= start < stop
+    assert 0 <= start <= stop
     assert src_id in id_map
 
     new = {
