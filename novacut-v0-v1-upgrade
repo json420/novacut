@@ -86,6 +86,9 @@ def migrate_novacut_project(v0_name, v0_id):
 
     new_docs = []
     for old in docs:
+        if old['type'] == 'novacut/bucket':
+            print('Skipping deprecated novacut/bucket', old['_id'])
+            continue
         new = None
         if old['type'] == 'novacut/node':
             node = old['node']
