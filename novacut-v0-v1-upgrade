@@ -22,6 +22,7 @@
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 import sys
+from copy import deepcopy
 
 from microfiber import Server, NotFound, BulkConflict, dumps
 from dmedia.service import get_env
@@ -37,9 +38,9 @@ env = get_env()
 server = Server(env)
 mdb = server.database('migrate-0-to-1')
 src = server.database('novacut-0')
-dst = server.database('novacut-1')
-dst.ensure()
-buf = BufferedSave(dst)
+novacut_1 = server.database('novacut-1')
+novacut_1.ensure()
+buf = BufferedSave(novacut_1)
 
 
 def get_file_id(old):
@@ -47,10 +48,10 @@ def get_file_id(old):
         return old['node']['src']
     if old['type'] == 'dmedia/file':
         return old['_id']
-    
 
 
 def migrate_novacut_project(v0_name, v0_id):
+    project = None
     v1_id = migration.b32_to_db32(v0_id)
     v1_name = schema.project_db_name(v1_id)
     print('\n{} => {}'.format(v0_name, v1_name))
@@ -100,6 +101,7 @@ def migrate_novacut_project(v0_name, v0_id):
                 sys.exit("Error: Bad doc['node']['type']: {!r}".format(node['type']))
         elif old['type'] == 'novacut/project':
             new = migration.migrate_project(old)
+            project = deepcopy(new)
         elif old['type'] == 'dmedia/file':
             new = migration.migrate_dmedia_file(old, id_map)
         else:
@@ -113,16 +115,29 @@ def migrate_novacut_project(v0_name, v0_id):
     except BulkConflict as e:
         print(str(e))
 
+    assert project is not None
     print('{} docs, {}'.format(len(new_docs), v1_name))
+    return project
 
 
-for row in src.view('doc', 'type', key='novacut/project')['rows']:
-    old = src.get(row['id'], attachments=True)
-    new = migration.migrate_project(old)
-    buf.save(new)
+count = 0
+failed = 0
+for (v0_name, v0_id) in migration.iter_v0_project_dbs(server):
+    count += 1
+    project = migrate_novacut_project(v0_name, v0_id)
+    if project is None:
+        failed += 1
+    else:
+        buf.save(project)
 buf.flush()
 
 
-for (v0_name, v0_id) in migration.iter_v0_project_dbs(server):
-    migrate_novacut_project(v0_name, v0_id)
-
+print('\n{} total projects, {} projects failed'.format(count, failed))
+if failed == 0:
+    print('Novacut V0 => V1 Upgrade Sucessfull!')
+else:
+    print('Error: Not all needed files were available.')
+    print('Please connect any removable Dmedia drives, and then run:')
+    print('    dmedia-v0-v1-upgrade')
+    print('After than, run this command again:')
+    print('    novacut-v0-v1-upgrade')
