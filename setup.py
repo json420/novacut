@@ -147,7 +147,7 @@ setup(
             ['data/novacut.svg']
         ),
         ('lib/novacut',
-            ['novacut-service', 'novacut-thumbnailer-py2', 'novacut-renderer'],
+            ['novacut-service', 'novacut-thumbnailer-py2', 'novacut-renderer-py2'],
         ),
         ('share/dbus-1/services/',
             ['data/com.novacut.Renderer.service']
