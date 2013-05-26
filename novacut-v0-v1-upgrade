@@ -116,7 +116,7 @@ def migrate_novacut_project(v0_name, v0_id):
         print(str(e))
 
     assert project is not None
-    print('{} docs, {}'.format(len(new_docs), v1_name))
+    print('{} docs in {!r}'.format(len(new_docs), project.get('title')))
     return project
 
 
