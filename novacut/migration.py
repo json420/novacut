@@ -24,6 +24,7 @@ Lossless migration between schema versions.
 """
 
 from copy import deepcopy
+import re
 
 from dmedia.migration import b32_to_db32
 
@@ -32,12 +33,26 @@ from .timefuncs import frame_to_sample
 from . import schema
 
 
-def remove_unneeded(doc):
-    for key in ('ver', 'session_id'):
-        try:
-            del doc[key]
-        except Exception:
-            pass
+V0_PROJECT_DB = re.compile('^novacut-0-([234567abcdefghijklmnopqrstuvwxyz]{24})$')
+
+
+def iter_v0_project_dbs(server):
+    for name in server.get('_all_dbs'):
+        match = V0_PROJECT_DB.match(name)
+        if match:
+            _id = match.group(1).upper()
+            yield (name, _id)
+
+
+def migrate_project(old):
+    assert old['type'] == 'novacut/project'
+    v1_id = b32_to_db32(old['_id'])
+    new = deepcopy(old)
+    new.pop('_rev', None)
+    new.pop('ver', None)
+    new['_id'] = v1_id
+    new['db_name'] = schema.project_db_name(v1_id)
+    return new
 
 
 def migrate_slice_old(db, doc):
@@ -138,20 +153,9 @@ def migrate_slice(old, id_map):
     return new
 
 
-def migrate_db(db):
-    for row in db.get('_all_docs', endkey='_')['rows']:
-        _id = row['id']
-        doc = db.get(_id)
-        if not doc.get('type') == 'novacut/node':
-            continue
-        node = doc.get('node')
-        if not isinstance(node, dict):
-            continue
-        type_ = node.get('type')
-        if type_ == 'slice':
-            for new in migrate_slice(db, doc):
-                yield new
-        elif type_ == 'sequence':
-            for new in migrate_sequence(db, doc):
-                yield new
-
+def migrate_dmedia_file(old, id_map):
+    assert old['type'] == 'dmedia/file'
+    new = deepcopy(old)
+    new.pop('_rev', None)
+    new['_id'] = id_map[old['_id']]
+    return new

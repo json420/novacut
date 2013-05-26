@@ -1,0 +1,112 @@
+#!/usr/bin/python3
+
+# novacut: the distributed video editor
+# Copyright (C) 2013 Novacut Inc
+#
+# This file is part of `novacut`.
+#
+# `novacut` is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# `novacut` is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with `novacut`.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#   Jason Gerard DeRose <jderose@novacut.com>
+
+import sys
+
+from microfiber import Server, NotFound, BulkConflict, dumps
+from dmedia.service import get_env
+from dmedia.util import init_views
+
+import novacut
+from novacut import schema, migration, views
+
+log = novacut.configure_logging()
+env = get_env()
+
+server = Server(env)
+mdb = server.database('migrate-0-to-1')
+src = server.database('novacut-0')
+dst = server.database('novacut-1')
+
+
+def migrate_novacut_project(v0_name, v0_id):
+    v1_id = migration.b32_to_db32(v0_id)
+    v1_name = schema.project_db_name(v1_id)
+    print('\n{} => {}'.format(v0_name, v1_name))
+
+    src = server.database(v0_name)
+    dst = server.database(v1_name)
+
+    ids = []
+    for row in src.get('_all_docs')['rows']:
+        _id = row['id']
+        if not _id.startswith('_'):
+            ids.append(_id)
+
+    id_map = {}
+    docs = []
+    for _id in ids:
+        old = src.get(_id, attachments=True)
+        docs.append(old)
+        if old['type'] == 'novacut/node' and old['node']['type'] == 'slice':
+            src_id = old['node']['src']
+            try:
+                mdoc = mdb.get(src_id)
+                id_map[src_id] = mdoc['v1_id']
+            except NotFound:
+                print('NotFound', src_id)
+                print('Cannot migrate', v1_name)
+                return
+
+    # Let's do it
+    src.post(None, '_compact')  # Clean up 
+    dst.ensure()
+    init_views(dst, views.novacut_projects)
+
+    new_docs = []
+    for old in docs:
+        new = None
+        if old['type'] == 'novacut/node':
+            node = old['node']
+            if node['type'] == 'sequence':
+                new = migration.migrate_sequence(old)
+            elif node['type'] == 'slice':
+                new = migration.migrate_slice(old, id_map)
+            else:
+                sys.exit("Error: Bad doc['node']['type']: {!r}".format(node['type']))
+        elif old['type'] == 'novacut/project':
+            new = migration.migrate_project(old)
+        elif old['type'] == 'dmedia/file':
+            new = migration.migrate_dmedia_file(old, id_map)
+        else:
+            sys.exit("Error: Bad doc['type']: {!r}".format(old['type']))
+
+        assert new is not None
+        new_docs.append(new)
+
+    try:
+        dst.save_many(new_docs)
+    except BulkConflict as e:
+        print(str(e))
+
+    print('{} docs, {}'.format(len(new_docs), v1_name))
+
+
+for row in src.view('doc', 'type', key='novacut/project')['rows']:
+    old = src.get(row['id'], attachments=True)
+    new = migration.migrate_project(old)
+
+
+for (v0_name, v0_id) in migration.iter_v0_project_dbs(server):
+    migrate_novacut_project(v0_name, v0_id)
+

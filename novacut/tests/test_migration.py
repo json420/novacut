@@ -219,6 +219,30 @@ def get_id_map():
 
 
 class TestFunctions(TestCase):
+    def test_migrate_project(self):
+        old = {
+            "_id": "AYDDLRKHDL7YJ5TR6JLCMO3D",
+            "_rev": "11-25500cd9e63b08cd79c220b66982f7d3",
+            "atime": 1366294024.9010231,
+            "db_name": "novacut-0-ayddlrkhdl7yj5tr6jlcmo3d",
+            "isdeleted": True,
+            "time": 1354124043.327159,
+            "title": "Test",
+            "type": "novacut/project",
+            "ver": 0,
+        }
+        new = migration.migrate_project(old)
+        self.assertIsNot(old, new)
+        self.assertEqual(new, {
+            "_id": "3R66EKDA6EYRCWMKXCE5FHU6",
+            "atime": 1366294024.9010231,
+            "db_name": "novacut-1-3r66ekda6eyrcwmkxce5fhu6",
+            "isdeleted": True,
+            "time": 1354124043.327159,
+            "title": "Test",
+            "type": "novacut/project",
+        })
+
     def test_migrate_sequence(self):
         old = json.loads(docs_s)[0]
         new = migration.migrate_sequence(old)
@@ -292,167 +316,23 @@ class TestFunctions(TestCase):
         })
         schema.check_video_slice(new)
 
+    def test_migrate_dmedia_file(self):
+        id_map = get_id_map()
 
-class TestCouchFunctions(CouchTestCase):
-    def test_migrate_slice(self):
-        self.skipTest('fix')
-        db = Database('foo', self.env)
-        self.assertTrue(db.ensure())
-        docs = json.loads(docs_s)
-        db.save_many(docs)
-
-        # Test when stream=both
-        doc = db.get('JDQPJVFJOEPYR64FRTEULTBB')
-        new = list(migration.migrate_slice(db, doc))
-        self.assertEqual(len(new), 2)
-        (audio, video) = new
-
-        self.assertEqual(set(audio), set(['_id', 'type', 'time', 'node']))
-        self.assertEqual(audio['node']['type'], 'audio/slice')
-        self.assertEqual(audio['node']['src'], video['node']['src'])
-        self.assertEqual(audio['node']['start'],
-            frame_to_sample(127, Fraction(25, 1), 48000)
+        old = json.loads(docs_s)[3]
+        new = migration.migrate_dmedia_file(old, get_id_map())
+        self.assertIsNot(old, new)
+        self.assertEqual(old, json.loads(docs_s)[3])
+        self.assertEqual(new['_id'],
+            'SLNSQE6YLRLBVWFCLNBBFSAKVWXM4GB3S6IMGKVPD4EI6UJR'
         )
-        self.assertEqual(audio['node']['stop'],
-            frame_to_sample(205, Fraction(25, 1), 48000)
+        self.assertNotIn('_rev', new)
+
+        old = json.loads(docs_s)[4]
+        new = migration.migrate_dmedia_file(old, get_id_map())
+        self.assertIsNot(old, new)
+        self.assertEqual(old, json.loads(docs_s)[4])
+        self.assertEqual(new['_id'],
+            'C5NJAVGPS9H8LXRYMYVGB8J6IHIIF8CTTWYOT5G75ELXAEYA',
         )
-        self.assertEqual(audio['node']['start'], 243840)
-        self.assertEqual(audio['node']['stop'], 393600)
-        self.assertNotIn('_rev', audio)
-        schema.check_audio_slice(audio)
-
-        self.assertEqual(video,
-            {
-                '_id': 'JDQPJVFJOEPYR64FRTEULTBB',
-                '_rev': '1-b109ac525743bbdee75fc03476ea7737',
-                'type': 'novacut/node',
-                'time': 1343379567.943,
-                'node': {
-                    'src': 'F6KHESGKSVXCRXH7FEJHLJRP44QRORF7GEMIJM4YPBDSMAMF',
-                    'start': 127,
-                    'stop': 205,
-                    'type': 'video/slice',
-                },
-                'audio': [
-                    {'offset': 0, 'id': audio['_id']},
-                ],
-
-            },
-        )
-        schema.check_video_slice(video)
-
-        # Test when stream=video
-        doc = db.get('JDQPJVFJOEPYR64FRTEULTBB')
-        doc['node']['stream'] = 'video'
-        new = list(migration.migrate_slice(db, doc))
-        self.assertEqual(len(new), 1)
-
-        video = new[0]
-        self.assertEqual(video,
-            {
-                '_id': 'JDQPJVFJOEPYR64FRTEULTBB',
-                '_rev': '1-b109ac525743bbdee75fc03476ea7737',
-                'type': 'novacut/node',
-                'time': 1343379567.943,
-                'node': {
-                    'src': 'F6KHESGKSVXCRXH7FEJHLJRP44QRORF7GEMIJM4YPBDSMAMF',
-                    'start': 127,
-                    'stop': 205,
-                    'type': 'video/slice',
-                },
-                'audio': [],
-            },
-        )
-        schema.check_video_slice(video)
-
-    def test_migrate_sequence(self):
-        self.skipTest('fix')
-        db = Database('foo', self.env)
-        self.assertTrue(db.ensure())
-        docs = json.loads(docs_s)
-        db.save_many(docs)
-
-        doc = db.get('WPKFHBKX2LTHAIAILWAK7PEG')
-        new_docs = list(migration.migrate_sequence(db, doc))
-        self.assertEqual(len(new_docs), 1)
-        new = new_docs[0]
-        self.assertEqual(new,
-            {
-                '_id': 'WPKFHBKX2LTHAIAILWAK7PEG',
-                '_rev': '1-0449c9f5e1bbc672477f6180490a0c54',
-                'type': 'novacut/node',
-                'time': 1342803135.184,
-                'node': {
-                    'type': 'video/sequence',
-                    'src': [
-                        'JDQPJVFJOEPYR64FRTEULTBB',
-                        'GMWUVRRSBZFSD7PD6IKSQXLU',
-                        '7ENE3E3H2XWAETPU4E2SGMQY',
-                        'ZCVOKON745KTKOZTI5JKRMNP',
-                        'H3BN43ZC4OUI42R7K4BSQ67Q',
-                        'ZITFANVLNT36I4PQ54B7XTGI',
-                        'B56KMP2HVW4GHAXKFDYQQ5UD',
-                        '7BR63KHALAAFZNZJPWMUJ77X',
-                        'HYHA764RM4BDVBYPA7SQG4LW',
-                        '6VTAXG6PHUVR7NBLIBT63JCN',
-                        'VJF2TXN4IDEL4FHYWBTOMYPB',
-                    ],
-                },
-                'selected': 'N4ZQGJFX24SQH6OY6JDHXCT2',
-                'audio': [],
-                'doodle': [
-                    {
-                        'id': 'shortcuts',
-                        'x': None,
-                        'y': None
-                    },
-                    {
-                        'id': 'ZZOAZZCEJIZV36SDRNGLNP3J',
-                        'x': 1302,
-                        'y': 408
-                    },
-                    {
-                        'id': 'N4ZQGJFX24SQH6OY6JDHXCT2',
-                        'x': 195,
-                        'y': 230
-                    }
-                ],
-            }
-        )
-        schema.check_video_sequence(new)
-
-    def test_migrate_db(self):
-        self.skipTest('fix')
-        db = Database('foo', self.env)
-        self.assertTrue(db.ensure())
-        docs = json.loads(docs_s)
-        db.save_many(docs)
-
-        new_docs = list(migration.migrate_db(db))
-        self.assertEqual(len(new_docs), 5)
-        counts = {}
-        for doc in new_docs:
-            self.assertEqual(doc['type'], 'novacut/node')
-            self.assertNotIn('ver', doc)
-            self.assertNotIn('session_id', doc)
-            node = doc['node']
-            self.assertIn(node['type'],
-                ['video/sequence', 'video/slice', 'audio/slice']
-            )
-            counts[node['type']] = counts.get(node['type'], 0) + 1
-            if node['type'] == 'video/sequence':
-                self.assertEqual(doc['audio'], [])
-                schema.check_video_sequence(doc)
-            elif node['type'] == 'video/slice':
-                self.assertIsInstance(doc['audio'], list)
-                self.assertEqual(len(doc['audio']), 1)
-                schema.check_video_slice(doc)
-            else:
-                schema.check_audio_slice(doc)
-        self.assertEqual(counts,
-            {
-                'video/sequence': 1,
-                'video/slice': 2,
-                'audio/slice': 2,
-            }
-        )
+        self.assertNotIn('_rev', new)
