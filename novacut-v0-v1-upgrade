@@ -42,6 +42,14 @@ dst.ensure()
 buf = BufferedSave(dst)
 
 
+def get_file_id(old):
+    if old['type'] == 'novacut/node' and old['node']['type'] == 'slice':
+        return old['node']['src']
+    if old['type'] == 'dmedia/file':
+        return old['_id']
+    
+
+
 def migrate_novacut_project(v0_name, v0_id):
     v1_id = migration.b32_to_db32(v0_id)
     v1_name = schema.project_db_name(v1_id)
@@ -61,13 +69,13 @@ def migrate_novacut_project(v0_name, v0_id):
     for _id in ids:
         old = src.get(_id, attachments=True)
         docs.append(old)
-        if old['type'] == 'novacut/node' and old['node']['type'] == 'slice':
-            src_id = old['node']['src']
+        file_id = get_file_id(old)
+        if not (file_id is None or file_id in id_map):
             try:
-                mdoc = mdb.get(src_id)
-                id_map[src_id] = mdoc['v1_id']
+                mdoc = mdb.get(file_id)
+                id_map[file_id] = mdoc['v1_id']
             except NotFound:
-                print('NotFound', src_id)
+                print('NotFound:', file_id)
                 print('Cannot migrate', v1_name)
                 return
 
