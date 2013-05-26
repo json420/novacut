@@ -52,6 +52,8 @@ def migrate_project(old):
     new.pop('ver', None)
     new['_id'] = v1_id
     new['db_name'] = schema.project_db_name(v1_id)
+    if 'root_id' in old:
+        new['root_id'] = b32_to_db32(old['root_id'])
     return new
 
 

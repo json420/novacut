@@ -243,6 +243,32 @@ class TestFunctions(TestCase):
             "type": "novacut/project",
         })
 
+        # With root_id:
+        old = {
+            "_id": "AYDDLRKHDL7YJ5TR6JLCMO3D",
+            "_rev": "11-25500cd9e63b08cd79c220b66982f7d3",
+            "atime": 1366294024.9010231,
+            "db_name": "novacut-0-ayddlrkhdl7yj5tr6jlcmo3d",
+            "isdeleted": True,
+            "time": 1354124043.327159,
+            "title": "Test",
+            "type": "novacut/project",
+            "ver": 0,
+            "root_id": "ZG72S2W24LVOVHQIPGECZSYT"
+        }
+        new = migration.migrate_project(old)
+        self.assertIsNot(old, new)
+        self.assertEqual(new, {
+            "_id": "3R66EKDA6EYRCWMKXCE5FHU6",
+            "atime": 1366294024.9010231,
+            "db_name": "novacut-1-3r66ekda6eyrcwmkxce5fhu6",
+            "isdeleted": True,
+            "time": 1354124043.327159,
+            "title": "Test",
+            "type": "novacut/project",
+            "root_id": "S9YTLTPTVEOHOAJBI975SLRM"
+        })
+
     def test_migrate_sequence(self):
         old = json.loads(docs_s)[0]
         new = migration.migrate_sequence(old)
