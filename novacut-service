@@ -26,7 +26,11 @@ DBus service that exposes the render server.
 """
 
 import time
-start_time = time.time()
+start_time = time.monotonic()
+
+def start_delta():
+    return time.monotonic() - start_time
+
 
 import optparse
 import json
@@ -41,8 +45,9 @@ from collections import namedtuple
 import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
-from gi.repository import GObject
+from gi.repository import GLib
 from microfiber import Database, NotFound
+from dmedia.units import minsec
 
 import novacut
 from novacut import schema
@@ -56,11 +61,11 @@ except ImportError:
 
 BUS = 'com.novacut.Renderer'
 IFACE = BUS
-GObject.threads_init()
+GLib.threads_init()
 DBusGMainLoop(set_as_default=True)
 session = dbus.SessionBus()
-mainloop = GObject.MainLoop()
-log = logging.getLogger()
+mainloop = GLib.MainLoop()
+log = novacut.configure_logging()
 
 
 tree = path.dirname(path.dirname(path.abspath(novacut.__file__)))
@@ -92,20 +97,14 @@ Job = namedtuple('Job', 'key worker args success error')
 
 class Service(dbus.service.Object):
     def __init__(self, bus):
+        super().__init__(busname, object_path='/')
         self._jobs = {}
-        self.bus = bus
-        mainloop = GObject.MainLoop()
-        super(Service, self).__init__(session, object_path='/')
-        self.busname = dbus.service.BusName(bus, session)
 
     def run(self):
+        log.info('Started at monotonic clock time: %s', minsec(int(start_time)))
         self.Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
         self.env = json.loads(self.Dmedia.GetEnv())
         mainloop.run()
-
-    def kill(self):
-        log.info('kill()')
-        mainloop.quit()
 
     def start_job(self, job):
         assert isinstance(job, Job)
@@ -128,10 +127,10 @@ class Service(dbus.service.Object):
         try:
             signal_args = job.worker(*job.args)
             log.info('success executing %r', job.key)
-            GObject.idle_add(self.on_success, job, signal_args)
+            GLib.idle_add(self.on_success, job, signal_args)
         except Exception as e:
             log.exception('error executing job %r', job.key)
-            GObject.idle_add(self.on_error, job, str(e))
+            GLib.idle_add(self.on_error, job, str(e))
 
     def on_success(self, job, signal_args):
         self.remove_job(job)
@@ -181,9 +180,11 @@ class Service(dbus.service.Object):
         """
         Kill the `novacut-service` process.
         """
-        log.info('Kill()')
-        self.kill()
-        return int(time.time() - start_time)
+        log.info('Renderer.Kill()')
+        delta = int(start_delta())
+        log.info('novacut-service was running for %s', minsec(delta))
+        mainloop.quit()
+        return delta
 
     @dbus.service.signal(IFACE, signature='ss')
     def Error(self, domain, error):
@@ -301,14 +302,11 @@ parser.add_option('--bus',
 (options, args) = parser.parse_args()
 
 
-novacut.configure_logging()
-service = Service(options.bus)
 try:
+    busname = dbus.service.BusName(options.bus, session)
+    service = Service(busname)
     service.run()
 except Exception as e:
-    log.exception('Error inside Service.run()')
-    print('Error inside Service.run():')
-    print(e)
-    raise SystemExit(1)
-finally:
-    service.kill()
+    log.exception('Could not start novacut-service!')
+    raise e
+log.info('Clean shutdown!')
