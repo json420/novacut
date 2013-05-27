@@ -23,6 +23,7 @@
 
 import sys
 from copy import deepcopy
+from subprocess import check_call
 
 from microfiber import Server, NotFound, BulkConflict, dumps
 from dmedia.service import get_env
@@ -34,6 +35,9 @@ from novacut import schema, migration, views
 
 log = novacut.configure_logging()
 env = get_env()
+
+print('Calling `dmedia-v0-v1-upgrade`...')
+check_call(['dmedia-v0-v1-upgrade'])
 
 server = Server(env)
 mdb = server.database('migrate-0-to-1')
