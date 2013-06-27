@@ -23,7 +23,7 @@
 `novacut` - the collaborative video editor.
 """
 
-__version__ = '13.06.0'
+__version__ = '13.07.0'
 BUS = 'com.novacut.Renderer'
 
 
