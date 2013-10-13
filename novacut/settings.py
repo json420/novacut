@@ -41,8 +41,9 @@ vp8enc = {
 x264enc = {
     'name': 'x264enc',
     'props': {
-        'pass': 5,  # Quality-based encoding
-        'quantizer': 15,  # Lower means higher-quality, default=21
+        # 'pass': 5,  # High end of quality is still too low
+        # 'quantizer': 10,  # Lower means higher-quality, default=21
+        'bitrate': 8192,
         'psy-tune': 5,  # Tune for SSIM
     },
 }
