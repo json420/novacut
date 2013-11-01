@@ -8,7 +8,6 @@
 body{
     background:#333;
     color:white;
-    overflow:hidden;
 }
 
 video{
@@ -20,6 +19,10 @@ video{
     background: -webkit-linear-gradient(top, rgb(62, 30, 72), rgb(34, 5, 42));
     box-shadow: 0 0 40px rgba(0,0,0,0.55);
     border-bottom:1px solid #222;
+    position: fixed;
+    left: 0px;
+    right: 0px;
+    z-index: 100;
 }
 
 .project {
