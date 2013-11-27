@@ -67,15 +67,14 @@ def ns_to_frame(ns, num, denom):
     return int(round(ns * num / denom / FLOAT_SECOND))
 
 
-
-env = json.loads(Dmedia.GetEnv())
-
-
 (_id, status, filename) = Dmedia.Resolve(_id)
 if status != 0:
     print('not local:', _id)
     sys.exit(0)
 print(filename)
+
+
+env = json.loads(sys.stdin.read())
 
 # Thumbnail DB
 db = Database('thumbnails-1', env)

@@ -104,6 +104,7 @@ class Service(dbus.service.Object):
         log.info('Started at monotonic clock time: %s', minsec(int(start_time)))
         self.Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
         self.env = json.loads(self.Dmedia.GetEnv())
+        self.env_s = json.dumps(self.env).encode('utf-8')
         mainloop.run()
 
     def start_job(self, job):
@@ -164,7 +165,16 @@ class Service(dbus.service.Object):
     def thumbnail(self, file_id, frames):
         cmd = [thumbnailer, file_id]
         cmd.extend(str(f) for f in frames)
-        subprocess.check_call(cmd, timeout=15)
+        p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+        try:
+            p.communicate(input=self.env_s, timeout=20)
+        except subprocess.TimeoutExpired:
+            log.error('Timeout calling %r', cmd)
+            p.kill()
+            p.communicate()
+            raise
+        if p.returncode != 0:
+            raise Exception('returncode %d from %r', p.returncode, cmd)
         return (file_id,)
 
     @dbus.service.method(IFACE, in_signature='', out_signature='s')
