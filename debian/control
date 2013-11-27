@@ -20,6 +20,7 @@ Build-Depends: debhelper (>= 9),
     gstreamer1.0-libav,
     fonts-lato,
     ttf-ubuntu-font-family,
+    dc3 (>= 12.02),
 Standards-Version: 3.9.4
 X-Python3-Version: >= 3.3
 Homepage: https://launchpad.net/novacut
