@@ -5,7 +5,7 @@ function open_project(project_id) {
 }
 
 function countFiles(project_id){
-	var pdb = new couch.Database("novacut-0-" + project_id.toLowerCase());
+	var pdb = new couch.Database("novacut-1-" + project_id.toLowerCase());
 	try{
 	    var filecount = pdb.view_sync('doc', 'type', {key: 'dmedia/file'}).rows[0].value;
 	}
