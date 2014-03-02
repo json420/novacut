@@ -61,7 +61,6 @@ except ImportError:
 
 BUS = 'com.novacut.Renderer'
 IFACE = BUS
-GLib.threads_init()
 DBusGMainLoop(set_as_default=True)
 session = dbus.SessionBus()
 mainloop = GLib.MainLoop()
