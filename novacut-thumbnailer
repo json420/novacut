@@ -35,6 +35,7 @@ import logging
 
 from gi.repository import GLib, Gst
 
+from dmedia.units import bytes10
 from novacut.renderer import make_element
 from novacut.timefuncs import frame_to_nanosecond, nanosecond_to_frame
 
@@ -50,7 +51,7 @@ logging.basicConfig(
     ]),
 )
 log = logging.getLogger()
-COUNT = 10
+COUNT = 30
 
 
 class Thumbnailer:
@@ -59,6 +60,12 @@ class Thumbnailer:
         self.framerate = None
         self.start = 0
         self.stop = 0
+        self.changed = False
+        self.doc = {
+            '_id': filename,
+            '_attachments': {},
+        }
+        self.attachments = self.doc['_attachments']
 
         self.mainloop = GLib.MainLoop()
         self.pipeline = Gst.Pipeline()
@@ -73,8 +80,8 @@ class Thumbnailer:
         self.src = make_element('filesrc', {'location': filename})
         self.dec = make_element('decodebin')
         self.dec.set_property('caps', Gst.caps_from_string('video/x-raw'))
-        self.scale = make_element('videoscale', {'method': 2})
-        self.enc = make_element('jpegenc', {'quality': 95})
+        self.scale = make_element('videoscale')
+        self.enc = make_element('jpegenc', {'idct-method': 2})
         self.sink = make_element('fakesink', {'signal-handoffs': True})
 
         # Signals
@@ -92,7 +99,7 @@ class Thumbnailer:
         # Link elements
         self.src.link(self.dec)
         self.scale.link_filtered(self.enc,
-            Gst.caps_from_string('video/x-raw, width=192, height=108')
+            Gst.caps_from_string('video/x-raw, width=256, pixel-aspect-ratio=(fraction)1/1')
         )
         self.enc.link(self.sink)
 
@@ -109,7 +116,9 @@ class Thumbnailer:
     def next(self):
         while self.frames:
             frame = self.frames.pop(0)
-            if frame >= self.stop:
+            if str(frame) in self.attachments:
+                log.info('next: already have frame %d', frame)
+            else:
                 self.seek_to_frame(frame)
                 return
         self.kill()
@@ -132,9 +141,17 @@ class Thumbnailer:
         frame = nanosecond_to_frame(buf.pts, self.framerate)
         ns = frame_to_nanosecond(frame, self.framerate)
         if buf.pts != ns:
-            log.warning('frame %d buf.pts %d != %d', frame, bufs.pts, ns)
-        data = buf.extract_dup(0, buf.get_size())
-        log.info('handoff frame %d', frame)
+            log.warning('handoff: frame %d buf.pts %d != %d', frame, bufs.pts, ns)
+        key = str(frame)
+        if key in self.attachments:
+            log.info('handoff: already have frame %d', frame)
+        else:
+            log.info('handoff: thumbnailed frame %d', frame)
+            data = buf.extract_dup(0, buf.get_size())
+            self.attachments[key] = {
+                'content_type': 'image/jpeg',
+                'data': b64encode(data).decode(),
+            }
         if frame == (self.stop - 1):
             log.info('done with frames[%d:%d]', self.start, self.stop)
             GLib.idle_add(self.next)
