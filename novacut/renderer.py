@@ -33,7 +33,6 @@ from .timefuncs import video_pts_and_duration, audio_pts_and_duration
 from .mapper import get_framerate
 
 
-GObject.threads_init()
 Gst.init(None)
 log = logging.getLogger()
 log.info('**** Gst.version(): %r', Gst.version())

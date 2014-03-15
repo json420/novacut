@@ -34,13 +34,13 @@ from fractions import Fraction
 import logging
 
 from gi.repository import GLib, Gst
+import dbus
+from microfiber import Database, NotFound
 
-from dmedia.units import bytes10
 from novacut.renderer import make_element
 from novacut.timefuncs import frame_to_nanosecond, nanosecond_to_frame
 
-
-Gst.init(None)
+COUNT = 17
 logging.basicConfig(
     level=logging.DEBUG,
     format='\t'.join([
@@ -51,22 +51,43 @@ logging.basicConfig(
     ]),
 )
 log = logging.getLogger()
-COUNT = 30
+Gst.init(None)
+
+parser = argparse.ArgumentParser()
+parser.add_argument('file_id')
+parser.add_argument('frame', type=int, nargs='+')
+args = parser.parse_args()
+
+
+# Blah blah:
+Dmedia = dbus.SessionBus().get_object('org.freedesktop.Dmedia', '/')
+(_id, status, filename) = Dmedia.Resolve(args.file_id)
+if status != 0:
+    log.error('not local: %s', _id)
+    sys.exit(0)
+print(filename)
+
+# Thumbnail DB:
+env = json.loads(sys.stdin.read())
+db = Database('thumbnails-1', env)
+db.ensure()
 
 
 class Thumbnailer:
-    def __init__(self, filename, frames):
+    def __init__(self, _id, filename, frames):
         self.frames = sorted(set(frames))
         self.framerate = None
         self.start = 0
         self.stop = 0
         self.changed = False
-        self.doc = {
-            '_id': filename,
-            '_attachments': {},
-        }
+        try:
+            self.doc = db.get(_id)
+        except NotFound:
+            self.doc = {
+                '_id': _id,
+                '_attachments': {},
+            }
         self.attachments = self.doc['_attachments']
-
         self.mainloop = GLib.MainLoop()
         self.pipeline = Gst.Pipeline()
 
@@ -99,7 +120,7 @@ class Thumbnailer:
         # Link elements
         self.src.link(self.dec)
         self.scale.link_filtered(self.enc,
-            Gst.caps_from_string('video/x-raw, width=256, pixel-aspect-ratio=(fraction)1/1')
+            Gst.caps_from_string('video/x-raw, width=192, pixel-aspect-ratio=(fraction)1/1')
         )
         self.enc.link(self.sink)
 
@@ -147,6 +168,7 @@ class Thumbnailer:
             log.info('handoff: already have frame %d', frame)
         else:
             log.info('handoff: thumbnailed frame %d', frame)
+            self.changed = True
             data = buf.extract_dup(0, buf.get_size())
             self.attachments[key] = {
                 'content_type': 'image/jpeg',
@@ -173,11 +195,11 @@ class Thumbnailer:
         log.error(msg.parse_error())
         self.kill()
 
-parser = argparse.ArgumentParser(add_help=False)
-parser.add_argument('file')
-parser.add_argument('frame', type=int, nargs='+')
-args = parser.parse_args()
 
-
-thumbnailer = Thumbnailer(args.file, args.frame)
+thumbnailer = Thumbnailer(args.file_id, filename, args.frame)
 thumbnailer.run()
+if thumbnailer.changed:
+    log.info('saving thumbnail changes for %s', args.file_id)
+    db.save(thumbnailer.doc)
+else:
+    log.warning('no thumbnail changes for %s', args.file_id)

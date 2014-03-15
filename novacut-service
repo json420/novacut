@@ -72,7 +72,7 @@ in_tree = path.isfile(path.join(tree, 'setup.py'))
 libdir = (tree if in_tree else '/usr/lib/novacut')
 renderer = path.join(libdir, 'novacut-renderer-py2')
 assert path.isfile(renderer)
-thumbnailer = path.join(libdir, 'novacut-thumbnailer-py2')
+thumbnailer = path.join(libdir, 'novacut-thumbnailer')
 assert path.isfile(thumbnailer)
 
 
@@ -166,7 +166,7 @@ class Service(dbus.service.Object):
         cmd.extend(str(f) for f in frames)
         p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
         try:
-            p.communicate(input=self.env_s, timeout=20)
+            p.communicate(input=self.env_s, timeout=30)
         except subprocess.TimeoutExpired:
             log.error('Timeout calling %r', cmd)
             p.kill()
