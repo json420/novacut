@@ -301,3 +301,65 @@ def audio_slice_to_gnl(offset, start, stop, samplerate):
         'duration': dur2,
     }
 
+
+def video_slice_to_gnl_new(offset, start, stop, framerate):
+    """
+    Map a video slice at global *offset* into gnlurisource properties.
+
+    This version is for the gnonlin 1.0 API.  Note the gnonlin 1.0 API is
+    ambiguous because even when the incoming and outgoing slices are at the same
+    framerate and the duration ratio (in frames) is 1:1, the duration of the
+    incoming and outgoing slices in *nanoseconds* might not be the same because
+    of rounding error (although they will be within one nanosecond of each
+    other).
+
+    We're currently working from the assumption that it's better to have
+    mathematically correct durations on the *outgoing* slices, because that's
+    where rounding error will accumulate.  Although the rounding error will be
+    at most a nanosecond per slice, that still leads to ambiguous scenarios when
+    you consider overlapping outgoing video slices.
+
+    FIXME: as gnonlin 1.0 only exposes one duration, we need to look at the code
+    to clarify whether this is interpreted as the incoming or outgoing duration.
+
+    There are likewise ambiguity problems on the incoming slice, but our hope is
+    the problems on the incoming slice are less severe because at least rounding
+    error can't accumulate there.  But still, when the incoming duration is one
+    nanosecond longer that the "exact" duration (correctly accounting for the
+    offset from zero in the incoming clip)... do you get an extra frame, or not?
+    And if technically you get an extra frame on the incoming slice, what does
+    gnonlin do with this on the outgoing slice?
+
+    Anyway, say at global frame offset 200 you have a slice from frame
+    7 to frame 42:
+
+    >>> video_slice_to_gnl_new(200, 7, 42, Fraction(24, 1)) == {
+    ...     'inpoint': 291666666,
+    ...     'start': 8333333333,
+    ...     'duration': 1458333333,
+    ... }
+    True
+
+    Whereas note that the correctly rounded nanosecond duration on the incoming
+    slice is not ``1458333333``:
+
+    >>> video_pts_and_duration(7, 42, Fraction(24, 1))
+    Timestamp(pts=291666666, duration=1458333334)
+
+    """
+    assert 0 <= start < stop
+
+    # Starting timestamp of the source slice:
+    inpoint = frame_to_nanosecond(start, framerate)
+
+    # Slice duration in frames:
+    frames = stop - start
+
+    # Timestamp and duration of outgoing slice:
+    (pts2, dur2) = video_pts_and_duration(offset, offset + frames, framerate)
+
+    return {
+        'inpoint': inpoint,
+        'start': pts2,
+        'duration': dur2,
+    }
