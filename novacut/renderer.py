@@ -188,8 +188,8 @@ def build_slice(builder, doc, offset=0):
         element.set_property('caps', stream_caps(stream))
 
         # These properties are about the slice itself
-        element.set_property('media-start', start)
-        element.set_property('media-duration', duration)
+        element.set_property('inpoint', start)
+        #element.set_property('media-duration', duration)
 
         # These properties are about the position of the slice in the composition
         element.set_property('start', offset)
@@ -217,8 +217,8 @@ def build_video_slice(builder, doc, offset):
 
     # These properties are about the slice itself
     (pts, duration) = video_pts_and_duration(start, stop, framerate)
-    element.set_property('media-start', pts)
-    element.set_property('media-duration', duration)
+    element.set_property('inpoint', pts)
+    #element.set_property('media-duration', duration)
 
     # These properties are about the position of the slice in the composition
     (pts, duration) = video_pts_and_duration(offset, offset+frames, framerate)
@@ -242,8 +242,8 @@ def build_audio_slice(builder, doc, offset):
 
     # These properties are about the slice itself
     (pts, duration) = audio_pts_and_duration(start, stop, samplerate)
-    element.set_property('media-start', pts)
-    element.set_property('media-duration', duration)
+    element.set_property('inpoint', pts)
+    #element.set_property('media-duration', duration)
 
     # These properties are about the position of the slice in the composition
     (pts, duration) = audio_pts_and_duration(
