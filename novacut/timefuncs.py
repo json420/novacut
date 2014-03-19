@@ -306,12 +306,13 @@ def video_slice_to_gnl_new(offset, start, stop, framerate):
     """
     Map a video slice at global *offset* into gnlurisource properties.
 
-    This version is for the gnonlin 1.0 API.  Note the gnonlin 1.0 API is
-    ambiguous because even when the incoming and outgoing slices are at the same
-    framerate and the duration ratio (in frames) is 1:1, the duration of the
-    incoming and outgoing slices in *nanoseconds* might not be the same because
-    of rounding error (although they will be within one nanosecond of each
-    other).
+    This version is for the gnonlin 1.0 API.
+
+    Note that the gnonlin 1.0 API currently seems somewhat ambiguous because
+    even when the incoming and outgoing slices are at the same framerate and the
+    duration ratio (in frames) is 1:1, the duration of the incoming and outgoing
+    slices in *nanoseconds* might not be the same because of rounding error
+    (although they will be within one nanosecond of each other).
 
     We're currently working from the assumption that it's better to have
     mathematically correct durations on the *outgoing* slices, because that's
@@ -330,8 +331,8 @@ def video_slice_to_gnl_new(offset, start, stop, framerate):
     And if technically you get an extra frame on the incoming slice, what does
     gnonlin do with this on the outgoing slice?
 
-    Anyway, say at global frame offset 200 you have a slice from frame
-    7 to frame 42:
+    Anyway, say at global frame offset 200 you have a slice from frame 7 to
+    frame 42:
 
     >>> video_slice_to_gnl_new(200, 7, 42, Fraction(24, 1)) == {
     ...     'inpoint': 291666666,
