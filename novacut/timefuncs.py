@@ -316,8 +316,8 @@ def video_slice_to_gnl_new(offset, start, stop, framerate):
 
     We're currently working from the assumption that it's better to have
     mathematically correct durations on the *outgoing* slices, because that's
-    where rounding error will accumulate.  Although the rounding error will be
-    at most a nanosecond per slice, that still leads to ambiguous scenarios when
+    where rounding error can accumulate.  Although the rounding error will be at
+    most a nanosecond per slice, that still leads to ambiguous scenarios when
     you consider overlapping outgoing video slices.
 
     FIXME: as gnonlin 1.0 only exposes one duration, we need to look at the code
