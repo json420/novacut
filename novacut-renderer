@@ -25,34 +25,44 @@
 Script to fire-off a render.
 """
 
-import optparse
+import argparse
 import json
 import os
+import logging
 
-# We run at a fairly low priority, so the UI stays responsive:
-os.nice(10)
-
-from gi.repository import GObject
-import dbus
-from dbus.mainloop.glib import DBusGMainLoop
+from microfiber import Database, dumps
+from dmedia.service import get_proxy
 
 import novacut
+from novacut.renderer import Worker
 
 
-GObject.threads_init()
-DBusGMainLoop(set_as_default=True)
-session = dbus.SessionBus()
-
-
-parser = optparse.OptionParser(
-	version=novacut.__version__,
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='\t'.join([
+        '%(levelname)s',
+        '%(processName)s',
+        '%(threadName)s',
+        '%(message)s',
+    ]),
 )
-(options, args) = parser.parse_args()
-job_id = args[0]
+log = logging.getLogger()
 
-novacut.configure_logging()
 
-from novacut.worker import Worker
-worker = Worker()
-d = worker.run(job_id)
-print(json.dumps(d, sort_keys=True, indent=4))
+# We render at a fairly low priority, so the UI stays responsive:
+os.nice(10)
+
+parser = argparse.ArgumentParser()
+parser.add_argument('job_id')
+parser.add_argument('--version', action='version',
+    version=novacut.__version__,
+)
+args = parser.parse_args()
+
+
+Dmedia = get_proxy()
+env = json.loads(Dmedia.GetEnv())
+worker = Worker(Dmedia, env)
+result = worker.run(args.job_id)
+
+print(dumps(result, pretty=True))
