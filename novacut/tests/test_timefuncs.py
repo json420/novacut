@@ -248,10 +248,10 @@ class TestFunctions(TestCase):
             accum += g_dur
             offset += samples
             
-    def test_video_slice_to_gnl(self):
+    def test_video_slice_to_gnl_old(self):
         framerate = Fraction(30000, 1001)
         self.assertEqual(
-            timefuncs.video_slice_to_gnl(0, 0, 1, framerate),
+            timefuncs.video_slice_to_gnl_old(0, 0, 1, framerate),
             {
                 'media-start': 0,
                 'media-duration': 33366666,
@@ -260,7 +260,7 @@ class TestFunctions(TestCase):
             }
         )
         self.assertEqual(
-            timefuncs.video_slice_to_gnl(0, 1, 2, framerate),
+            timefuncs.video_slice_to_gnl_old(0, 1, 2, framerate),
             {
                 'media-start': 33366666,
                 'media-duration': 33366667,
@@ -269,7 +269,7 @@ class TestFunctions(TestCase):
             }
         )
         self.assertEqual(
-            timefuncs.video_slice_to_gnl(1, 0, 1, framerate),
+            timefuncs.video_slice_to_gnl_old(1, 0, 1, framerate),
             {
                 'media-start': 0,
                 'media-duration': 33366666,
@@ -291,7 +291,7 @@ class TestFunctions(TestCase):
                     offset, offset + frames, framerate
                 )
                 self.assertEqual(
-                    timefuncs.video_slice_to_gnl(offset, start, stop, framerate),
+                    timefuncs.video_slice_to_gnl_old(offset, start, stop, framerate),
                     {
                         'media-start': pts1,
                         'media-duration': dur1,
@@ -315,7 +315,7 @@ class TestFunctions(TestCase):
                 offset, offset + frames, framerate
             )
             self.assertEqual(
-                timefuncs.video_slice_to_gnl(offset, start, stop, framerate),
+                timefuncs.video_slice_to_gnl_old(offset, start, stop, framerate),
                 {
                     'media-start': pts1,
                     'media-duration': dur1,

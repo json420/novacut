@@ -34,7 +34,7 @@ gi.require_version('Gst', '1.0')
 from gi.repository import GLib, Gst
 
 from .timefuncs import video_pts_and_duration, audio_pts_and_duration
-from .timefuncs import video_slice_to_gnl_new
+from .timefuncs import video_slice_to_gnl
 from .mapper import get_framerate
 
 

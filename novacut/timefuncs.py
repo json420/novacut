@@ -234,14 +234,14 @@ def audio_pts_and_duration(start, stop, samplerate):
     return Timestamp(pts, duration)
 
 
-def video_slice_to_gnl(offset, start, stop, framerate):
+def video_slice_to_gnl_old(offset, start, stop, framerate):
     """
     Map a video slice at global *offset* into gnlurisource properties.
 
     For example, say at global frame offset 200 you have a slice from frame
     7 to frame 42:
 
-    >>> video_slice_to_gnl(200, 7, 42, Fraction(24, 1)) == {
+    >>> video_slice_to_gnl_old(200, 7, 42, Fraction(24, 1)) == {
     ...     'media-start': 291666666,
     ...     'media-duration': 1458333334,
     ...     'start': 8333333333,
@@ -304,7 +304,7 @@ def audio_slice_to_gnl_old(offset, start, stop, samplerate):
     }
 
 
-def video_slice_to_gnl_new(offset, start, stop, framerate):
+def video_slice_to_gnl(offset, start, stop, framerate):
     """
     Map a video slice at global *offset* into gnlurisource properties.
 
@@ -336,7 +336,7 @@ def video_slice_to_gnl_new(offset, start, stop, framerate):
     Anyway, say at global frame offset 200 you have a slice from frame 7 to
     frame 42:
 
-    >>> video_slice_to_gnl_new(200, 7, 42, Fraction(24, 1)) == {
+    >>> video_slice_to_gnl(200, 7, 42, Fraction(24, 1)) == {
     ...     'inpoint': 291666666,
     ...     'start': 8333333333,
     ...     'duration': 1458333333,
