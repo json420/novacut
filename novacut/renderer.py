@@ -359,6 +359,7 @@ class Builder2:
     def get_video(self):
         if self.video is None:
             self.video = make_element('gnlcomposition')
+            self.video.set_property('caps', Gst.caps_from_string('video/x-raw'))
         return self.video
 
     def build(self, src_id, offset):
@@ -378,7 +379,7 @@ class Builder2:
         src = self.get_doc(doc['node']['src'])
         log.info('video slice %s: %s[%d:%d]', doc['_id'], src['_id'], start, stop)
         framerate = get_framerate(src)
-        props = video_slice_to_gnl_new(offset, start, stop, framerate)
+        props = video_slice_to_gnl(offset, start, stop, framerate)
         element = make_element('gnlurisource', props)
         element.set_property('caps', Gst.caps_from_string('video/x-raw'))
         element.set_property('uri', self.resolve_file(src['_id']))

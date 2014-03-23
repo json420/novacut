@@ -35,17 +35,6 @@ from novacut.timefuncs import audio_pts_and_duration, video_pts_and_duration
 from novacut import renderer
 
 
-def missing_gnl():
-    return (Gst.ElementFactory.make('gnlurisource', None) is None)
-
-
-class GnlTestCase(TestCase):
-    def setUp(self):
-        if missing_gnl():
-            self.skipTest('gnonlin not available')
-
-
-
 clip1 = random_id()
 clip2 = random_id()
 slice1 = random_id()
@@ -314,7 +303,7 @@ class TestFunctions(TestCase):
         )
 
 
-class TestGnlFunctions(GnlTestCase):
+class TestGnlFunctions(TestCase):
     def test_build_sequence(self):
         b = DummyBuilder(docs)
         self.assertEqual(
@@ -609,7 +598,7 @@ class TestGnlFunctions(GnlTestCase):
                 self.assertLessEqual(abs(dur1 - dur2), 1)
 
 
-class TestBuilder(GnlTestCase):
+class TestBuilder(TestCase):
 
     def test_init(self):
         builder = renderer.Builder()
@@ -829,7 +818,7 @@ class TestVideoEncoder(TestCase):
         )
 
 
-class TestRenderer(GnlTestCase):
+class TestRenderer(TestCase):
     def test_init(self):
         tmp = TempDir()
         builder = DummyBuilder(docs)
