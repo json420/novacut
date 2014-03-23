@@ -268,14 +268,16 @@ def video_slice_to_gnl(offset, start, stop, framerate):
     }
 
 
-def audio_slice_to_gnl(offset, start, stop, samplerate):
+def audio_slice_to_gnl_old(offset, start, stop, samplerate):
     """
     Map an audio slice at global *offset* into gnlurisource properties.
+
+    The is the old function for gnonlin 0.10 semantics.
 
     For example, say at global sample offset 2000 you have a slice from
     sample 30,000 to sample 90,000:
 
-    >>> audio_slice_to_gnl(2000, 30000, 90000, 48000) == {
+    >>> audio_slice_to_gnl_old(2000, 30000, 90000, 48000) == {
     ...     'media-start': 625000000,
     ...     'media-duration': 1250000000,
     ...     'start': 41666666,

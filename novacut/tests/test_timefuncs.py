@@ -328,10 +328,10 @@ class TestFunctions(TestCase):
             offset += frames
             accum += dur2
 
-    def test_audio_slice_to_gnl(self):
+    def test_audio_slice_to_gnl_old(self):
         samplerate = 44100
         self.assertEqual(
-            timefuncs.audio_slice_to_gnl(0, 0, 1, samplerate),
+            timefuncs.audio_slice_to_gnl_old(0, 0, 1, samplerate),
             {
                 'media-start': 0,
                 'media-duration': 22675,
@@ -340,7 +340,7 @@ class TestFunctions(TestCase):
             }
         )
         self.assertEqual(
-            timefuncs.audio_slice_to_gnl(0, 1, 2, samplerate),
+            timefuncs.audio_slice_to_gnl_old(0, 1, 2, samplerate),
             {
                 'media-start': 22675,
                 'media-duration': 22676,
@@ -349,7 +349,7 @@ class TestFunctions(TestCase):
             }
         )
         self.assertEqual(
-            timefuncs.audio_slice_to_gnl(1, 0, 1, samplerate),
+            timefuncs.audio_slice_to_gnl_old(1, 0, 1, samplerate),
             {
                 'media-start': 0,
                 'media-duration': 22675,
@@ -371,7 +371,7 @@ class TestFunctions(TestCase):
                     offset, offset + samples, samplerate
                 )
                 self.assertEqual(
-                    timefuncs.audio_slice_to_gnl(offset, start, stop, samplerate),
+                    timefuncs.audio_slice_to_gnl_old(offset, start, stop, samplerate),
                     {
                         'media-start': pts1,
                         'media-duration': dur1,
@@ -395,7 +395,7 @@ class TestFunctions(TestCase):
                 offset, offset + samples, samplerate
             )
             self.assertEqual(
-                timefuncs.audio_slice_to_gnl(offset, start, stop, samplerate),
+                timefuncs.audio_slice_to_gnl_old(offset, start, stop, samplerate),
                 {
                     'media-start': pts1,
                     'media-duration': dur1,
