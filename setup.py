@@ -26,8 +26,8 @@ Install `novacut`.
 """
 
 import sys
-if sys.version_info < (3, 3):
-    sys.exit('Novacut requires Python 3.3 or newer')
+if sys.version_info < (3, 4):
+    sys.exit('Novacut requires Python 3.4 or newer')
 
 import os
 from os import path
@@ -147,7 +147,7 @@ setup(
             ['data/novacut.svg']
         ),
         ('lib/novacut',
-            ['novacut-service', 'novacut-thumbnailer-py2', 'novacut-renderer-py2'],
+            ['novacut-service', 'novacut-thumbnailer', 'novacut-renderer'],
         ),
         ('share/dbus-1/services/',
             ['data/com.novacut.Renderer.service']
