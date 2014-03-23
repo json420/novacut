@@ -25,6 +25,7 @@ Build GnonLin composition from Novacut edit description.
 
 from datetime import datetime
 import logging
+import os
 from os import path
 
 from microfiber import Database, dumps
@@ -575,15 +576,17 @@ class Worker:
 
         obj = self.Dmedia.HashAndMove(dst, 'render')
         _id = obj['file_id']
-        doc = self.dmedia.get(_id)
+        doc = self.dmedia_db.get(_id)
         doc['render_of'] = job_id
 
         # Create the symlink
         ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         if settings['node'].get('ext'):
             ts += '.' + settings['node']['ext']
+
+        home = path.abspath(os.environ['HOME'])
         name = path.join('Novacut', ts)
-        link = path.join(HOME, name)
+        link = path.join(home, name)
         d = path.dirname(link)
         if not path.isdir(d):
             os.mkdir(d)
@@ -591,13 +594,13 @@ class Worker:
         os.symlink(target, link)
         doc['link'] = name
 
-        self.dmedia.save(doc)
+        self.dmedia_db.save(doc)
         job['renders'][_id] = {
             'bytes': doc['bytes'],
             'time': doc['time'],
             'link': name,
         }
-        self.novacut.save(job)
-        
+        self.novacut_db.save(job)
+
         obj['link'] = name
         return obj

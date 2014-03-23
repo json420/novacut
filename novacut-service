@@ -64,7 +64,17 @@ IFACE = BUS
 DBusGMainLoop(set_as_default=True)
 session = dbus.SessionBus()
 mainloop = GLib.MainLoop()
-log = novacut.configure_logging()
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='\t'.join([
+        '%(levelname)s',
+        '%(processName)s',
+        '%(threadName)s',
+        '%(message)s',
+    ]),
+)
+log = logging.getLogger()
 
 
 tree = path.dirname(path.dirname(path.abspath(novacut.__file__)))
