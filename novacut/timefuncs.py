@@ -234,14 +234,14 @@ def audio_pts_and_duration(start, stop, samplerate):
     return Timestamp(pts, duration)
 
 
-def video_slice_to_gnl(offset, start, stop, framerate):
+def video_slice_to_gnl_old(offset, start, stop, framerate):
     """
     Map a video slice at global *offset* into gnlurisource properties.
 
     For example, say at global frame offset 200 you have a slice from frame
     7 to frame 42:
 
-    >>> video_slice_to_gnl(200, 7, 42, Fraction(24, 1)) == {
+    >>> video_slice_to_gnl_old(200, 7, 42, Fraction(24, 1)) == {
     ...     'media-start': 291666666,
     ...     'media-duration': 1458333334,
     ...     'start': 8333333333,
@@ -268,14 +268,16 @@ def video_slice_to_gnl(offset, start, stop, framerate):
     }
 
 
-def audio_slice_to_gnl(offset, start, stop, samplerate):
+def audio_slice_to_gnl_old(offset, start, stop, samplerate):
     """
     Map an audio slice at global *offset* into gnlurisource properties.
+
+    The is the old function for gnonlin 0.10 semantics.
 
     For example, say at global sample offset 2000 you have a slice from
     sample 30,000 to sample 90,000:
 
-    >>> audio_slice_to_gnl(2000, 30000, 90000, 48000) == {
+    >>> audio_slice_to_gnl_old(2000, 30000, 90000, 48000) == {
     ...     'media-start': 625000000,
     ...     'media-duration': 1250000000,
     ...     'start': 41666666,
@@ -301,3 +303,49 @@ def audio_slice_to_gnl(offset, start, stop, samplerate):
         'duration': dur2,
     }
 
+
+def video_slice_to_gnl(offset, start, stop, framerate):
+    """
+    Map a video slice at global *offset* into gnlurisource properties.
+
+    This version is for the gnonlin 1.0 API.
+
+    Note that the gnonlin 1.0 API currently seems somewhat ambiguous because
+    even when the incoming and outgoing slices are at the same framerate and the
+    duration ratio (in frames) is 1:1, the duration of the incoming and outgoing
+    slices in *nanoseconds* might not be the same because of rounding error
+    (although they will be within one nanosecond of each other).
+
+    For example, say at global frame offset 200 you have a slice from frame 7 to
+    frame 42:
+
+    >>> video_slice_to_gnl(200, 7, 42, Fraction(24, 1)) == {
+    ...     'inpoint': 291666666,
+    ...     'start': 8333333333,
+    ...     'duration': 1458333333,
+    ... }
+    True
+
+    Whereas note that the correctly rounded nanosecond duration on the incoming
+    slice is not ``1458333333``:
+
+    >>> video_pts_and_duration(7, 42, Fraction(24, 1))
+    Timestamp(pts=291666666, duration=1458333334)
+
+    """
+    assert 0 <= start < stop
+
+    # Starting timestamp of the source slice:
+    inpoint = frame_to_nanosecond(start, framerate)
+
+    # Slice duration in frames:
+    frames = stop - start
+
+    # Timestamp and duration of outgoing slice:
+    (pts2, dur2) = video_pts_and_duration(offset, offset + frames, framerate)
+
+    return {
+        'inpoint': inpoint,
+        'start': pts2,
+        'duration': dur2,
+    }

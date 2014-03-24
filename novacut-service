@@ -64,15 +64,25 @@ IFACE = BUS
 DBusGMainLoop(set_as_default=True)
 session = dbus.SessionBus()
 mainloop = GLib.MainLoop()
-log = novacut.configure_logging()
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='\t'.join([
+        '%(levelname)s',
+        '%(processName)s',
+        '%(threadName)s',
+        '%(message)s',
+    ]),
+)
+log = logging.getLogger()
 
 
 tree = path.dirname(path.dirname(path.abspath(novacut.__file__)))
 in_tree = path.isfile(path.join(tree, 'setup.py'))
 libdir = (tree if in_tree else '/usr/lib/novacut')
-renderer = path.join(libdir, 'novacut-renderer-py2')
+renderer = path.join(libdir, 'novacut-renderer')
 assert path.isfile(renderer)
-thumbnailer = path.join(libdir, 'novacut-thumbnailer-py2')
+thumbnailer = path.join(libdir, 'novacut-thumbnailer')
 assert path.isfile(thumbnailer)
 
 
@@ -166,7 +176,7 @@ class Service(dbus.service.Object):
         cmd.extend(str(f) for f in frames)
         p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
         try:
-            p.communicate(input=self.env_s, timeout=20)
+            p.communicate(input=self.env_s, timeout=30)
         except subprocess.TimeoutExpired:
             log.error('Timeout calling %r', cmd)
             p.kill()

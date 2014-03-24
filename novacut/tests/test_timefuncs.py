@@ -248,10 +248,10 @@ class TestFunctions(TestCase):
             accum += g_dur
             offset += samples
             
-    def test_video_slice_to_gnl(self):
+    def test_video_slice_to_gnl_old(self):
         framerate = Fraction(30000, 1001)
         self.assertEqual(
-            timefuncs.video_slice_to_gnl(0, 0, 1, framerate),
+            timefuncs.video_slice_to_gnl_old(0, 0, 1, framerate),
             {
                 'media-start': 0,
                 'media-duration': 33366666,
@@ -260,7 +260,7 @@ class TestFunctions(TestCase):
             }
         )
         self.assertEqual(
-            timefuncs.video_slice_to_gnl(0, 1, 2, framerate),
+            timefuncs.video_slice_to_gnl_old(0, 1, 2, framerate),
             {
                 'media-start': 33366666,
                 'media-duration': 33366667,
@@ -269,7 +269,7 @@ class TestFunctions(TestCase):
             }
         )
         self.assertEqual(
-            timefuncs.video_slice_to_gnl(1, 0, 1, framerate),
+            timefuncs.video_slice_to_gnl_old(1, 0, 1, framerate),
             {
                 'media-start': 0,
                 'media-duration': 33366666,
@@ -291,7 +291,7 @@ class TestFunctions(TestCase):
                     offset, offset + frames, framerate
                 )
                 self.assertEqual(
-                    timefuncs.video_slice_to_gnl(offset, start, stop, framerate),
+                    timefuncs.video_slice_to_gnl_old(offset, start, stop, framerate),
                     {
                         'media-start': pts1,
                         'media-duration': dur1,
@@ -315,7 +315,7 @@ class TestFunctions(TestCase):
                 offset, offset + frames, framerate
             )
             self.assertEqual(
-                timefuncs.video_slice_to_gnl(offset, start, stop, framerate),
+                timefuncs.video_slice_to_gnl_old(offset, start, stop, framerate),
                 {
                     'media-start': pts1,
                     'media-duration': dur1,
@@ -328,10 +328,10 @@ class TestFunctions(TestCase):
             offset += frames
             accum += dur2
 
-    def test_audio_slice_to_gnl(self):
+    def test_audio_slice_to_gnl_old(self):
         samplerate = 44100
         self.assertEqual(
-            timefuncs.audio_slice_to_gnl(0, 0, 1, samplerate),
+            timefuncs.audio_slice_to_gnl_old(0, 0, 1, samplerate),
             {
                 'media-start': 0,
                 'media-duration': 22675,
@@ -340,7 +340,7 @@ class TestFunctions(TestCase):
             }
         )
         self.assertEqual(
-            timefuncs.audio_slice_to_gnl(0, 1, 2, samplerate),
+            timefuncs.audio_slice_to_gnl_old(0, 1, 2, samplerate),
             {
                 'media-start': 22675,
                 'media-duration': 22676,
@@ -349,7 +349,7 @@ class TestFunctions(TestCase):
             }
         )
         self.assertEqual(
-            timefuncs.audio_slice_to_gnl(1, 0, 1, samplerate),
+            timefuncs.audio_slice_to_gnl_old(1, 0, 1, samplerate),
             {
                 'media-start': 0,
                 'media-duration': 22675,
@@ -371,7 +371,7 @@ class TestFunctions(TestCase):
                     offset, offset + samples, samplerate
                 )
                 self.assertEqual(
-                    timefuncs.audio_slice_to_gnl(offset, start, stop, samplerate),
+                    timefuncs.audio_slice_to_gnl_old(offset, start, stop, samplerate),
                     {
                         'media-start': pts1,
                         'media-duration': dur1,
@@ -395,7 +395,7 @@ class TestFunctions(TestCase):
                 offset, offset + samples, samplerate
             )
             self.assertEqual(
-                timefuncs.audio_slice_to_gnl(offset, start, stop, samplerate),
+                timefuncs.audio_slice_to_gnl_old(offset, start, stop, samplerate),
                 {
                     'media-start': pts1,
                     'media-duration': dur1,
@@ -408,3 +408,77 @@ class TestFunctions(TestCase):
             offset += samples
             accum += dur2
 
+    def test_video_slice_to_gnl(self):
+        framerate = Fraction(30000, 1001)
+        self.assertEqual(
+            timefuncs.video_slice_to_gnl(0, 0, 1, framerate),
+            {
+                'inpoint': 0,
+                'start': 0,
+                'duration': 33366666,   
+            }
+        )
+        self.assertEqual(
+            timefuncs.video_slice_to_gnl(0, 1, 2, framerate),
+            {
+                'inpoint': 33366666,
+                'start': 0,
+                'duration': 33366666,   
+            }
+        )
+        self.assertEqual(
+            timefuncs.video_slice_to_gnl(1, 0, 1, framerate),
+            {
+                'inpoint': 0,
+                'start': 33366666,
+                'duration': 33366667,   
+            }
+        )
+
+        # Test random slices at different offsets:
+        for i in range(10):
+            (start, stop) = random_slice(30 * 120)
+            frames = stop - start
+            self.assertGreaterEqual(frames, 1)
+            for offset in range(1000):
+                (pts1, dur1) = timefuncs.video_pts_and_duration(
+                    start, stop, framerate
+                )
+                (pts2, dur2) = timefuncs.video_pts_and_duration(
+                    offset, offset + frames, framerate
+                )
+                self.assertEqual(
+                    timefuncs.video_slice_to_gnl(offset, start, stop, framerate),
+                    {
+                        'inpoint': pts1,
+                        'start': pts2,
+                        'duration': dur2,   
+                    }
+                )
+                self.assertLessEqual(abs(dur1 - dur2), 1)
+
+        # Test accumulating random slices (as if in a sequence):
+        offset = 0
+        accum = 0
+        for i in range(1000):
+            (start, stop) = random_slice(30 * 120)
+            frames = stop - start
+            self.assertGreaterEqual(frames, 1)
+            (pts1, dur1) = timefuncs.video_pts_and_duration(
+                start, stop, framerate
+            )
+            (pts2, dur2) = timefuncs.video_pts_and_duration(
+                offset, offset + frames, framerate
+            )
+            self.assertEqual(
+                timefuncs.video_slice_to_gnl(offset, start, stop, framerate),
+                {
+                    'inpoint': pts1,
+                    'start': pts2,
+                    'duration': dur2,   
+                }
+            )
+            self.assertLessEqual(abs(dur1 - dur2), 1)
+            self.assertEqual(pts2, accum)
+            offset += frames
+            accum += dur2

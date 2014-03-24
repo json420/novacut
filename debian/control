@@ -3,7 +3,7 @@ Section: python
 Priority: optional
 Maintainer: Jason Gerard DeRose <jderose@novacut.com>
 Build-Depends: debhelper (>= 9),
-    python3-all (>= 3.3),
+    python3-all (>= 3.4~rc1),
     python3-dbase32 (>= 0.9),
     python3-usercouch (>= 13.12),
     python3-microfiber (>= 13.12),
@@ -15,14 +15,14 @@ Build-Depends: debhelper (>= 9),
     gir1.2-notify-0.7,
     gir1.2-gstreamer-1.0,
     gir1.2-gst-plugins-base-1.0,
+    gstreamer1.0-gnonlin,
     gstreamer1.0-plugins-good,
     gstreamer1.0-plugins-ugly,
     gstreamer1.0-libav,
     fonts-lato,
     ttf-ubuntu-font-family,
-    dc3 (>= 12.02),
 Standards-Version: 3.9.4
-X-Python3-Version: >= 3.3
+X-Python3-Version: >= 3.4
 Homepage: https://launchpad.net/novacut
 
 Package: novacut
@@ -39,17 +39,11 @@ Depends: ${python3:Depends}, ${misc:Depends},
     gir1.2-notify-0.7,
     gir1.2-gstreamer-1.0,
     gir1.2-gst-plugins-base-1.0,
+    gstreamer1.0-gnonlin,
     gstreamer1.0-plugins-good,
     gstreamer1.0-plugins-ugly,
     gstreamer1.0-libav,
     fonts-lato,
     ttf-ubuntu-font-family,
-    dc3 (>= 12.02),
-    python-gst0.10,
-    python-dbus,
-    gstreamer0.10-plugins-good,
-    gstreamer0.10-plugins-ugly,
-    gstreamer0.10-ffmpeg,
-    gstreamer0.10-gnonlin,
 Description: Collaborative editor for professional TV and movie production.
  FIXME.

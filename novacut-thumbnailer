@@ -29,77 +29,57 @@ import sys
 from os import path
 import json
 from base64 import b64encode
-import optparse
+import argparse
 from fractions import Fraction
+import logging
 
-
-parser = optparse.OptionParser(
-    usage='%prog FILE_ID [FRAME1...]',
-)
-(options, args) = parser.parse_args()
-
-
-if not args:
-    print('takes at least 1 argument FILE_ID')
-    sys.exit(1)
-_id = args[0]
-
-if len(args) == 1:
-    frames = [0]
-else:
-    frames = [int(f) for f in args[1:]]
-
-
+from gi.repository import GLib, Gst
 import dbus
-import gi
-gi.require_version('Gst', '1.0')
-from gi.repository import GObject, Gst
 from microfiber import Database, NotFound
 
 from novacut.renderer import make_element
 from novacut.timefuncs import frame_to_nanosecond, nanosecond_to_frame
 
-
-GObject.threads_init()
+COUNT = 17
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='\t'.join([
+        '%(levelname)s',
+        '%(processName)s',
+        '%(threadName)s',
+        '%(message)s',
+    ]),
+)
+log = logging.getLogger()
 Gst.init(None)
-session = dbus.SessionBus()
-Dmedia = session.get_object('org.freedesktop.Dmedia', '/')
+
+parser = argparse.ArgumentParser()
+parser.add_argument('file_id')
+parser.add_argument('frame', type=int, nargs='+')
+args = parser.parse_args()
 
 
-KEYFRAME = 15
-
-
-
-def get_filename(doc):
-    if doc.get('proxies'):
-        for _id in doc['proxies']:
-            try:
-                return Dmedia.Resolve(_id)
-            except Exception:
-                pass
-    return Dmedia.Resolve(doc['_id']) 
-
-
-env = json.loads(Dmedia.GetEnv())
-
-
-# See if file is available locally, preferring proxy files:
-dmedia_0 = Database('dmedia-0', env)
-doc = dmedia_0.get(_id)
-try:
-    filename = get_filename(doc)
-except Exception:
-    print('not local:', _id)
+# Blah blah:
+Dmedia = dbus.SessionBus().get_object('org.freedesktop.Dmedia', '/')
+(_id, status, filename) = Dmedia.Resolve(args.file_id)
+if status != 0:
+    log.error('not local: %s', _id)
     sys.exit(0)
 print(filename)
 
-# Thumbnail DB
-db = Database('thumbnails', env)
+# Thumbnail DB:
+env = json.loads(sys.stdin.read())
+db = Database('thumbnails-1', env)
 db.ensure()
 
 
-class Thumbnailer(object):
-    def __init__(self, _id, frames, filename):
+class Thumbnailer:
+    def __init__(self, _id, filename, frames):
+        self.frames = sorted(set(frames))
+        self.framerate = None
+        self.start = 0
+        self.stop = 0
+        self.changed = False
         try:
             self.doc = db.get(_id)
         except NotFound:
@@ -107,18 +87,8 @@ class Thumbnailer(object):
                 '_id': _id,
                 '_attachments': {},
             }
-            db.save(self.doc)
-        if '_attachments' not in self.doc:
-            self.doc['_attachments'] = {}
         self.attachments = self.doc['_attachments']
-        self.changed = False
-
-        self.count = 0
-        self.i = 0
-        self.frames = sorted(set(frames))
-        self.framerate = None
-
-        self.mainloop = GObject.MainLoop()
+        self.mainloop = GLib.MainLoop()
         self.pipeline = Gst.Pipeline()
 
         # Create bus and connect several handlers
@@ -130,8 +100,9 @@ class Thumbnailer(object):
         # Create elements
         self.src = make_element('filesrc', {'location': filename})
         self.dec = make_element('decodebin')
-        self.scale = make_element('videoscale', {'method': 3})
-        self.enc = make_element('jpegenc', {'quality': 95})
+        self.dec.set_property('caps', Gst.caps_from_string('video/x-raw'))
+        self.scale = make_element('videoscale')
+        self.enc = make_element('jpegenc', {'idct-method': 2})
         self.sink = make_element('fakesink', {'signal-handoffs': True})
 
         # Signals
@@ -149,13 +120,14 @@ class Thumbnailer(object):
         # Link elements
         self.src.link(self.dec)
         self.scale.link_filtered(self.enc,
-            Gst.caps_from_string('video/x-raw, width=192, height=108')
+            Gst.caps_from_string('video/x-raw, width=192, pixel-aspect-ratio=(fraction)1/1')
         )
         self.enc.link(self.sink)
 
     def seek_to_frame(self, frame):
-        print('seek_to_frame', self.frame)
-        self.count = 0
+        log.info('seeking to frame %d', frame)
+        self.start = frame
+        self.stop = frame + COUNT
         self.pipeline.seek_simple(
             Gst.Format.TIME,
             Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
@@ -163,77 +135,71 @@ class Thumbnailer(object):
         )
 
     def next(self):
-        print('next')
-        while True:
-            if self.i >= len(self.frames):
-                GObject.idle_add(self.kill)
-                return
-            self.frame = self.frames[self.i]
-            self.i += 1
-            if str(self.frame) in self.attachments:
-                print('already have frame', self.frame)
-                continue
+        while self.frames:
+            frame = self.frames.pop(0)
+            if str(frame) in self.attachments:
+                log.info('next: already have frame %d', frame)
             else:
-                self.seek_to_frame(self.frame)
+                self.seek_to_frame(frame)
                 return
+        self.kill()
 
     def on_pad_added(self, element, pad):
         caps = pad.query_caps(None)
         string = caps.to_string()
-        print('on_pad_added', string)
+        log.info('on_pad_added %s', string)
         if string.startswith('video/'):
             (num, denom) = caps.get_structure(0).get_fraction('framerate')[1:3]
             self.framerate = Fraction(num, denom)
-            print('framerate', self.framerate)
+            log.info('framerate: %r', self.framerate)
             pad.link(self.scale.get_static_pad('sink'))
 
     def on_no_more_pads(self, element):
-        print('on_no_more_pads')
-        GObject.idle_add(self.next)
+        log.info('on_no_more_pads')
+        GLib.idle_add(self.next)
 
     def on_handoff(self, element, buf, pad):
         frame = nanosecond_to_frame(buf.pts, self.framerate)
-        print('handoff', frame)
+        ns = frame_to_nanosecond(frame, self.framerate)
+        if buf.pts != ns:
+            log.warning('handoff: frame %d buf.pts %d != %d', frame, bufs.pts, ns)
         key = str(frame)
-        if key not in self.attachments:
+        if key in self.attachments:
+            log.info('handoff: already have frame %d', frame)
+        else:
+            log.info('handoff: thumbnailed frame %d', frame)
             self.changed = True
-            map_info = buf.map_range(0, -1, Gst.MapFlags.READ)[1]
-            data = map_info.to_bytes().unref_to_array()
+            data = buf.extract_dup(0, buf.get_size())
             self.attachments[key] = {
                 'content_type': 'image/jpeg',
-                'data': b64encode(data).decode('ascii'),
+                'data': b64encode(data).decode(),
             }
-        else:
-            print('got buffer for frame we arleady have', frame)
-        self.count += 1
-        if frame >= self.frame and self.count >= KEYFRAME:
-            print('done', self.count, frame)
-            GObject.idle_add(self.next)
+        if frame == (self.stop - 1):
+            log.info('done with frames[%d:%d]', self.start, self.stop)
+            GLib.idle_add(self.next)
 
     def run(self):
         self.pipeline.set_state(Gst.State.PLAYING)
         self.mainloop.run()
 
     def kill(self):
-        print('kill')
+        log.info('kill')
         self.pipeline.set_state(Gst.State.NULL)
         self.mainloop.quit()
 
     def on_eos(self, bus, msg):
-        print('eos')
+        log.info('eos')
         self.kill()
 
     def on_error(self, bus, msg):
-        print('on_error():', msg.parse_error())
+        log.error(msg.parse_error())
         self.kill()
 
-thumbnailer = Thumbnailer(_id, frames, filename)
+
+thumbnailer = Thumbnailer(args.file_id, filename, args.frame)
 thumbnailer.run()
 if thumbnailer.changed:
-    print('saving changes')
+    log.info('saving thumbnail changes for %s', args.file_id)
     db.save(thumbnailer.doc)
 else:
-    print('no changes to save')
-
-
-
+    log.warning('no thumbnail changes for %s', args.file_id)

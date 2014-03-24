@@ -23,17 +23,21 @@
 Build GnonLin composition from Novacut edit description.
 """
 
+from datetime import datetime
 import logging
+import os
+from os import path
 
+from microfiber import Database, dumps
 import gi
 gi.require_version('Gst', '1.0')
-from gi.repository import GObject, Gst
+from gi.repository import GLib, Gst
 
 from .timefuncs import video_pts_and_duration, audio_pts_and_duration
+from .timefuncs import video_slice_to_gnl
 from .mapper import get_framerate
 
 
-GObject.threads_init()
 Gst.init(None)
 log = logging.getLogger()
 log.info('**** Gst.version(): %r', Gst.version())
@@ -189,8 +193,8 @@ def build_slice(builder, doc, offset=0):
         element.set_property('caps', stream_caps(stream))
 
         # These properties are about the slice itself
-        element.set_property('media-start', start)
-        element.set_property('media-duration', duration)
+        element.set_property('inpoint', start)
+        #element.set_property('media-duration', duration)
 
         # These properties are about the position of the slice in the composition
         element.set_property('start', offset)
@@ -218,8 +222,8 @@ def build_video_slice(builder, doc, offset):
 
     # These properties are about the slice itself
     (pts, duration) = video_pts_and_duration(start, stop, framerate)
-    element.set_property('media-start', pts)
-    element.set_property('media-duration', duration)
+    element.set_property('inpoint', pts)
+    #element.set_property('media-duration', duration)
 
     # These properties are about the position of the slice in the composition
     (pts, duration) = video_pts_and_duration(offset, offset+frames, framerate)
@@ -243,8 +247,8 @@ def build_audio_slice(builder, doc, offset):
 
     # These properties are about the slice itself
     (pts, duration) = audio_pts_and_duration(start, stop, samplerate)
-    element.set_property('media-start', pts)
-    element.set_property('media-duration', duration)
+    element.set_property('inpoint', pts)
+    #element.set_property('media-duration', duration)
 
     # These properties are about the position of the slice in the composition
     (pts, duration) = audio_pts_and_duration(
@@ -313,6 +317,74 @@ class Builder:
 
     def get_doc(self, _id):
         pass
+
+
+class Builder2:
+    def __init__(self, Dmedia, novacut_db):
+        self.Dmedia = Dmedia
+        self.novacut_db = novacut_db
+        self.last = None
+        self.audio = None
+        self.video = None
+        self.builders = {
+            'video/sequence': self.build_video_sequence,
+            'video/slice': self.build_video_slice,
+        }
+
+    def build_root(self, _id):
+        frames = self.build(_id, 0)
+        log.info('total video frames: %s', frames)
+        sources = filter(lambda s: s is not None, (self.video, self.audio))
+#        for src in sources:
+#            src.set_property('duration', duration)
+        
+        return sources
+
+    def get_doc(self, _id):
+        return self.novacut_db.get(_id)
+
+    def resolve_file(self, _id):
+        (_id, status, filename) = self.Dmedia.Resolve(_id)
+        if status != 0:
+            msg = 'not local: {}'.format(_id)
+            log.error(msg)
+            raise SystemExit(msg)
+        return 'file://' + filename
+
+    def get_audio(self):
+        if self.audio is None:
+            self.audio = make_element('gnlcomposition')
+        return self.audio
+
+    def get_video(self):
+        if self.video is None:
+            self.video = make_element('gnlcomposition')
+            self.video.set_property('caps', Gst.caps_from_string('video/x-raw'))
+        return self.video
+
+    def build(self, src_id, offset):
+        doc = self.get_doc(src_id)
+        builder = self.builders[doc['node']['type']]
+        return builder(doc, offset)
+
+    def build_video_sequence(self, doc, offset):
+        frames = 0
+        for src_id in doc['node']['src']:
+            frames += self.build(src_id, offset + frames)
+        return frames
+
+    def build_video_slice(self, doc, offset):
+        start = doc['node']['start']
+        stop = doc['node']['stop']
+        src = self.get_doc(doc['node']['src'])
+        log.info('video slice %s: %s[%d:%d]', doc['_id'], src['_id'], start, stop)
+        framerate = get_framerate(src)
+        props = video_slice_to_gnl(offset, start, stop, framerate)
+        element = make_element('gnlurisource', props)
+        element.set_property('caps', Gst.caps_from_string('video/x-raw'))
+        element.set_property('uri', self.resolve_file(src['_id']))
+        self.get_video().add(element)
+        return stop - start
 
 
 class EncoderBin(Gst.Bin):
@@ -408,7 +480,7 @@ class Renderer:
         self.root = root
         self.settings = settings
         self.builder = builder
-        self.mainloop = GObject.MainLoop()
+        self.mainloop = GLib.MainLoop()
         self.pipeline = Gst.Pipeline()
 
         # Create bus and connect several handlers
@@ -482,3 +554,54 @@ class Renderer:
         self.error = msg.parse_error()
         log.error(self.error)
         self.kill()
+
+
+class Worker:
+    def __init__(self, Dmedia, env):
+        self.Dmedia = Dmedia
+        self.novacut_db = Database('novacut-1', env)
+        self.dmedia_db = Database('dmedia-1', env)
+
+    def run(self, job_id):
+        job = self.novacut_db.get(job_id)
+        log.info('Rendering: %s', dumps(job, pretty=True))
+        root = job['node']['root']
+        settings = self.novacut_db.get(job['node']['settings'])
+        log.info('With settings: %s', dumps(settings['node']))
+        builder = Builder2(self.Dmedia, self.novacut_db)
+        dst = self.Dmedia.AllocateTmp()
+        renderer = Renderer(root, settings['node'], builder, dst)
+        renderer.run()
+        if path.getsize(dst) < 1:
+            raise SystemExit('file-size is zero for {}'.format(job_id))
+
+        obj = self.Dmedia.HashAndMove(dst, 'render')
+        _id = obj['file_id']
+        doc = self.dmedia_db.get(_id)
+        doc['render_of'] = job_id
+
+        # Create the symlink
+        ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        if settings['node'].get('ext'):
+            ts += '.' + settings['node']['ext']
+
+        home = path.abspath(os.environ['HOME'])
+        name = path.join('Novacut', ts)
+        link = path.join(home, name)
+        d = path.dirname(link)
+        if not path.isdir(d):
+            os.mkdir(d)
+        target = obj['file_path']
+        os.symlink(target, link)
+        doc['link'] = name
+
+        self.dmedia_db.save(doc)
+        job['renders'][_id] = {
+            'bytes': doc['bytes'],
+            'time': doc['time'],
+            'link': name,
+        }
+        self.novacut_db.save(job)
+
+        obj['link'] = name
+        return obj

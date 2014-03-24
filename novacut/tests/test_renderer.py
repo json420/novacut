@@ -35,17 +35,6 @@ from novacut.timefuncs import audio_pts_and_duration, video_pts_and_duration
 from novacut import renderer
 
 
-def missing_gnl():
-    return (Gst.ElementFactory.make('gnlurisource', None) is None)
-
-
-class GnlTestCase(TestCase):
-    def setUp(self):
-        if missing_gnl():
-            self.skipTest('gnonlin not available')
-
-
-
 clip1 = random_id()
 clip2 = random_id()
 slice1 = random_id()
@@ -314,7 +303,7 @@ class TestFunctions(TestCase):
         )
 
 
-class TestGnlFunctions(GnlTestCase):
+class TestGnlFunctions(TestCase):
     def test_build_sequence(self):
         b = DummyBuilder(docs)
         self.assertEqual(
@@ -346,8 +335,8 @@ class TestGnlFunctions(GnlTestCase):
         el = b.last
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('inpoint'), 8 * Gst.SECOND)
+        #self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('start'), 0)
         self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw')
@@ -361,8 +350,8 @@ class TestGnlFunctions(GnlTestCase):
         el = b.last
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('inpoint'), 8 * Gst.SECOND)
+        #self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('start'), 3 * Gst.SECOND)
         self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('caps').to_string(), 'video/x-raw')
@@ -374,8 +363,8 @@ class TestGnlFunctions(GnlTestCase):
         el = b.last
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('inpoint'), 8 * Gst.SECOND)
+        #self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('start'), 0)
         self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(
@@ -392,8 +381,8 @@ class TestGnlFunctions(GnlTestCase):
         el = b.last
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('inpoint'), 8 * Gst.SECOND)
+        #self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('start'), 3 * Gst.SECOND)
         self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(
@@ -416,8 +405,8 @@ class TestGnlFunctions(GnlTestCase):
         el = b.last
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('inpoint'), 8 * Gst.SECOND)
+        #self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('start'), 0)
         self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(
@@ -434,8 +423,8 @@ class TestGnlFunctions(GnlTestCase):
         el = b.last
         self.assertIsInstance(el, Gst.Element)
         self.assertEqual(el.get_factory().get_name(), 'gnlurisource')
-        self.assertEqual(el.get_property('media-start'), 8 * Gst.SECOND)
-        self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
+        self.assertEqual(el.get_property('inpoint'), 8 * Gst.SECOND)
+        #self.assertEqual(el.get_property('media-duration'), 4 * Gst.SECOND)
         self.assertEqual(el.get_property('start'), 3 * Gst.SECOND)
         self.assertEqual(el.get_property('duration'), 4 * Gst.SECOND)
         self.assertEqual(
@@ -469,8 +458,8 @@ class TestGnlFunctions(GnlTestCase):
             'video/x-raw'
         )
         self.assertEqual(element.get_property('uri'), resolve(file_id))
-        self.assertEqual(element.get_property('media-start'), 10043366666)
-        self.assertEqual(element.get_property('media-duration'), 9976633334)
+        self.assertEqual(element.get_property('inpoint'), 10043366666)
+        #self.assertEqual(element.get_property('media-duration'), 9976633334)
         self.assertEqual(element.get_property('start'), 0)
         self.assertEqual(element.get_property('duration'), 9976633333)
 
@@ -483,8 +472,8 @@ class TestGnlFunctions(GnlTestCase):
             'video/x-raw'
         )
         self.assertEqual(element.get_property('uri'), resolve(file_id))
-        self.assertEqual(element.get_property('media-start'), 10043366666)
-        self.assertEqual(element.get_property('media-duration'), 9976633334)
+        self.assertEqual(element.get_property('inpoint'), 10043366666)
+        #self.assertEqual(element.get_property('media-duration'), 9976633334)
         self.assertEqual(element.get_property('start'), 68301566666)
         self.assertEqual(element.get_property('duration'), 9976633334)
 
@@ -517,8 +506,8 @@ class TestGnlFunctions(GnlTestCase):
                     resolve(file_id)
                 )
                 (pts1, dur1) = video_pts_and_duration(start, stop, rate)
-                self.assertEqual(element.get_property('media-start'), pts1)
-                self.assertEqual(element.get_property('media-duration'), dur1)
+                self.assertEqual(element.get_property('inpoint'), pts1)
+                #self.assertEqual(element.get_property('media-duration'), dur1)
                 (pts2, dur2) = video_pts_and_duration(
                     offset, offset + count, rate
                 )
@@ -551,8 +540,8 @@ class TestGnlFunctions(GnlTestCase):
             'audio/x-raw'
         )
         self.assertEqual(element.get_property('uri'), resolve(file_id))
-        self.assertEqual(element.get_property('media-start'), 1000791666)
-        self.assertEqual(element.get_property('media-duration'), 654479167)
+        self.assertEqual(element.get_property('inpoint'), 1000791666)
+        #self.assertEqual(element.get_property('media-duration'), 654479167)
         self.assertEqual(element.get_property('start'), 0)
         self.assertEqual(element.get_property('duration'), 654479166)
 
@@ -565,8 +554,8 @@ class TestGnlFunctions(GnlTestCase):
             'audio/x-raw'
         )
         self.assertEqual(element.get_property('uri'), resolve(file_id))
-        self.assertEqual(element.get_property('media-start'), 1000791666)
-        self.assertEqual(element.get_property('media-duration'), 654479167)
+        self.assertEqual(element.get_property('inpoint'), 1000791666)
+        #self.assertEqual(element.get_property('media-duration'), 654479167)
         self.assertEqual(element.get_property('start'), 1000791666)
         self.assertEqual(element.get_property('duration'), 654479167)
 
@@ -599,8 +588,8 @@ class TestGnlFunctions(GnlTestCase):
                     resolve(file_id)
                 )
                 (pts1, dur1) = audio_pts_and_duration(start, stop, rate)
-                self.assertEqual(element.get_property('media-start'), pts1)
-                self.assertEqual(element.get_property('media-duration'), dur1)
+                self.assertEqual(element.get_property('inpoint'), pts1)
+                #self.assertEqual(element.get_property('media-duration'), dur1)
                 (pts2, dur2) = audio_pts_and_duration(
                     offset, offset + count, rate
                 )
@@ -609,7 +598,7 @@ class TestGnlFunctions(GnlTestCase):
                 self.assertLessEqual(abs(dur1 - dur2), 1)
 
 
-class TestBuilder(GnlTestCase):
+class TestBuilder(TestCase):
 
     def test_init(self):
         builder = renderer.Builder()
@@ -829,7 +818,7 @@ class TestVideoEncoder(TestCase):
         )
 
 
-class TestRenderer(GnlTestCase):
+class TestRenderer(TestCase):
     def test_init(self):
         tmp = TempDir()
         builder = DummyBuilder(docs)
