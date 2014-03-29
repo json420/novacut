@@ -335,9 +335,8 @@ class Builder2:
         frames = self.build(_id, 0)
         log.info('total video frames: %s', frames)
         sources = filter(lambda s: s is not None, (self.video, self.audio))
-#        for src in sources:
-#            src.set_property('duration', duration)
-        
+        for src in sources:
+            src.emit('commit', True)
         return sources
 
     def get_doc(self, _id):
