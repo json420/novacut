@@ -247,7 +247,7 @@ class TestFunctions(TestCase):
             self.assertLessEqual(abs(g_dur - dur), 1)
             accum += g_dur
             offset += samples
-            
+
     def test_video_slice_to_gnl_old(self):
         framerate = Fraction(30000, 1001)
         self.assertEqual(
@@ -481,4 +481,79 @@ class TestFunctions(TestCase):
             self.assertLessEqual(abs(dur1 - dur2), 1)
             self.assertEqual(pts2, accum)
             offset += frames
+            accum += dur2
+
+    def test_audio_slice_to_gnl(self):
+        samplerate = 44100
+        self.assertEqual(
+            timefuncs.audio_slice_to_gnl(0, 0, 1, samplerate),
+            {
+                'inpoint': 0,
+                'start': 0,
+                'duration': 22675,   
+            }
+        )
+        self.assertEqual(
+            timefuncs.audio_slice_to_gnl(0, 1, 2, samplerate),
+            {
+                'inpoint': 22675,
+                'start': 0,
+                'duration': 22675,   
+            }
+        )
+        self.assertEqual(
+            timefuncs.audio_slice_to_gnl(1, 0, 1, samplerate),
+            {
+                'inpoint': 0,
+                'start': 22675,
+                'duration': 22676,   
+            }
+        )
+
+        # Test random slices at different offsets:
+        for i in range(10):
+            (start, stop) = random_slice(samplerate * 120)
+            samples = stop - start
+            self.assertGreaterEqual(samples, 1)
+            for offset in range(1000):
+                (pts1, dur1) = timefuncs.audio_pts_and_duration(
+                    start, stop, samplerate
+                )
+                (pts2, dur2) = timefuncs.audio_pts_and_duration(
+                    offset, offset + samples, samplerate
+                )
+                self.assertEqual(
+                    timefuncs.audio_slice_to_gnl(offset, start, stop, samplerate),
+                    {
+                        'inpoint': pts1,
+                        'start': pts2,
+                        'duration': dur2,   
+                    }
+                )
+                self.assertLessEqual(abs(dur1 - dur2), 1)
+
+        # Test accumulating random slices (as if in a sequence):
+        offset = 0
+        accum = 0
+        for i in range(1000):
+            (start, stop) = random_slice(samplerate * 120)
+            samples = stop - start
+            self.assertGreaterEqual(samples, 1)
+            (pts1, dur1) = timefuncs.audio_pts_and_duration(
+                start, stop, samplerate
+            )
+            (pts2, dur2) = timefuncs.audio_pts_and_duration(
+                offset, offset + samples, samplerate
+            )
+            self.assertEqual(
+                timefuncs.audio_slice_to_gnl(offset, start, stop, samplerate),
+                {
+                    'inpoint': pts1,
+                    'start': pts2,
+                    'duration': dur2,   
+                }
+            )
+            self.assertLessEqual(abs(dur1 - dur2), 1)
+            self.assertEqual(pts2, accum)
+            offset += samples
             accum += dur2
