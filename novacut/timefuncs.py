@@ -234,9 +234,12 @@ def audio_pts_and_duration(start, stop, samplerate):
     return Timestamp(pts, duration)
 
 
+# FIXME: Remove after it's not useful anymore as a reference
 def video_slice_to_gnl_old(offset, start, stop, framerate):
     """
     Map a video slice at global *offset* into gnlurisource properties.
+
+    The is the old function for gnonlin 0.10 API.
 
     For example, say at global frame offset 200 you have a slice from frame
     7 to frame 42:
@@ -268,11 +271,12 @@ def video_slice_to_gnl_old(offset, start, stop, framerate):
     }
 
 
+# FIXME: Remove after it's not useful anymore as a reference
 def audio_slice_to_gnl_old(offset, start, stop, samplerate):
     """
     Map an audio slice at global *offset* into gnlurisource properties.
 
-    The is the old function for gnonlin 0.10 semantics.
+    The is the old function for gnonlin 0.10 API.
 
     For example, say at global sample offset 2000 you have a slice from
     sample 30,000 to sample 90,000:
@@ -308,8 +312,6 @@ def video_slice_to_gnl(offset, start, stop, framerate):
     """
     Map a video slice at global *offset* into gnlurisource properties.
 
-    This version is for the gnonlin 1.0 API.
-
     Note that the gnonlin 1.0 API currently seems somewhat ambiguous because
     even when the incoming and outgoing slices are at the same framerate and the
     duration ratio (in frames) is 1:1, the duration of the incoming and outgoing
@@ -335,17 +337,64 @@ def video_slice_to_gnl(offset, start, stop, framerate):
     """
     assert 0 <= start < stop
 
-    # Starting timestamp of the source slice:
-    inpoint = frame_to_nanosecond(start, framerate)
+    # (pts, duration) of incoming slice on the source clip:
+    incoming = video_pts_and_duration(start, stop, framerate)
 
     # Slice duration in frames:
-    frames = stop - start
+    count = stop - start
 
-    # Timestamp and duration of outgoing slice:
-    (pts2, dur2) = video_pts_and_duration(offset, offset + frames, framerate)
+    # (pts, duration) of outgoing slice on the destination gnlcomposition:
+    outgoing = video_pts_and_duration(offset, offset + count, framerate)
 
+    assert abs(incoming.duration - outgoing.duration) <= 1
     return {
-        'inpoint': inpoint,
-        'start': pts2,
-        'duration': dur2,
+        'inpoint': incoming.pts,
+        'start': outgoing.pts,
+        'duration': outgoing.duration,
+    }
+
+
+def audio_slice_to_gnl(offset, start, stop, samplerate):
+    """
+    Map an audio slice at global *offset* into gnlurisource properties.
+
+    Note that the gnonlin 1.0 API currently seems somewhat ambiguous because
+    even when the incoming and outgoing slices are at the same samplerate and
+    the duration ratio (in samples) is 1:1, the duration of the incoming and
+    outgoing slices in *nanoseconds* might not be the same because of rounding
+    error (although they will be within one nanosecond of each other).
+
+    For example, say at global sample offset 40,000 you have a slice from
+    sample 30,000 to sample 90,002:
+
+    >>> audio_slice_to_gnl(40000, 30000, 90002, 48000) == {
+    ...     'inpoint': 625000000,
+    ...     'start': 833333333,
+    ...     'duration': 1250041667,
+    ... }
+    True
+
+    Whereas note that the correctly rounded nanosecond duration on the incoming
+    slice is not ``1250041667``:
+
+    >>> audio_pts_and_duration(30000, 90002, 48000)
+    Timestamp(pts=625000000, duration=1250041666)
+
+    """
+    assert 0 <= start < stop
+
+    # (pts, duration) of incoming slice on the source clip:
+    incoming = audio_pts_and_duration(start, stop, samplerate)
+
+    # Slice duration in samples:
+    count = stop - start
+
+    # (pts, duration) of outgoing slice on the destination gnlcomposition:
+    outgoing = audio_pts_and_duration(offset, offset + count, samplerate)
+
+    assert abs(incoming.duration - outgoing.duration) <= 1
+    return {
+        'inpoint': incoming.pts,
+        'start': outgoing.pts,
+        'duration': outgoing.duration,
     }
