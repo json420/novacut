@@ -135,6 +135,7 @@ setup(
         'novacut-gtk',
         'novacut-cli',
         'novacut-v0-v1-upgrade',
+        'novacut-reset',
     ],
     data_files=[
         ('share/couchdb/apps/novacut',

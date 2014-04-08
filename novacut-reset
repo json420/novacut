@@ -1,0 +1,39 @@
+#!/usr/bin/python3
+
+import sys
+import os
+from os import path
+import time
+import subprocess
+
+
+r = input('This will delete all Novacut/Dmedia data, are you sure y/N?')
+if r.lower() != 'y':
+    print('Not proceeding, no action performed')
+    sys.exit(0)
+
+
+def check_call(cmd):
+    print('check_call', cmd)
+    subprocess.check_call(cmd)
+
+
+def call(cmd):
+    print('call', cmd)
+    subprocess.call(cmd)
+
+
+for name in ('novacut-gtk', 'dmedia-gtk', 'novacut-service'):
+    call(['killall', name])
+call(['stop', 'dmedia'])
+home = path.abspath(os.environ['HOME'])
+dmedia = path.join(home, '.local', 'share', 'dmedia')
+if path.isdir(dmedia):
+    check_call(['rm', '-rf', dmedia])
+
+check_call(['start', 'dmedia'])
+print('waiting 10 seconds for DBus activation hack...')
+time.sleep(10)
+print('')
+print('Done!')
+
