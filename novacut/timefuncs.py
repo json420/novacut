@@ -22,16 +22,23 @@
 """
 Convert between frames, samples, and nanoseconds.
 
-Although a nanosecond is a very precise unit, nanoseconds can't *exactly*
-represent the timestamps and durations in typical media.  To do this, you
-need to use rational (fractional) timestamps.
+For typical industry-standard video framerates, you cannot *exactly* express the
+needed timestamps using integers, no matter how precise the unit.  Exact
+expression requires rational numbers (fractions).  The same is true with typical
+industry-standard audio samplerates.
 
-Here you can see what "perfect" timestamps look like when converted to
-nanoseconds:
+It's not fundamentally a problem that GStreamer works in nanoseconds (an
+incredibly precise unit when it comes to human perception).  But rounding error
+can lead to ambiguity (if not outright error) in the context of an NLE.
 
+For example, here's the correct pts (presentation time stamp) and duration for
+the first 10 frames of a video with a framerate of 24/1:
+
+>>> from fractions import Fraction
+>>> from novacut.timefuncs import video_pts_and_duration
 >>> for i in range(10):
-...     (pts, dur) = video_pts_and_duration(i, i + 1, Fraction(24, 1))
-...     print(dur, pts)
+...     ts = video_pts_and_duration(i, i + 1, Fraction(24, 1))
+...     print(ts.duration, ts.pts)
 ...
 41666666 0
 41666667 41666666
@@ -44,46 +51,42 @@ nanoseconds:
 41666667 333333333
 41666666 375000000
 
-The first thing to notice is that the duration isn't constant.  This is
-because it's impossible to exactly represent the duration in nanoseconds.
-So the duration is different depending on which frame (globally) you're
-considering.
+The first thing to notice is that the duration isn't constant (although note
+that the difference in duration is never more than 1 nanosecond).  To know what
+the correct duration is for a given frame, you need to know the index of the
+frame (starting from zero).
 
-FYI, MOV files from Canon HDSLR cameras have exactly the sort of "perfect"
-timestamps illustrated above.  And in our testing, GStreamer has been able to
-produce flawless frame accuracy when it comes to cutting slices out of such
-video (confirmed by doing md5sums of the video buffers).
+The same is true when considering multi-frame slices of video.  For example,
+a 10 frame slice starting at frame-index 12:
 
-It's easy to calculate perfect timestamps for selecting a slice because it
-only involves local time.
+>>> video_pts_and_duration(12, 12 + 10, Fraction(24, 1))
+Timestamp(pts=500000000, duration=416666666)
 
-For example, the start and stop timestamps for the slice ``23:104`` from
-30000/1001 video can be calculated like this:
+Has a different duration (in nanoseconds) than a 10 frame slice starting at
+frame-index 13:
 
->>> 23 * SECOND * 1001 // 30000  # start
-767433333
->>> 104 * SECOND * 1001 // 30000  # stop
-3470133333
+>>> video_pts_and_duration(13, 13 + 10, Fraction(24, 1))
+Timestamp(pts=541666666, duration=416666667)
 
-Which is exactly the calculation that the `frame_to_nanosecond()` function
-does:
+But how many frames does GStreamer give you if you add just one extra nanosecond
+to that first slice?  It (correctly) gives you 11 frames, despite the last one
+having a meaninglessly short duration.
 
->>> frame_to_nanosecond(23, Fraction(30000, 1001))
-767433333
->>> frame_to_nanosecond(104, Fraction(30000, 1001))
-3470133333
+No one would notice if a frame was displayed 1 nanosecond longer than it should
+be.  But an editor will certainly notice an additional frame when editing 24/1
+video.  And the audience will too, depending on the footage.  In modern shooting
+and editing, a frame is the difference between a cut feeling off and it having
+that perfect, ethereal flow.
 
-And the slice duration is simply ``stop - start``:
+Editing is fundamentally done in discrete units, frames for video, samples for
+audio.  It is for this reason that the Novacut edit description is done it terms
+of frames and samples, and not time.  It keeps us honest, and allows us to more
+easily determine if our render is delivering what was asked for.
 
->>> 3470133333 - 767433333
-2702700000
-
-The `video_pts_and_duration()` function returns the start timestamp and the
-same duration as above:
-
->>> video_pts_and_duration(23, 104, Fraction(30000, 1001))
-Timestamp(pts=767433333, duration=2702700000)
-
+GStreamer is capable of delivering perfect frame and sample accuracy.  But you
+need to do your math correctly, and the only way to do that is to do things in
+terms of frames and sample up to the last moment, and only then convert to
+nanoseconds.
 """
 
 from fractions import Fraction
@@ -234,9 +237,12 @@ def audio_pts_and_duration(start, stop, samplerate):
     return Timestamp(pts, duration)
 
 
+# FIXME: Remove after it's not useful anymore as a reference
 def video_slice_to_gnl_old(offset, start, stop, framerate):
     """
     Map a video slice at global *offset* into gnlurisource properties.
+
+    The is the old function for gnonlin 0.10 API.
 
     For example, say at global frame offset 200 you have a slice from frame
     7 to frame 42:
@@ -268,11 +274,12 @@ def video_slice_to_gnl_old(offset, start, stop, framerate):
     }
 
 
+# FIXME: Remove after it's not useful anymore as a reference
 def audio_slice_to_gnl_old(offset, start, stop, samplerate):
     """
     Map an audio slice at global *offset* into gnlurisource properties.
 
-    The is the old function for gnonlin 0.10 semantics.
+    The is the old function for gnonlin 0.10 API.
 
     For example, say at global sample offset 2000 you have a slice from
     sample 30,000 to sample 90,000:
@@ -308,8 +315,6 @@ def video_slice_to_gnl(offset, start, stop, framerate):
     """
     Map a video slice at global *offset* into gnlurisource properties.
 
-    This version is for the gnonlin 1.0 API.
-
     Note that the gnonlin 1.0 API currently seems somewhat ambiguous because
     even when the incoming and outgoing slices are at the same framerate and the
     duration ratio (in frames) is 1:1, the duration of the incoming and outgoing
@@ -335,17 +340,64 @@ def video_slice_to_gnl(offset, start, stop, framerate):
     """
     assert 0 <= start < stop
 
-    # Starting timestamp of the source slice:
-    inpoint = frame_to_nanosecond(start, framerate)
+    # (pts, duration) of incoming slice on the source clip:
+    incoming = video_pts_and_duration(start, stop, framerate)
 
     # Slice duration in frames:
-    frames = stop - start
+    count = stop - start
 
-    # Timestamp and duration of outgoing slice:
-    (pts2, dur2) = video_pts_and_duration(offset, offset + frames, framerate)
+    # (pts, duration) of outgoing slice on the destination gnlcomposition:
+    outgoing = video_pts_and_duration(offset, offset + count, framerate)
 
+    assert abs(incoming.duration - outgoing.duration) <= 1
     return {
-        'inpoint': inpoint,
-        'start': pts2,
-        'duration': dur2,
+        'inpoint': incoming.pts,
+        'start': outgoing.pts,
+        'duration': outgoing.duration,
+    }
+
+
+def audio_slice_to_gnl(offset, start, stop, samplerate):
+    """
+    Map an audio slice at global *offset* into gnlurisource properties.
+
+    Note that the gnonlin 1.0 API currently seems somewhat ambiguous because
+    even when the incoming and outgoing slices are at the same samplerate and
+    the duration ratio (in samples) is 1:1, the duration of the incoming and
+    outgoing slices in *nanoseconds* might not be the same because of rounding
+    error (although they will be within one nanosecond of each other).
+
+    For example, say at global sample offset 40,000 you have a slice from
+    sample 30,000 to sample 90,002:
+
+    >>> audio_slice_to_gnl(40000, 30000, 90002, 48000) == {
+    ...     'inpoint': 625000000,
+    ...     'start': 833333333,
+    ...     'duration': 1250041667,
+    ... }
+    True
+
+    Whereas note that the correctly rounded nanosecond duration on the incoming
+    slice is not ``1250041667``:
+
+    >>> audio_pts_and_duration(30000, 90002, 48000)
+    Timestamp(pts=625000000, duration=1250041666)
+
+    """
+    assert 0 <= start < stop
+
+    # (pts, duration) of incoming slice on the source clip:
+    incoming = audio_pts_and_duration(start, stop, samplerate)
+
+    # Slice duration in samples:
+    count = stop - start
+
+    # (pts, duration) of outgoing slice on the destination gnlcomposition:
+    outgoing = audio_pts_and_duration(offset, offset + count, samplerate)
+
+    assert abs(incoming.duration - outgoing.duration) <= 1
+    return {
+        'inpoint': incoming.pts,
+        'start': outgoing.pts,
+        'duration': outgoing.duration,
     }
