@@ -38,8 +38,6 @@ There are 2 reasons to separate this functionality from `renderer`:
 
 from fractions import Fraction
 
-from .timefuncs import video_pts_and_duration, audio_pts_and_duration
-
 
 def get_fraction(value):
     """

@@ -24,13 +24,8 @@ Unit tests for the `novacut.migration` module.
 """
 
 import json
-from fractions import Fraction
 from unittest import TestCase
 
-from usercouch.misc import CouchTestCase
-from microfiber import Database
-
-from novacut.timefuncs import frame_to_sample
 from novacut import schema, migration
 
 
@@ -343,8 +338,6 @@ class TestFunctions(TestCase):
         schema.check_video_slice(new)
 
     def test_migrate_dmedia_file(self):
-        id_map = get_id_map()
-
         old = json.loads(docs_s)[3]
         new = migration.migrate_dmedia_file(old, get_id_map())
         self.assertIsNot(old, new)

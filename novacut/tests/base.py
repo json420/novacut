@@ -77,7 +77,7 @@ class TempDir(object):
         return d
 
     def touch(self, *parts):
-        d = self.makedirs(*parts[:-1])
+        self.makedirs(*parts[:-1])
         f = self.join(*parts)
         assert not path.exists(f)
         open(f, 'wb').close()
@@ -85,7 +85,7 @@ class TempDir(object):
         return f
 
     def write(self, content, *parts):
-        d = self.makedirs(*parts[:-1])
+        self.makedirs(*parts[:-1])
         f = self.join(*parts)
         assert not path.exists(f)
         open(f, 'wb').write(content)

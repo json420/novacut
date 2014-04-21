@@ -25,8 +25,7 @@ Defines the Novacut CouchDB views.
 
 import logging
 
-from microfiber import NotFound
-from dmedia.views import _count, _sum, doc_design, media_design, camera_design
+from dmedia.views import _count, doc_design, media_design, camera_design
 
 log = logging.getLogger()
 

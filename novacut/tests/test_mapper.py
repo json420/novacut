@@ -26,8 +26,6 @@ Unit tests for the `novacut.mapper` module.
 from unittest import TestCase
 from fractions import Fraction
 
-from novacut.misc import random_slice
-from novacut.timefuncs import video_pts_and_duration, audio_pts_and_duration
 from novacut import mapper
 
 

@@ -136,13 +136,8 @@ import re
 from skein import skein512
 from microfiber import random_id, RANDOM_B32LEN, Conflict
 from dmedia.schema import (
-    _label,
-    _value,
-    _exists,
     _check,
-    _check_if_exists,
     _at_least,
-    _lowercase,
     _matches,
     _nonempty,
     _is_in,

@@ -542,7 +542,7 @@ class Renderer:
             log.info('pad-added: %r %r', key, string)
             enc = self.encoders[key]
             pad.link(enc.get_static_pad('sink'))
-        except Exception as e:
+        except Exception:
             log.exception('Error in Renderer.on_pad_added():')
 
     def on_eos(self, bus, msg):

@@ -28,8 +28,6 @@ import re
 
 from dmedia.migration import b32_to_db32
 
-from .mapper import get_fraction
-from .timefuncs import frame_to_sample
 from . import schema
 
 
@@ -55,40 +53,6 @@ def migrate_project(old):
     if 'root_id' in old:
         new['root_id'] = b32_to_db32(old['root_id'])
     return new
-
-
-def migrate_slice_old(db, doc):
-    assert doc['type'] == 'novacut/node'
-    node = doc['node']
-    assert node['type'] == 'slice'
-    assert node['stream'] in ('video', 'both')
-    start = node['start']['frame']
-    stop = node['stop']['frame']
-
-    video = deepcopy(doc)
-    video['audio'] = []
-    del video['node']['stream']
-    video['node']['type'] = 'video/slice'
-    video['node']['start'] = start
-    video['node']['stop'] = stop
-    remove_unneeded(video)
-
-    if node['stream'] == 'both':
-        clip = db.get(node['src'])
-        framerate = get_fraction(clip['framerate'])
-        samplerate = clip['samplerate']
-        audio = schema.create_audio_slice(node['src'],
-            frame_to_sample(start, framerate, samplerate),
-            frame_to_sample(stop, framerate, samplerate),
-        )
-        video['audio'].append(
-            {'offset': 0, 'id': audio['_id']}
-        )
-        schema.check_audio_slice(audio)
-        yield audio
-
-    schema.check_video_slice(video)
-    yield video
 
 
 def migrate_sequence(old):

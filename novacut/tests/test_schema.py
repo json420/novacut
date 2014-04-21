@@ -26,7 +26,6 @@ Unit tests for the `novacut.schema` module.
 from unittest import TestCase
 import time
 from copy import deepcopy
-from random import SystemRandom
 
 from dbase32 import random_id
 

@@ -23,8 +23,6 @@
 Opinionated video and audio encoder settings.
 """
 
-from copy import deepcopy
-
 from . import schema
 
 
