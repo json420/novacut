@@ -39,21 +39,13 @@ from .mapper import get_framerate
 
 
 Gst.init(None)
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 log.info('**** Gst.version(): %r', Gst.version())
 
-
-stream_map = {
-    'video': 'video/x-raw',
-    'audio': 'audio/x-raw',
-}
 
 # Provide very clear TypeError messages:
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 
-
-def stream_caps(stream):
-    return Gst.caps_from_string(stream_map[stream])
 
 
 class NoSuchElement(Exception):
