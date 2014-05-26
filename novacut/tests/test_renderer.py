@@ -174,21 +174,6 @@ docs = [
 ]
 
 
-class DummyBuilder(renderer.Builder):
-    def __init__(self, docs):
-        super(DummyBuilder, self).__init__()
-        self._docmap = dict(
-            (doc['_id'], doc) for doc in docs
-        )
-
-    def get_doc(self, _id):
-        return self._docmap[_id]
-
-    def resolve_file(self, _id):
-        return resolve(_id)
-
-
-
 class TestNoSuchElement(TestCase):
     def test_init(self):
         inst = renderer.NoSuchElement('foobar')
@@ -300,45 +285,6 @@ class TestFunctions(TestCase):
         self.assertEqual(
             c.to_string(),
             'audio/x-raw, channels=(int)1, rate=(int)44100'
-        )
-
-
-
-class TestBuilder(TestCase):
-
-    def test_init(self):
-        builder = renderer.Builder()
-        self.assertIsNone(builder.video)
-        self.assertIsNone(builder.audio)
-        self.assertIsNone(builder.last)
-
-    def test_add(self):
-        builder = renderer.Builder()
-        self.assertIsNone(builder.video)
-        self.assertIsNone(builder.audio)
-
-        child1 = Gst.ElementFactory.make('gnlurisource', None)
-        self.assertIsNone(builder.add(child1, 'video'))
-        self.assertIs(child1.get_parent(), builder.video)
-        self.assertIs(builder.last, child1)
-        self.assertIsInstance(builder.video, Gst.Element)
-        self.assertEqual(
-            builder.video.get_factory().get_name(), 'gnlcomposition'
-        )
-        self.assertIsNone(builder.audio)
-
-        child2 = Gst.ElementFactory.make('gnlurisource', None)
-        self.assertIsNone(builder.add(child2, 'audio'))
-        self.assertIs(child2.get_parent(), builder.audio)
-        self.assertIs(builder.last, child2)
-        self.assertIsInstance(builder.audio, Gst.Element)
-        self.assertEqual(
-            builder.audio.get_factory().get_name(), 'gnlcomposition'
-        )
-
-        self.assertIs(child1.get_parent(), builder.video)
-        self.assertEqual(
-            builder.video.get_factory().get_name(), 'gnlcomposition'
         )
 
 

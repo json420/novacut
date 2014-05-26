@@ -269,56 +269,6 @@ def build_sequence(builder, doc, offset=0):
     return sequence_duration
 
 
-_builders = {
-    'slice': build_slice,
-    'sequence': build_sequence,
-}
-
-
-class Builder:
-    def __init__(self):
-        self.last = None
-        self.audio = None
-        self.video = None
-
-    def get_audio(self):
-        if self.audio is None:
-            self.audio = make_element('gnlcomposition')
-        return self.audio
-
-    def get_video(self):
-        if self.video is None:
-            self.video = make_element('gnlcomposition')
-        return self.video
-
-    def add(self, element, stream):
-        assert stream in ('video', 'audio')
-        if stream == 'video':
-            target = self.get_video()
-        else:
-            target = self.get_audio()
-        target.add(element)
-        self.last = element
-
-    def build(self, _id, offset=0):
-        doc = self.get_doc(_id)
-        func = _builders[doc['node']['type']]
-        return func(self, doc, offset)
-
-    def build_root(self, _id):
-        duration = self.build(_id, 0)
-        sources = tuple(filter(lambda s: s is not None, (self.video, self.audio)))
-        for src in sources:
-            src.set_property('duration', duration)
-        return sources
-
-    def resolve_file(self, _id):
-        pass
-
-    def get_doc(self, _id):
-        pass
-
-
 class Builder2:
     def __init__(self, Dmedia, novacut_db):
         self.Dmedia = Dmedia
