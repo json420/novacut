@@ -149,7 +149,7 @@ def get_framerate(doc):
     return Fraction(num, denom)
 
 
-class Builder2:
+class Builder:
     def __init__(self, Dmedia, novacut_db):
         self.Dmedia = Dmedia
         self.novacut_db = novacut_db
@@ -397,7 +397,7 @@ class Worker:
         root = job['node']['root']
         settings = self.novacut_db.get(job['node']['settings'])
         log.info('With settings: %s', dumps(settings['node']))
-        builder = Builder2(self.Dmedia, self.novacut_db)
+        builder = Builder(self.Dmedia, self.novacut_db)
         dst = self.Dmedia.AllocateTmp()
         renderer = Renderer(root, settings['node'], builder, dst)
         renderer.run()
