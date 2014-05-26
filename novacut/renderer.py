@@ -27,15 +27,14 @@ from datetime import datetime
 import logging
 import os
 from os import path
+from fractions import Fraction
 
 from microfiber import Database, dumps
 import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import GLib, Gst
 
-from .timefuncs import video_pts_and_duration, audio_pts_and_duration
 from .timefuncs import video_slice_to_gnl
-from .mapper import get_framerate
 
 
 Gst.init(None)
@@ -132,6 +131,22 @@ def make_caps(mime, caps):
     if caps is None:
         return None
     return Gst.caps_from_string(caps_string(mime, caps))
+
+
+def get_framerate(doc):
+    """
+    Return a `Fraction` extracted from the framerate in a dmedia/file doc.
+
+    For example:
+
+    >>> doc = {'framerate': {'num': 30000, 'denom': 1001}}
+    >>> get_framerate(doc)
+    Fraction(30000, 1001)
+
+    """
+    num = doc['framerate']['num']
+    denom = doc['framerate']['denom']
+    return Fraction(num, denom)
 
 
 class Builder2:

@@ -148,6 +148,13 @@ class TestFunctions(TestCase):
             'audio/x-raw, channels=(int)1, rate=(int)44100'
         )
 
+    def test_get_framerate(self):
+        doc = {'framerate': {'num': 240, 'denom': 10}}
+        frac = renderer.get_framerate(doc)
+        self.assertIsInstance(frac, Fraction)
+        self.assertEqual(frac.numerator, 24)
+        self.assertEqual(frac.denominator, 1)
+
 
 class TestEncodeBin(TestCase):
 
