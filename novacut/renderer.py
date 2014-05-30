@@ -206,7 +206,10 @@ class Builder:
         start = doc['node']['start']
         stop = doc['node']['stop']
         src = self.get_doc(doc['node']['src'])
-        log.info('video slice %s: %s[%d:%d]', doc['_id'], src['_id'], start, stop)
+        framerate = get_framerate(src)
+        log.info('%r video slice %s: %s[%d:%d]',
+            framerate, doc['_id'], src['_id'], start, stop
+        )
         framerate = get_framerate(src)
         props = video_slice_to_gnl(offset, start, stop, framerate)
         element = make_element('gnlurisource', props)
