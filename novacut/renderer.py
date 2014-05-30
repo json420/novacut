@@ -399,7 +399,7 @@ class Worker:
         log.info('Rendering: %s', dumps(job, pretty=True))
         root = job['node']['root']
         settings = self.novacut_db.get(job['node']['settings'])
-        log.info('With settings: %s', dumps(settings['node']))
+        log.info('With settings: %s', dumps(settings['node'], pretty=True))
         builder = Builder(self.Dmedia, self.novacut_db)
         dst = self.Dmedia.AllocateTmp()
         renderer = Renderer(root, settings['node'], builder, dst)
