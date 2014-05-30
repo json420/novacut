@@ -26,7 +26,6 @@ A quick and dirty GStreamer thumbnailer.
 """
 
 import sys
-from os import path
 import json
 from base64 import b64encode
 import argparse
@@ -162,7 +161,7 @@ class Thumbnailer:
         frame = nanosecond_to_frame(buf.pts, self.framerate)
         ns = frame_to_nanosecond(frame, self.framerate)
         if buf.pts != ns:
-            log.warning('handoff: frame %d buf.pts %d != %d', frame, bufs.pts, ns)
+            log.warning('handoff: frame %d buf.pts %d != %d', frame, buf.pts, ns)
         key = str(frame)
         if key in self.attachments:
             log.info('handoff: already have frame %d', frame)
