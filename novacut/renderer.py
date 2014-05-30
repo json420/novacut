@@ -27,33 +27,24 @@ from datetime import datetime
 import logging
 import os
 from os import path
+from fractions import Fraction
 
 from microfiber import Database, dumps
 import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import GLib, Gst
 
-from .timefuncs import video_pts_and_duration, audio_pts_and_duration
 from .timefuncs import video_slice_to_gnl
-from .mapper import get_framerate
 
 
 Gst.init(None)
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 log.info('**** Gst.version(): %r', Gst.version())
 
-
-stream_map = {
-    'video': 'video/x-raw',
-    'audio': 'audio/x-raw',
-}
 
 # Provide very clear TypeError messages:
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 
-
-def stream_caps(stream):
-    return Gst.caps_from_string(stream_map[stream])
 
 
 class NoSuchElement(Exception):
@@ -142,184 +133,23 @@ def make_caps(mime, caps):
     return Gst.caps_from_string(caps_string(mime, caps))
 
 
-
-def to_gst_time(spec, doc):
+def get_framerate(doc):
     """
-    Convert a time specified by frame or sample to nanoseconds.
+    Return a `Fraction` extracted from the framerate in a dmedia/file doc.
 
-    For example, both of these specify 2 seconds into a stream, first by frame,
-    then by sample:
+    For example:
 
-    >>> doc = {
-    ...     'framerate': {'num': 24, 'denom': 1},
-    ...     'samplerate': 48000,
-    ... }
-    ...
-    >>> to_gst_time({'frame': 48}, doc)  #doctest: +ELLIPSIS
-    2000000000...
-    >>> to_gst_time({'sample': 96000}, doc)  #doctest: +ELLIPSIS
-    2000000000...
+    >>> doc = {'framerate': {'num': 30000, 'denom': 1001}}
+    >>> get_framerate(doc)
+    Fraction(30000, 1001)
 
     """
-    if 'frame' in spec:
-        num = doc['framerate']['num']
-        denom = doc['framerate']['denom']
-        return spec['frame'] * Gst.SECOND * denom // num
-    if 'sample' in spec:
-        rate = doc['samplerate']
-        return spec['sample'] * Gst.SECOND // rate
-    raise ValueError('invalid time spec: {!r}'.format(spec))
-
-
-def build_slice(builder, doc, offset=0):
-    node = doc['node']
-    clip = builder.get_doc(node['src'])
-    start = to_gst_time(node['start'], clip)
-    stop = to_gst_time(node['stop'], clip)
-    duration = stop - start
-
-    if node['stream'] == 'both':
-        streams = ['video', 'audio']
-    else:
-        streams = [node['stream']]
-
-    #streams = ['video', 'audio']
-    #streams = ['audio']
-
-    for stream in streams:
-        # Create the element, set the URI, and select the stream
-        element = make_element('gnlurisource')
-        element.set_property('uri', builder.resolve_file(clip['_id']))
-        element.set_property('caps', stream_caps(stream))
-
-        # These properties are about the slice itself
-        element.set_property('inpoint', start)
-        #element.set_property('media-duration', duration)
-
-        # These properties are about the position of the slice in the composition
-        element.set_property('start', offset)
-        element.set_property('duration', duration)
-        
-        log.info('%s %d:%d %s', stream, start, duration, clip['_id'])
-
-        builder.add(element, stream)
-
-    return duration
-
-
-def build_video_slice(builder, doc, offset):
-    node = doc['node']
-    clip = builder.get_doc(node['src'])
-    framerate = get_framerate(clip)
-    start = node['start']
-    stop = node['stop']
-    frames = stop - start
-    log.info('video/slice %d:%d %s', start, stop, node['src'])
-
-    element = make_element('gnlurisource')
-    element.set_property('caps', Gst.caps_from_string('video/x-raw'))
-    element.set_property('uri', builder.resolve_file(node['src']))
-
-    # These properties are about the slice itself
-    (pts, duration) = video_pts_and_duration(start, stop, framerate)
-    element.set_property('inpoint', pts)
-    #element.set_property('media-duration', duration)
-
-    # These properties are about the position of the slice in the composition
-    (pts, duration) = video_pts_and_duration(offset, offset+frames, framerate)
-    element.set_property('start', pts)
-    element.set_property('duration', duration)
-
-    return (frames, element)
-
-
-def build_audio_slice(builder, doc, offset):
-    node = doc['node']
-    samplerate = builder.get_doc(node['src'])['samplerate']
-    start = node['start']
-    stop = node['stop']
-    samples = stop - start
-    log.info('audio/slice %d:%d %s', start, stop, node['src'])
-
-    element = make_element('gnlurisource')
-    element.set_property('caps', Gst.caps_from_string('audio/x-raw'))
-    element.set_property('uri', builder.resolve_file(node['src']))
-
-    # These properties are about the slice itself
-    (pts, duration) = audio_pts_and_duration(start, stop, samplerate)
-    element.set_property('inpoint', pts)
-    #element.set_property('media-duration', duration)
-
-    # These properties are about the position of the slice in the composition
-    (pts, duration) = audio_pts_and_duration(
-        offset, offset + samples, samplerate
-    )
-    element.set_property('start', pts)
-    element.set_property('duration', duration)
-
-    return (samples, element)
-
-
-def build_sequence(builder, doc, offset=0):
-    sequence_duration = 0
-    for src in doc['node']['src']:
-        duration = builder.build(src, offset)
-        offset += duration
-        sequence_duration += duration
-    return sequence_duration
-
-
-_builders = {
-    'slice': build_slice,
-    'sequence': build_sequence,
-}
+    num = doc['framerate']['num']
+    denom = doc['framerate']['denom']
+    return Fraction(num, denom)
 
 
 class Builder:
-    def __init__(self):
-        self.last = None
-        self.audio = None
-        self.video = None
-
-    def get_audio(self):
-        if self.audio is None:
-            self.audio = make_element('gnlcomposition')
-        return self.audio
-
-    def get_video(self):
-        if self.video is None:
-            self.video = make_element('gnlcomposition')
-        return self.video
-
-    def add(self, element, stream):
-        assert stream in ('video', 'audio')
-        if stream == 'video':
-            target = self.get_video()
-        else:
-            target = self.get_audio()
-        target.add(element)
-        self.last = element
-
-    def build(self, _id, offset=0):
-        doc = self.get_doc(_id)
-        func = _builders[doc['node']['type']]
-        return func(self, doc, offset)
-
-    def build_root(self, _id):
-        duration = self.build(_id, 0)
-        sources = tuple(filter(lambda s: s is not None, (self.video, self.audio)))
-        for src in sources:
-            src.set_property('duration', duration)
-        return sources
-
-    def resolve_file(self, _id):
-        pass
-
-    def get_doc(self, _id):
-        pass
-
-
-class Builder2:
     def __init__(self, Dmedia, novacut_db):
         self.Dmedia = Dmedia
         self.novacut_db = novacut_db
@@ -376,7 +206,10 @@ class Builder2:
         start = doc['node']['start']
         stop = doc['node']['stop']
         src = self.get_doc(doc['node']['src'])
-        log.info('video slice %s: %s[%d:%d]', doc['_id'], src['_id'], start, stop)
+        framerate = get_framerate(src)
+        log.info('%r video slice %s: %s[%d:%d]',
+            framerate, doc['_id'], src['_id'], start, stop
+        )
         framerate = get_framerate(src)
         props = video_slice_to_gnl(offset, start, stop, framerate)
         element = make_element('gnlurisource', props)
@@ -566,8 +399,8 @@ class Worker:
         log.info('Rendering: %s', dumps(job, pretty=True))
         root = job['node']['root']
         settings = self.novacut_db.get(job['node']['settings'])
-        log.info('With settings: %s', dumps(settings['node']))
-        builder = Builder2(self.Dmedia, self.novacut_db)
+        log.info('With settings: %s', dumps(settings['node'], pretty=True))
+        builder = Builder(self.Dmedia, self.novacut_db)
         dst = self.Dmedia.AllocateTmp()
         renderer = Renderer(root, settings['node'], builder, dst)
         renderer.run()

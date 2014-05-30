@@ -26,7 +26,6 @@ A quick and dirty GStreamer thumbnailer.
 """
 
 import sys
-from os import path
 import json
 from base64 import b64encode
 import argparse
@@ -40,7 +39,7 @@ from microfiber import Database, NotFound
 from novacut.renderer import make_element
 from novacut.timefuncs import frame_to_nanosecond, nanosecond_to_frame
 
-COUNT = 17
+COUNT = 15
 logging.basicConfig(
     level=logging.DEBUG,
     format='\t'.join([
@@ -120,7 +119,7 @@ class Thumbnailer:
         # Link elements
         self.src.link(self.dec)
         self.scale.link_filtered(self.enc,
-            Gst.caps_from_string('video/x-raw, width=192, pixel-aspect-ratio=(fraction)1/1')
+            Gst.caps_from_string('video/x-raw, width=192, height=108')
         )
         self.enc.link(self.sink)
 
@@ -162,7 +161,7 @@ class Thumbnailer:
         frame = nanosecond_to_frame(buf.pts, self.framerate)
         ns = frame_to_nanosecond(frame, self.framerate)
         if buf.pts != ns:
-            log.warning('handoff: frame %d buf.pts %d != %d', frame, bufs.pts, ns)
+            log.warning('handoff: frame %d buf.pts %d != %d', frame, buf.pts, ns)
         key = str(frame)
         if key in self.attachments:
             log.info('handoff: already have frame %d', frame)
