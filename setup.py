@@ -153,6 +153,9 @@ setup(
         ('share/dbus-1/services/',
             ['data/com.novacut.Renderer.service']
         ),
+        ('share/novacut',
+            ['blender-vse-import.py'],
+        ),
     ],
     cmdclass={'test': Test},
 )
