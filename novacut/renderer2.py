@@ -30,7 +30,7 @@ import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import GLib, Gst
 
-from .timefuncs import frame_to_nanosecond, nanosecond_to_frame
+from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration
 from .misc import random_slice, random
 from .renderer import make_element
 
@@ -208,10 +208,11 @@ class Output(Pipeline):
         self.set_state('PLAYING')
 
     def push(self, buf):
-        ts = frame_to_nanosecond(self.i, self.framerate)
-        buf.pts = ts
-        buf.dts = ts
-        assert buf.pts == buf.dts == ts
+        ts = video_pts_and_duration(self.i, self.i + 1, self.framerate)
+        buf.pts = ts.pts
+        buf.dts = ts.pts
+        buf.duration = ts.duration
+        assert buf.pts == buf.dts == ts.pts
         log.info('push %s, %s', self.i, ts)
         self.i += 1
         self.src.emit('push-buffer', buf)
