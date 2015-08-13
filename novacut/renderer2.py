@@ -98,6 +98,14 @@ class Pipeline:
 
     def destroy(self):
         self.set_state('NULL')
+        # bus.remove_signal_watch() might be the fix for this error:
+        #
+        #   "GStreamer-CRITICAL **: gst_poll_read_control: assertion 'set != NULL' failed"
+        #
+        # Which is happening after a large number of VideoSlice have been
+        # created and destroyed (~500 ish), which then leads to the process
+        # crashing with a "too many open file descriptors" OSError.
+        self.bus.remove_signal_watch()
         del self.bus
         del self.pipeline
 
