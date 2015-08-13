@@ -58,13 +58,35 @@ log = logging.getLogger()
 Info = namedtuple('Info', 'filename framerate start stop')
 
 
+import weakref
+
+
+class WeakMethod:
+    __slots__ = ('proxy', 'method_name')
+
+    def __init__(self, inst, method_name):
+        if not callable(getattr(inst, method_name)):
+            raise TypeError(
+                '{!r} attribute is not callable'.format(method_name)
+            )
+        self.proxy = weakref.proxy(inst)
+        self.method_name = method_name
+
+    def __call__(self, *args):
+        try:
+            method = getattr(self.proxy, self.method_name)
+        except ReferenceError:
+            return
+        return method(*args)
+
+
 class Pipeline:
     def __init__(self):
 
         self.pipeline = Gst.Pipeline()
         self.bus = self.pipeline.get_bus()
         self.bus.add_signal_watch()
-        self.bus.connect('message::error', self.on_error)
+        self.bus.connect('message::error', WeakMethod(self, 'on_error'))
 
     def set_state(self, name, sync=False):
         log.info('set_state(%r, sync=%r)', name, sync)
@@ -112,14 +134,15 @@ class VideoSlice(Pipeline):
         self.sink = self.make_element('appsink',
             {
                 'emit-signals': True,
-                #'max-buffers': 10,
+                'max-buffers': 1,
+                'enable-last-sample': False,
                 #'sync': False,
             }
         )
 
         # Connect signal handlers
-        self.dec.connect('pad-added', self.on_pad_added)
-        self.sink.connect('new-sample', self.on_new_sample)
+        self.dec.connect('pad-added', WeakMethod(self, 'on_pad_added'))
+        self.sink.connect('new-sample', WeakMethod(self, 'on_new_sample'))
 
         # Link elements
         self.src.link(self.dec)
@@ -145,7 +168,8 @@ class VideoSlice(Pipeline):
             pad.link(self.sink.get_static_pad('sink'))
 
     def on_new_sample(self, sink):
-        buf = sink.get_property('last-sample').get_buffer()
+        #buf = sink.get_property('last-sample').get_buffer()
+        buf = sink.emit('pull-sample').get_buffer()
         cur = nanosecond_to_frame(buf.pts, self.info.framerate)
 #        data = buf.extract_dup(0, buf.get_size())
 #        h = sha1(data).hexdigest()
@@ -179,8 +203,8 @@ class VideoSlice(Pipeline):
 class Output(Pipeline):
     def __init__(self, dst, framerate):
         super().__init__()
-        self.bus.connect('message::eos', self.on_eos)
-        
+        self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
+
         self.framerate = framerate
         self.i = 0
         caps = Gst.caps_from_string('video/x-raw, format=(string)I420, width=(int)1920, height=(int)1080, interlace-mode=(string)progressive, pixel-aspect-ratio=(fraction)1/1, chroma-site=(string)mpeg2, colorimetry=(string)bt709, framerate=(fraction)30000/1001')
@@ -190,8 +214,8 @@ class Output(Pipeline):
                 'caps': caps,
                 'emit-signals': False,
                 'format': 3,
-                #'max-bytes': 16 * 1024 * 1024,
-                #'block': True,
+                'max-bytes': 32 * 1024 * 1024,
+                'block': True,
             }
         )
         self.enc = self.make_element('x264enc',
@@ -270,6 +294,9 @@ if __name__ == '__main__':
     for name in sorted(os.listdir(tree)):
         if name.endswith('.MOV'):
             sources.append(path.join(tree, name))
+    for i in range(9):
+        sources += sources
+    cnt = len(sources)
     random.shuffle(sources)
     dst = path.join(tree, 'test.mkv')
     framerate = Fraction(30000, 1001)
@@ -277,4 +304,5 @@ if __name__ == '__main__':
     test = Helper(sources, dst, framerate)
     test.start()
     mainloop.run()
+    print(cnt)
 
