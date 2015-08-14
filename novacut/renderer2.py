@@ -29,6 +29,7 @@ import logging
 import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import GLib, Gst
+from dbase32 import random_id
 
 from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration
 from .misc import random_slice, random
@@ -52,8 +53,7 @@ log = logging.getLogger()
 # Provide very clear TypeError messages:
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 
-File = namedtuple('File', 'name framerate')
-Slice = namedtuple('Slice', 'id src start stop')
+Slice = namedtuple('Slice', 'id src start stop filename framerate')
 Sequence = namedtuple('Sequence', 'id src')
 
 
@@ -71,7 +71,7 @@ def _int(d, key, minval=None):
         assert type(minval) is int
         if val < minval:
             raise ValueError(
-                'need {} >= {}; got {}'.format(key, minval, val)
+                'need {!r} >= {}; got {}'.format(key, minval, val)
             )
     return val
 
@@ -96,23 +96,6 @@ def _list(d, key, item_type=None):
     return val
 
 
-def _slice(_id, node):
-    s = Slice(_id,
-        _str(node, 'src'),
-        _int(node, 'start', 0),
-        _int(node, 'stop',  0),
-    )
-    if s.start > s.stop:
-        raise ValueError(
-            'need start <= stop; got {} > {}'.format(s.start, s.stop)
-        )
-    return s
-
-
-def _sequence(_id, node):
-    return Sequence(_id, _list(node, 'src', item_type=str))
-
-
 def _framerate(doc):
     d = _dict(doc, 'framerate') 
     return Fraction(
@@ -121,22 +104,8 @@ def _framerate(doc):
     )
 
 
-def _node(doc):
-    _id = _str(doc, '_id')
-    node = _dict(doc, 'node')
-    _type = _str(node, 'type')
-    _map = {
-        'video/slice': _slice,
-        'video/sequence': _sequence,
-    }
-    func = _map.get(_type)
-    if func is None:
-        raise ValueError(
-            '{}: bad node type: {!r}'.format(_id, _type)
-        )
-    n = func(_id, node)
-    log.info('%s: %r', _type, n)
-    return n
+def _sequence(_id, node):
+    return Sequence(_id, _list(node, 'src', item_type=str))
 
 
 class SliceIter:
@@ -144,12 +113,41 @@ class SliceIter:
         self.Dmedia = Dmedia
         self.db = db
         self.root_id = root_id
+        self._map = {
+            'video/slice': self._slice,
+            'video/sequence': _sequence,
+        }
+
+    def _slice(self, _id, node):
+        src = _str(node, 'src')
+        start = _int(node, 'start', 0)
+        stop = _int(node, 'stop', 0)
+        if start > stop:
+            raise ValueError(
+                'need start <= stop; got {} > {}'.format(start, stop)
+            )
+        filename = self.resolve(src)
+        framerate = self.get_framerate(src)
+        return Slice(_id, src, start, stop, filename, framerate)
+
+    def _node(self, doc):
+        _id = _str(doc, '_id')
+        node = _dict(doc, 'node')
+        _type = _str(node, 'type')
+        func = self._map.get(_type)
+        if func is None:
+            raise ValueError(
+                '{}: bad node type: {!r}'.format(_id, _type)
+            )
+        n = func(_id, node)
+        log.info('%s: %r', _type, n)
+        return n
 
     def get(self, _id):
-        return _node(self.db.get(_id))
+        return self._node(self.db.get(_id))
 
     def get_many(self, ids):
-        return tuple(_node(doc) for doc in self.db.get_many(ids))
+        return tuple(self._node(doc) for doc in self.db.get_many(ids))
 
     def resolve(self, file_id):
         (_id, status, name) = self.Dmedia.Resolve(file_id)
@@ -160,9 +158,8 @@ class SliceIter:
             raise ValueError(msg)
         return name
 
-    def get_file(self, file_id):
-        doc = self.db.get(file_id)
-        return File(self.resolve(file_id), _framerate(doc))
+    def get_framerate(self, file_id):
+        return _framerate(self.db.get(file_id))
 
     def iter_slices(self, s):
         if type(s) is Slice:
@@ -179,7 +176,7 @@ class SliceIter:
 
     def __iter__(self):
         return self.iter_slices(self.get(self.root_id))
-                
+
 
 class WeakMethod:
     __slots__ = ('proxy', 'method_name')
@@ -202,14 +199,15 @@ class WeakMethod:
 
 class Pipeline:
     def __init__(self):
-
         self.pipeline = Gst.Pipeline()
         self.bus = self.pipeline.get_bus()
         self.bus.add_signal_watch()
         self.bus.connect('message::error', WeakMethod(self, 'on_error'))
 
     def set_state(self, name, sync=False):
-        log.info('set_state(%r, sync=%r)', name, sync)
+        log.info('%s.set_state(%r, sync=%r)',
+            self.__class__.__name__, name, sync
+        )
         assert sync in (True, False)
         state = getattr(Gst.State, name)
         self.pipeline.set_state(state)
@@ -217,6 +215,7 @@ class Pipeline:
             self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
 
     def destroy(self):
+        log.info('%s.destroy()', self.__class__.__name__)
         self.set_state('NULL')
         # bus.remove_signal_watch() might be the fix for this error:
         #
@@ -247,44 +246,42 @@ class Pipeline:
         return element        
 
 
-class VideoSlice(Pipeline):
-    def __init__(self, info, helper):
+class Input(Pipeline):
+    def __init__(self, s, manager):
         super().__init__()
-
-        assert info.start < info.stop
-        self.info = info
-        self.helper = helper
-        self.cur = info.start
+        self.s = s
+        self.manager = manager
+        self.cur = s.start
 
         # Create elements
-        self.src = self.make_element('filesrc', {'location': info.filename})
-        self.dec = self.make_element('decodebin')
+        src = self.make_element('filesrc', {'location': s.filename})
+        dec = self.make_element('decodebin')
         self.sink = self.make_element('appsink',
             {
                 'emit-signals': True,
                 'max-buffers': 1,
                 'enable-last-sample': False,
-                #'sync': False,
             }
         )
 
         # Connect signal handlers
-        self.dec.connect('pad-added', WeakMethod(self, 'on_pad_added'))
+        dec.connect('pad-added', WeakMethod(self, 'on_pad_added'))
         self.sink.connect('new-sample', WeakMethod(self, 'on_new_sample'))
 
         # Link elements
-        self.src.link(self.dec)
+        src.link(dec)
 
     def run(self):
+        log.info('Playing %r', self.s)
         self.set_state('PAUSED', sync=True)
         self.pipeline.seek(
             1.0,  # rate
             Gst.Format.TIME,        
             Gst.SeekFlags.FLUSH | Gst.SeekFlags.SEGMENT | Gst.SeekFlags.ACCURATE,
             Gst.SeekType.SET,
-            frame_to_nanosecond(self.info.start, self.info.framerate),
+            frame_to_nanosecond(self.s.start, self.s.framerate),
             Gst.SeekType.SET,
-            frame_to_nanosecond(self.info.stop, self.info.framerate),
+            frame_to_nanosecond(self.s.stop, self.s.framerate),
         )
         self.set_state('PLAYING')
 
@@ -296,40 +293,25 @@ class VideoSlice(Pipeline):
             pad.link(self.sink.get_static_pad('sink'))
 
     def on_new_sample(self, sink):
-        #buf = sink.get_property('last-sample').get_buffer()
         buf = sink.emit('pull-sample').get_buffer()
-        cur = nanosecond_to_frame(buf.pts, self.info.framerate)
-#        data = buf.extract_dup(0, buf.get_size())
-#        h = sha1(data).hexdigest()
-        log.info('new-sample: %s [%s:%s] @%s',
-            'nope', self.info.start, self.info.stop, cur
-        )
-
+        cur = nanosecond_to_frame(buf.pts, self.s.framerate)
+        log.info('new-sample: [%s:%s] @%s', self.s.start, self.s.stop, cur)
         if self.cur != cur:
             self.fatal('cur: %s != %s', self.cur, cur)
-        if not (self.info.start <= cur < self.info.stop):
+        if not (self.s.start <= cur < self.s.stop):
             self.fatal('false inequality: %s <= %s < %s',
-                self.info.start, cur, self.info.stop
+                self.s.start, cur, self.s.stop
             )
-
-#        if cur not in self.helper.hashes:
-#            self.helper.hashes[cur] = h
-#        elif self.helper.hashes[cur] != h:
-#            self.fatal('hash mismatch: %s: %s != %s',
-#                cur, self.helper.hashes[cur], h
-#            )
-
-        self.helper.output.push(buf)
-
+        self.manager.output.push(buf)
         self.cur += 1
-        if self.cur == self.info.stop:
+        if self.cur == self.s.stop:
             log.info('last frame in slice')
-            GLib.idle_add(self.helper.on_stop)
+            self.manager.input_complete(self)
         return Gst.FlowReturn.OK
 
 
 class Output(Pipeline):
-    def __init__(self, dst, framerate):
+    def __init__(self, filename, framerate):
         super().__init__()
         self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
 
@@ -342,15 +324,15 @@ class Output(Pipeline):
                 'caps': caps,
                 'emit-signals': False,
                 'format': 3,
-                'max-bytes': 32 * 1024 * 1024,
+                'max-bytes': 64 * 1024 * 1024,
                 'block': True,
             }
         )
         self.enc = self.make_element('x264enc',
-            {'bitrate': 8192, 'psy-tune': 5}
+            {'bitrate': 12288, 'psy-tune': 5}
         )
         self.mux = self.make_element('matroskamux')
-        self.sink = self.make_element('filesink', {'location': dst})
+        self.sink = self.make_element('filesink', {'location': filename})
 
         self.src.link(self.enc)
         self.enc.link(self.mux)
@@ -379,40 +361,41 @@ class Output(Pipeline):
         mainloop.quit()
 
 
-class Helper:
-    def __init__(self, sources, dst, framerate):
-        self.sources = sources
-        self.framerate = framerate
-        self.hashes = {}
-        self.count = 0
-        self.output = Output(dst, framerate)
+class Manager:
+    __slots__ = ('slices', 'output', 'input')
+
+    def __init__(self, slices, output):
+        self.slices = list(slices)
+        self.output = output
+        self.input = None
+
+    def run(self):
         self.output.run()
+        self.next()
 
     def next_slice(self):
-        if not self.sources:
+        if not self.slices:
             return None
-        src = self.sources.pop(0)
-        (start, stop) = random_slice(500)
-        return Info(src, self.framerate, start, stop)
+        return self.slices.pop(0)
 
-    def done(self):
-        self.output.done()
-
-    def start(self):
-        info = self.next_slice()
-        if info is None:
-            self.done()
+    def next(self):
+        assert self.input is None
+        s = self.next_slice()
+        if s is None:
+            self.output.done()
         else:
-            self.count += 1
-            log.info('**** slice %s ****', self.count)
-            self.slice = VideoSlice(info, self)
-            self.slice.run()
+            self.input = Input(s, self)
+            self.input.run()
 
-    def on_stop(self):
-        log.info('Helper.on_stop()')
-        self.slice.destroy()
-        del self.slice
-        self.start()
+    def _input_complete(self, inst):
+        assert inst is self.input
+        self.input.destroy()
+        self.input = None
+        self.next()
+
+    def input_complete(self, inst):
+        log.info('Manager.input_complete(<%r>)', inst.s.id)
+        GLib.idle_add(self._input_complete, inst)
 
 
 
@@ -422,15 +405,21 @@ if __name__ == '__main__':
     for name in sorted(os.listdir(tree)):
         if name.endswith('.MOV'):
             sources.append(path.join(tree, name))
-    for i in range(9):
-        sources += sources
+#    for i in range(1):
+#        sources += sources
     cnt = len(sources)
     random.shuffle(sources)
-    dst = path.join(tree, 'test.mkv')
     framerate = Fraction(30000, 1001)
+    slices = []
+    for filename in sources:
+        (start, stop) = random_slice(550)
+        s = Slice(random_id(), random_id(30), start, stop, filename, framerate)
+        slices.append(s)
+    del sources
 
-    test = Helper(sources, dst, framerate)
-    test.start()
+    output = Output(path.join(tree, 'test.mkv'), framerate)
+    manager = Manager(slices, output)
+    manager.run()
     mainloop.run()
     print(cnt)
 
