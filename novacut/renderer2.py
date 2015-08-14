@@ -84,7 +84,7 @@ def _dict(d, key):
     return _get(d, key, dict)
 
 
-def _list(d, key, item_type=None):
+def _list(d, key, item_type=None, as_tuple=False):
     val = _get(d, key, list)
     if item_type is not None:
         for (i, item) in enumerate(val):
@@ -93,6 +93,8 @@ def _list(d, key, item_type=None):
                 raise TypeError(
                     TYPE_ERROR.format(label, item_type, type(item), item)
                 )
+    if as_tuple is True:
+        return tuple(val)
     return val
 
 
@@ -105,7 +107,7 @@ def _framerate(doc):
 
 
 def _sequence(_id, node):
-    return Sequence(_id, _list(node, 'src', item_type=str))
+    return Sequence(_id, _list(node, 'src', item_type=str, as_tuple=True))
 
 
 class SliceIter:
@@ -130,7 +132,7 @@ class SliceIter:
         framerate = self.get_framerate(src)
         return Slice(_id, src, start, stop, filename, framerate)
 
-    def _node(self, doc):
+    def _doc_to_tuple(self, doc):
         _id = _str(doc, '_id')
         node = _dict(doc, 'node')
         _type = _str(node, 'type')
@@ -140,14 +142,18 @@ class SliceIter:
                 '{}: bad node type: {!r}'.format(_id, _type)
             )
         n = func(_id, node)
-        log.info('%s: %r', _type, n)
         return n
 
     def get(self, _id):
-        return self._node(self.db.get(_id))
+        return self._doc_to_tuple(self.db.get(_id))
 
     def get_many(self, ids):
-        return tuple(self._node(doc) for doc in self.db.get_many(ids))
+        docs = self.db.get_many(ids)
+        if None in docs:
+            raise ValueError(
+                'Not Found: {!r}'.format(ids[docs.index(None)])
+            )
+        return tuple(self._doc_to_tuple(doc) for doc in self.db.get_many(ids))
 
     def resolve(self, file_id):
         (_id, status, name) = self.Dmedia.Resolve(file_id)
@@ -165,7 +171,7 @@ class SliceIter:
         if type(s) is Slice:
             # Only yield a non-empty slice:
             if s.stop > s.start:
-                yield (self.get_file(s.src), s)
+                yield s
         elif type(s) is Sequence:
             # Only yield from a non-empty sequence:
             if len(s.src) > 0:
@@ -362,21 +368,23 @@ class Output(Pipeline):
 
 
 class Manager:
-    __slots__ = ('slices', 'output', 'input')
+    __slots__ = ('slices', 'slices_iter', 'input', 'output')
 
     def __init__(self, slices, output):
-        self.slices = list(slices)
-        self.output = output
+        self.slices = slices
+        self.slices_iter = iter(slices)
         self.input = None
+        self.output = output
 
     def run(self):
         self.output.run()
         self.next()
 
     def next_slice(self):
-        if not self.slices:
+        try:
+            return next(self.slices_iter)
+        except StopIteration:
             return None
-        return self.slices.pop(0)
 
     def next(self):
         assert self.input is None
@@ -387,7 +395,7 @@ class Manager:
             self.input = Input(s, self)
             self.input.run()
 
-    def _input_complete(self, inst):
+    def __input_complete(self, inst):
         assert inst is self.input
         self.input.destroy()
         self.input = None
@@ -395,7 +403,7 @@ class Manager:
 
     def input_complete(self, inst):
         log.info('Manager.input_complete(<%r>)', inst.s.id)
-        GLib.idle_add(self._input_complete, inst)
+        GLib.idle_add(self.__input_complete, inst)
 
 
 
