@@ -1,5 +1,5 @@
-novacut (14.12.0~alpha) trusty; urgency=low
+novacut (15.08.0~alpha) trusty; urgency=low
 
   * Upstream pre-release
 
- -- Jason Gerard DeRose <jderose@novacut.com>  Fri, 26 Dec 2014 13:18:58 -0700
+ -- Jason Gerard DeRose <jderose@novacut.com>  Fri, 14 Aug 2015 14:20:23 -0600
