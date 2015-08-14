@@ -22,9 +22,9 @@
 import os
 from os import path
 from fractions import Fraction
-import logging
-from hashlib import sha1
 from collections import namedtuple
+import weakref
+import logging
 
 import gi
 gi.require_version('Gst', '1.0')
@@ -49,17 +49,137 @@ logging.basicConfig(
 log = logging.getLogger()
 
 
-#class Encoder:
-#    def prerolled(self, src):
-#        pass
+# Provide very clear TypeError messages:
+TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 
-#    def
+File = namedtuple('File', 'name framerate')
+Slice = namedtuple('Slice', 'id src start stop')
+Sequence = namedtuple('Sequence', 'id src')
 
-Info = namedtuple('Info', 'filename framerate start stop')
+
+def _get(d, key, t):
+    assert type(d) is dict
+    val = d.get(key)
+    if type(val) is not t:
+        raise TypeError(TYPE_ERROR.format(key, t, type(val), val))
+    return val
 
 
-import weakref
+def _int(d, key, minval=None):
+    val = _get(d, key, int)
+    if minval is not None:
+        assert type(minval) is int
+        if val < minval:
+            raise ValueError(
+                'need {} >= {}; got {}'.format(key, minval, val)
+            )
+    return val
 
+
+def _str(d, key):
+    return _get(d, key, str)
+
+
+def _dict(d, key):
+    return _get(d, key, dict)
+
+
+def _list(d, key, item_type=None):
+    val = _get(d, key, list)
+    if item_type is not None:
+        for (i, item) in enumerate(val):
+            if type(item) is not item_type:
+                label = '{}[{}]'.format(key, i)
+                raise TypeError(
+                    TYPE_ERROR.format(label, item_type, type(item), item)
+                )
+    return val
+
+
+def _slice(_id, node):
+    s = Slice(_id,
+        _str(node, 'src'),
+        _int(node, 'start', 0),
+        _int(node, 'stop',  0),
+    )
+    if s.start > s.stop:
+        raise ValueError(
+            'need start <= stop; got {} > {}'.format(s.start, s.stop)
+        )
+    return s
+
+
+def _sequence(_id, node):
+    return Sequence(_id, _list(node, 'src', item_type=str))
+
+
+def _framerate(doc):
+    d = _dict(doc, 'framerate') 
+    return Fraction(
+        _int(d, 'num',   1),
+        _int(d, 'denom', 1)
+    )
+
+
+def _node(doc):
+    _id = _str(doc, '_id')
+    node = _dict(doc, 'node')
+    _type = _str(node, 'type')
+    _map = {
+        'video/slice': _slice,
+        'video/sequence': _sequence,
+    }
+    func = _map.get(_type)
+    if func is None:
+        raise ValueError(
+            '{}: bad node type: {!r}'.format(_id, _type)
+        )
+    n = func(_id, node)
+    log.info('%s: %r', _type, n)
+    return n
+
+
+class SliceIter:
+    def __init__(self, Dmedia, db, root_id):
+        self.Dmedia = Dmedia
+        self.db = db
+        self.root_id = root_id
+
+    def get(self, _id):
+        return _node(self.db.get(_id))
+
+    def get_many(self, ids):
+        return tuple(_node(doc) for doc in self.db.get_many(ids))
+
+    def resolve(self, file_id):
+        (_id, status, name) = self.Dmedia.Resolve(file_id)
+        assert _id == file_id
+        if status != 0:
+            msg = 'not local: {}'.format(file_id)
+            log.error(msg)
+            raise ValueError(msg)
+        return name
+
+    def get_file(self, file_id):
+        doc = self.db.get(file_id)
+        return File(self.resolve(file_id), _framerate(doc))
+
+    def iter_slices(self, s):
+        if type(s) is Slice:
+            # Only yield a non-empty slice:
+            if s.stop > s.start:
+                yield (self.get_file(s.src), s)
+        elif type(s) is Sequence:
+            # Only yield from a non-empty sequence:
+            if len(s.src) > 0:
+                for child in self.get_many(s.src):
+                    yield from self.iter_slices(child)
+        else:
+            TypeError('bad node: {!r}: {!r}'.format(type(s), s))
+
+    def __iter__(self):
+        return self.iter_slices(self.get(self.root_id))
+                
 
 class WeakMethod:
     __slots__ = ('proxy', 'method_name')
@@ -124,7 +244,7 @@ class Pipeline:
     def make_element(self, name, props=None):
         element = make_element(name, props)
         self.pipeline.add(element)
-        return element
+        return element        
 
 
 class VideoSlice(Pipeline):
