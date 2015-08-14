@@ -153,7 +153,7 @@ class SliceIter:
             raise ValueError(
                 'Not Found: {!r}'.format(ids[docs.index(None)])
             )
-        return tuple(self._doc_to_tuple(doc) for doc in self.db.get_many(ids))
+        return tuple(self._doc_to_tuple(d) for d in docs)
 
     def resolve(self, file_id):
         (_id, status, name) = self.Dmedia.Resolve(file_id)

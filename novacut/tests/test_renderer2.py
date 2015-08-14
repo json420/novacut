@@ -32,7 +32,7 @@ from dbase32 import random_id
 from usercouch.misc import CouchTestCase
 from microfiber import Database, NotFound
 
-from ..misc import random_slice
+from .. import misc
 from .. import renderer2 as renderer
 
 
@@ -98,6 +98,57 @@ class MockDmedia:
         return (_id, 0, self._path(_id))
 
 
+def random_framerate():
+    num = random.randrange(1, 54321)
+    denom = random.randrange(1, 54321)
+    return (num, denom, Fraction(num, denom))
+
+
+def random_slice(Dmedia):
+    (start, stop) = misc.random_slice(123456)
+    file_id = random_id(30)
+    (num, denom, framerate) = random_framerate()
+    s = renderer.Slice(
+        random_id(),
+        file_id,
+        start,
+        stop,
+        Dmedia._path(file_id),
+        framerate,
+    )
+    doc = {
+        '_id': s.id,
+        'node': {
+            'type': 'video/slice',
+            'src': file_id,
+            'start': start,
+            'stop': stop,
+        }
+    }
+    fdoc = {
+        '_id': file_id,
+        'framerate': {
+            'num': num,
+            'denom': denom,
+        }
+    }
+    return (s, doc, fdoc)
+
+
+def random_sequence():
+    s = renderer.Sequence(random_id(),
+        tuple(random_id() for i in range(random.randrange(20)))
+    )
+    doc = {
+        '_id': s.id,
+        'node': {
+            'type': 'video/sequence',
+            'src': list(s.src),
+        }
+    }
+    return (s, doc)
+
+
 class TestSliceIter(CouchTestCase):
     def get_db(self, create=False):
         db = Database('foo-{}-1'.format(random_id().lower()), self.env)
@@ -155,7 +206,7 @@ class TestSliceIter(CouchTestCase):
         with self.assertRaises(NotFound):
             inst.get(_id)
         file_id = random_id(30)
-        (start, stop) = random_slice(5000)
+        (start, stop) = misc.random_slice(5000)
         doc = {
             '_id': _id,
             'node': {
@@ -189,6 +240,30 @@ class TestSliceIter(CouchTestCase):
         self.assertEqual(s.filename, Dmedia._path(file_id))
         self.assertIsInstance(s.framerate, Fraction)
         self.assertEqual(s.framerate, Fraction(num, denom))
+
+    def test_get_many(self):
+        Dmedia = MockDmedia()
+        db = self.get_db(create=True)
+        inst = renderer.SliceIter(Dmedia, db, random_id())
+
+        (s1, doc1, fdoc1) = random_slice(Dmedia)
+        (s2, doc2, fdoc2) = random_slice(Dmedia)
+        (s3, doc3) = random_sequence()
+        (s4, doc4) = random_sequence()
+
+        tups = [s1, s2, s3, s4]
+        random.shuffle(tups)
+        tups = tuple(tups)
+        ids = tuple(s.id for s in tups)
+
+        # No docs saved:
+        with self.assertRaises(ValueError) as cm:
+            inst.get_many(ids)
+        self.assertEqual(str(cm.exception), 'Not Found: {!r}'.format(ids[0]))
+
+        # All docs saved:
+        db.save_many([doc1, fdoc1, doc2, fdoc2, doc3, doc4])
+        self.assertEqual(inst.get_many(ids), tups)
 
     def test_framerate(self):
         Dmedia = MockDmedia()
@@ -266,4 +341,6 @@ class TestSliceIter(CouchTestCase):
         f = inst.get_framerate(_id)
         self.assertIsInstance(f, Fraction)
         self.assertEqual(f, Fraction(1, 1))
+
+
 
