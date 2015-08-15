@@ -54,18 +54,27 @@ log = logging.getLogger()
 parser = argparse.ArgumentParser()
 parser.add_argument('--version', action='version', version=novacut.__version__)
 parser.add_argument('filename', help='Path of video file to validate')
+#parser.add_argument('--frames', type=int, metavar='N',
+#    help='Exit with error unless file contains N frames of video',
+#)
+parser.add_argument('--full-check', action='store_true', default=False,
+    help='Always check full video (instead of stopping at first problem)'
+)
 args = parser.parse_args()
+
 
 filename = path.abspath(args.filename)
 if not path.isfile(filename):
     log.error('Not a file: %r', filename)
     sys.exit(3)
 
-validator = Validator(filename)
+validator = Validator(filename, args.full_check)
 validator.run()
 mainloop.run()
 info = json.dumps(validator.info, sort_keys=True, indent=4)
 print(info)
 if validator.error:
     sys.exit(4)
+if validator.info.get('valid') is not True:
+    sys.exit(5)
 

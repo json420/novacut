@@ -338,7 +338,7 @@ class Validator(Pipeline):
         if self.frame == 0 and ts.pts != 0:
             log.warning('non-zero PTS at frame 0: %r', ts)
             self.mark_invalid()
-        if ts != expected_ts:
+        elif ts != expected_ts:
             log.warning('Timestamp mismatch at frame %d:\n%s',
                 self.frame, format_ts_mismatch(ts, expected_ts)
             )
@@ -413,7 +413,7 @@ class Input(Pipeline):
     def on_new_sample(self, sink):
         buf = sink.emit('pull-sample').get_buffer()
         cur = nanosecond_to_frame(buf.pts, self.s.framerate)
-        log.info('new-sample: [%s:%s] @%s', self.s.start, self.s.stop, cur)
+        #log.info('new-sample: [%s:%s] @%s', self.s.start, self.s.stop, cur)
         if self.cur != cur:
             self.fatal('cur: %s != %s', self.cur, cur)
         if not (self.s.start <= cur < self.s.stop):
@@ -467,7 +467,7 @@ class Output(Pipeline):
         buf.dts = ts.pts
         buf.duration = ts.duration
         assert buf.pts == buf.dts == ts.pts
-        log.info('push %s, %s', self.i, ts)
+        #log.info('push %s, %s', self.i, ts)
         self.i += 1
         self.src.emit('push-buffer', buf)
 
