@@ -1,0 +1,71 @@
+#!/usr/bin/python3
+
+# novacut: the collaborative video editor
+# Copyright (C) 2015 Novacut Inc
+#
+# This file is part of `novacut`.
+#
+# `novacut` is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# `novacut` is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with `novacut`.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#   Jason Gerard DeRose <jderose@novacut.com>
+
+"""
+Validate timestamps in a video file.
+
+Used to validate the correctness of a Novacut render.
+
+Can also be used to check whether an input video will meet Novacut's current
+expetations without first conforming the video.
+"""
+
+import argparse
+from os import path
+import json
+import logging
+import sys
+
+import novacut
+from novacut.renderer2 import Validator, mainloop
+
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='\t'.join([
+        '%(levelname)s',
+        '%(threadName)s',
+        '%(message)s',
+    ]),
+)
+log = logging.getLogger()
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--version', action='version', version=novacut.__version__)
+parser.add_argument('filename', help='Path of video file to validate')
+args = parser.parse_args()
+
+filename = path.abspath(args.filename)
+if not path.isfile(filename):
+    log.error('Not a file: %r', filename)
+    sys.exit(3)
+
+validator = Validator(filename)
+validator.run()
+mainloop.run()
+info = json.dumps(validator.info, sort_keys=True, indent=4)
+print(info)
+if validator.error:
+    sys.exit(4)
+

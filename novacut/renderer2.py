@@ -31,7 +31,7 @@ gi.require_version('Gst', '1.0')
 from gi.repository import GLib, Gst
 from dbase32 import random_id
 
-from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration
+from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration, Timestamp
 from .misc import random_slice, random
 from .renderer import make_element
 
@@ -209,6 +209,7 @@ class Pipeline:
         self.bus = self.pipeline.get_bus()
         self.bus.add_signal_watch()
         self.bus.connect('message::error', WeakMethod(self, 'on_error'))
+        self.error = False
 
     def set_state(self, name, sync=False):
         log.info('%s.set_state(%r, sync=%r)',
@@ -244,12 +245,85 @@ class Pipeline:
         GLib.idle_add(self._fatal)
 
     def on_error(self, bus, msg):
+        self.error = True
         self.fatal('on_error: %s', msg.parse_error())
 
     def make_element(self, name, props=None):
         element = make_element(name, props)
         self.pipeline.add(element)
         return element        
+
+
+def get_expected_ts(frame, framerate):
+    return video_pts_and_duration(frame, frame + 1, framerate)
+
+
+class Validator(Pipeline):
+    def __init__(self, filename):
+        super().__init__()
+        self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
+
+        # Create elements
+        src = self.make_element('filesrc', {'location': filename})
+        dec = self.make_element('decodebin')
+        self.sink = self.make_element('fakesink', {'signal-handoffs': True})
+
+        # Connect signal handlers
+        dec.connect('pad-added', WeakMethod(self, 'on_pad_added'))
+        self.sink.connect('handoff', WeakMethod(self, 'on_handoff'))
+
+        # Link elements
+        src.link(dec)
+
+        self.frame = 0
+        self.framerate = None
+        self.info = {'valid': True}
+
+    def run(self):
+        self.set_state('PAUSED', sync=True)
+        (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
+        if not success:
+            self.fatal('Could not query duration')
+        log.info('duration: %d ns', ns)
+        self.info['duration'] = ns
+        self.set_state('PLAYING')
+
+    def on_pad_added(self, dec, pad):
+        caps = pad.get_current_caps()
+        string = caps.to_string()
+        log.info('on_pad_added(): %s', string)
+        if string.startswith('video/'):
+            (num, denom) = caps.get_structure(0).get_fraction('framerate')[1:3]
+            self.info['framerate'] = {'num': num, 'denom': denom}
+            self.framerate = Fraction(num, denom)
+            log.info('framerate: %r', self.framerate)
+            pad.link(self.sink.get_static_pad('sink'))
+
+    def on_handoff(self, sink, buf, pad):
+        ts = Timestamp(buf.pts, buf.duration)
+        expected_ts = get_expected_ts(self.frame, self.framerate)
+        if ts != expected_ts:
+            log.warning('frame %d: %r != %r', self.frame, ts, expected_ts)
+            self.info['valid'] = False
+        self.frame += 1
+
+    def on_eos(self, bus, msg):
+        log.info('eos')
+        frames = self.frame
+        info = self.info
+        info['frames'] = self.frame
+        expected_duration = frame_to_nanosecond(frames, self.framerate)
+        if info['duration'] != expected_duration:
+            log.warning('total duration: %d != %d',
+                info['duration'], expected_duration
+            )
+            info['valid'] = False
+        if info['valid'] is True:
+            log.info('Success, this is a conforming video!')
+        else:
+            log.warning('This is not a conforming video!')
+        self.destroy()
+        mainloop.quit()
 
 
 class Input(Pipeline):
