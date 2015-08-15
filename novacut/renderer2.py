@@ -408,10 +408,12 @@ class Output(Pipeline):
                 'block': True,
             }
         )
-        self.enc = self.make_element('x264enc',
-            {'bitrate': 12288, 'psy-tune': 5}
-        )
-        self.mux = self.make_element('matroskamux')
+#        self.enc = self.make_element('x264enc',
+#            {'bitrate': 12288, 'psy-tune': 5}
+#        )
+#        self.mux = self.make_element('avmux_mov')
+        self.enc = self.make_element('theoraenc')
+        self.mux = self.make_element('oggmux')
         self.sink = self.make_element('filesink', {'location': filename})
 
         self.src.link(self.enc)
@@ -442,13 +444,14 @@ class Output(Pipeline):
 
 
 class Manager:
-    __slots__ = ('slices', 'slices_iter', 'input', 'output')
+    __slots__ = ('slices', 'slices_iter', 'input', 'output', 'frames')
 
     def __init__(self, slices, output):
         self.slices = slices
         self.slices_iter = iter(slices)
         self.input = None
         self.output = output
+        self.frames = 0
 
     def run(self):
         self.output.run()
@@ -466,6 +469,7 @@ class Manager:
         if s is None:
             self.output.done()
         else:
+            self.frames += (s.stop - s.start)
             self.input = Input(s, self)
             self.input.run()
 
