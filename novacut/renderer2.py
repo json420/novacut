@@ -258,8 +258,35 @@ def get_expected_ts(frame, framerate):
     return video_pts_and_duration(frame, frame + 1, framerate)
 
 
+def _row(label, ts):
+    return (label, str(ts.pts), str(ts.duration))
+
+def _ts_diff(ts, expected_ts):
+    return Timestamp(
+        ts.pts - expected_ts.pts,
+        ts.duration - expected_ts.duration
+    )
+
+
+def format_ts_mismatch(ts, expected_ts):
+    rows = (
+        ('', 'PTS', 'DURATION'),
+        _row('GOT:', ts),
+        _row('EXPECTED:', expected_ts),
+        _row('DIFF', _ts_diff(ts, expected_ts)),
+    )
+    widths = tuple(
+        max(len(r[i]) for r in rows) for i in range(3)
+    )
+    lines = [
+        ' '.join(row[i].rjust(widths[i]) for i in range(3))
+        for row in rows
+    ]
+    return '\n'.join('    ' + l for l in lines)
+
+
 class Validator(Pipeline):
-    def __init__(self, filename):
+    def __init__(self, filename, full_check=False):
         super().__init__()
         self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
 
@@ -278,6 +305,12 @@ class Validator(Pipeline):
         self.frame = 0
         self.framerate = None
         self.info = {'valid': True}
+        self.full_check = full_check
+
+    def mark_invalid(self):
+        self.info['valid'] = False
+        if not self.full_check:
+            self.fatal('Stopping check at first inconsistency')
 
     def run(self):
         self.set_state('PAUSED', sync=True)
@@ -302,9 +335,14 @@ class Validator(Pipeline):
     def on_handoff(self, sink, buf, pad):
         ts = Timestamp(buf.pts, buf.duration)
         expected_ts = get_expected_ts(self.frame, self.framerate)
+        if self.frame == 0 and ts.pts != 0:
+            log.warning('non-zero PTS at frame 0: %r', ts)
+            self.mark_invalid()
         if ts != expected_ts:
-            log.warning('frame %d: %r != %r', self.frame, ts, expected_ts)
-            self.info['valid'] = False
+            log.warning('Timestamp mismatch at frame %d:\n%s',
+                self.frame, format_ts_mismatch(ts, expected_ts)
+            )
+            self.mark_invalid()
         self.frame += 1
 
     def on_eos(self, bus, msg):
@@ -482,30 +520,13 @@ class Manager:
     def input_complete(self, inst):
         log.info('Manager.input_complete(<%r>)', inst.s.id)
         GLib.idle_add(self.__input_complete, inst)
-
+    
 
 
 if __name__ == '__main__':
-    tree = path.dirname(path.dirname(path.abspath(__file__)))
-    sources = []
-    for name in sorted(os.listdir(tree)):
-        if name.endswith('.MOV'):
-            sources.append(path.join(tree, name))
-#    for i in range(1):
-#        sources += sources
-    cnt = len(sources)
-    random.shuffle(sources)
-    framerate = Fraction(30000, 1001)
-    slices = []
-    for filename in sources:
-        (start, stop) = random_slice(550)
-        s = Slice(random_id(), random_id(30), start, stop, filename, framerate)
-        slices.append(s)
-    del sources
-
-    output = Output(path.join(tree, 'test.mkv'), framerate)
-    manager = Manager(slices, output)
-    manager.run()
-    mainloop.run()
-    print(cnt)
+    ts = Timestamp(pts=17851000000, duration=33366666)
+    expected_ts = Timestamp(pts=17784433333, duration=33366667)
+    print(report_ts_mismatch(ts, expected_ts))
+    
+    
 
