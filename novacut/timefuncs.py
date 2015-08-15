@@ -274,43 +274,6 @@ def video_slice_to_gnl_old(offset, start, stop, framerate):
     }
 
 
-# FIXME: Remove after it's not useful anymore as a reference
-def audio_slice_to_gnl_old(offset, start, stop, samplerate):
-    """
-    Map an audio slice at global *offset* into gnlurisource properties.
-
-    The is the old function for gnonlin 0.10 API.
-
-    For example, say at global sample offset 2000 you have a slice from
-    sample 30,000 to sample 90,000:
-
-    >>> audio_slice_to_gnl_old(2000, 30000, 90000, 48000) == {
-    ...     'media-start': 625000000,
-    ...     'media-duration': 1250000000,
-    ...     'start': 41666666,
-    ...     'duration': 1250000000,
-    ... }
-    True
-
-    """
-    assert 0 <= start < stop
-
-    # These properties are about the slice itself
-    (pts1, dur1) = audio_pts_and_duration(start, stop, samplerate)
-
-    # These properties are about the position of the slice in the composition
-    samples = stop - start
-    (pts2, dur2) = audio_pts_and_duration(offset, offset + samples, samplerate)
-
-    assert abs(dur1 - dur2) <= 1
-    return {
-        'media-start': pts1,
-        'media-duration': dur1,
-        'start': pts2,
-        'duration': dur2,
-    }
-
-
 def video_slice_to_gnl(offset, start, stop, framerate):
     """
     Map a video slice at global *offset* into gnlurisource properties.
