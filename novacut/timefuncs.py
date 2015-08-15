@@ -237,43 +237,6 @@ def audio_pts_and_duration(start, stop, samplerate):
     return Timestamp(pts, duration)
 
 
-# FIXME: Remove after it's not useful anymore as a reference
-def video_slice_to_gnl_old(offset, start, stop, framerate):
-    """
-    Map a video slice at global *offset* into gnlurisource properties.
-
-    The is the old function for gnonlin 0.10 API.
-
-    For example, say at global frame offset 200 you have a slice from frame
-    7 to frame 42:
-
-    >>> video_slice_to_gnl_old(200, 7, 42, Fraction(24, 1)) == {
-    ...     'media-start': 291666666,
-    ...     'media-duration': 1458333334,
-    ...     'start': 8333333333,
-    ...     'duration': 1458333333,
-    ... }
-    True
-
-    """
-    assert 0 <= start < stop
-
-    # These properties are about the slice itself
-    (pts1, dur1) = video_pts_and_duration(start, stop, framerate)
-
-    # These properties are about the position of the slice in the composition
-    frames = stop - start
-    (pts2, dur2) = video_pts_and_duration(offset, offset + frames, framerate)
-
-    assert abs(dur1 - dur2) <= 1
-    return {
-        'media-start': pts1,
-        'media-duration': dur1,
-        'start': pts2,
-        'duration': dur2,
-    }
-
-
 def video_slice_to_gnl(offset, start, stop, framerate):
     """
     Map a video slice at global *offset* into gnlurisource properties.
