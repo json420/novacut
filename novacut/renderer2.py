@@ -26,34 +26,19 @@ from collections import namedtuple
 import weakref
 import logging
 
-import gi
-gi.require_version('Gst', '1.0')
 from gi.repository import GLib, Gst
-from dbase32 import random_id
 
 from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration, Timestamp
 from .misc import random_slice, random
 from .gsthelpers import make_element, get_framerate_from_struct, make_caps, make_element_from_desc
 
 
-Gst.init(None)
+Gst.init()
 mainloop = GLib.MainLoop()
 
-_format = [
-    '%(levelname)s',
-    '%(threadName)s',
-    '%(message)s',
-]
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='\t'.join(_format),
-)
-log = logging.getLogger()
 
-
-# Provide very clear TypeError messages:
+log = logging.getLogger(__name__)
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
-
 Slice = namedtuple('Slice', 'id src start stop filename')
 Sequence = namedtuple('Sequence', 'id src')
 
@@ -416,8 +401,8 @@ class Input(Pipeline):
         # Create elements
         src = self.make_element('filesrc', {'location': s.filename})
         dec = self.make_element('decodebin')
-        convert = self.make_element('videoconvert', {'chroma-resampler': 3})
-        scale = self.make_element('videoscale', {'method': 5})
+        convert = self.make_element('videoconvert')
+        scale = self.make_element('videoscale', {'method': 3})
         sink = self.make_element('appsink',
             {
                 'caps': manager.output.input_caps,
@@ -584,13 +569,4 @@ class Manager:
     def input_complete(self, inst):
         log.info('Manager.input_complete(<%r>)', inst.s)
         GLib.idle_add(self.__input_complete, inst)
-    
-
-
-if __name__ == '__main__':
-    ts = Timestamp(pts=17851000000, duration=33366666)
-    expected_ts = Timestamp(pts=17784433333, duration=33366667)
-    print(report_ts_mismatch(ts, expected_ts))
-    
-    
 
