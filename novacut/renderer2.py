@@ -24,12 +24,13 @@ from os import path
 from fractions import Fraction
 from collections import namedtuple
 import weakref
+from datetime import datetime
 import logging
 
 from gi.repository import GLib, Gst
+from microfiber import Database, dumps
 
 from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration, Timestamp
-from .misc import random_slice, random
 from .gsthelpers import make_element, get_framerate_from_struct, make_caps, make_element_from_desc
 
 
@@ -569,4 +570,60 @@ class Manager:
     def input_complete(self, inst):
         log.info('Manager.input_complete(<%r>)', inst.s)
         GLib.idle_add(self.__input_complete, inst)
+
+ 
+class Worker:
+    def __init__(self, Dmedia, env):
+        self.Dmedia = Dmedia
+        self.novacut_db = Database('novacut-1', env)
+        self.dmedia_db = Database('dmedia-1', env)
+
+    def run(self, job_id):
+        job = self.novacut_db.get(job_id)
+        log.info('Rendering: %s', dumps(job, pretty=True))
+        settings = self.novacut_db.get(job['node']['settings'])
+        log.info('With settings: %s', dumps(settings['node'], pretty=True))
+
+        root_id = job['node']['root']
+        slices = SliceIter(self.Dmedia, self.novacut_db, root_id)
+
+        dst = self.Dmedia.AllocateTmp()
+        renderer = Manager(slices, settings['node'], dst)
+        renderer.run()
+        mainloop.run()
+        if path.getsize(dst) < 1:
+            raise SystemExit('file-size is zero for {}'.format(job_id))
+
+        obj = self.Dmedia.HashAndMove(dst, 'render')
+        _id = obj['file_id']
+        doc = self.dmedia_db.get(_id)
+        doc['render_of'] = job_id
+
+        # Create the symlink
+        ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        if settings['node'].get('ext'):
+            ts += '.' + settings['node']['ext']
+
+        home = path.abspath(os.environ['HOME'])
+        name = path.join('Novacut', ts)
+        link = path.join(home, name)
+        d = path.dirname(link)
+        if not path.isdir(d):
+            os.mkdir(d)
+        target = obj['file_path']
+        os.symlink(target, link)
+        doc['link'] = name
+
+        self.dmedia_db.save(doc)
+        job['renders'][_id] = {
+            'bytes': doc['bytes'],
+            'time': doc['time'],
+            'link': name,
+        }
+        self.novacut_db.save(job)
+
+        obj['link'] = name
+
+
+        return obj
 
