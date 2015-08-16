@@ -321,16 +321,42 @@ class Validator(Pipeline):
         self.info['duration'] = ns
         self.set_state('PLAYING')
 
+    def _info_from_caps(self, caps):
+        s = caps.get_structure(0)
+
+        (success, num, denom) = s.get_fraction('framerate')
+        if not success:
+            log.error('could not get framerate from video stream')
+            return False
+
+        (sucess, width) = s.get_int('width')
+        if not success:
+            log.error('could not get width from video stream')
+            return False
+
+        (sucess, height) = s.get_int('height')
+        if not success:
+            log.error('could not get height from video stream')
+            return False
+
+        self.framerate = Fraction(num, denom)
+        self.info['framerate'] = {'num': num, 'denom': denom}
+        self.info['width'] = width
+        self.info['height'] = height
+
+        log.info('framerate: %d/%d', num, denom)
+        log.info('resolution: %dx%d', width, height)
+        return True
+
     def on_pad_added(self, dec, pad):
         caps = pad.get_current_caps()
         string = caps.to_string()
         log.info('on_pad_added(): %s', string)
         if string.startswith('video/'):
-            (num, denom) = caps.get_structure(0).get_fraction('framerate')[1:3]
-            self.info['framerate'] = {'num': num, 'denom': denom}
-            self.framerate = Fraction(num, denom)
-            log.info('framerate: %r', self.framerate)
-            pad.link(self.sink.get_static_pad('sink'))
+            if self._info_from_caps(caps) is True:
+                pad.link(self.sink.get_static_pad('sink'))
+            else:
+                self.fatal('error getting framerate/width/height from video caps')
 
     def on_handoff(self, sink, buf, pad):
         ts = Timestamp(buf.pts, buf.duration)
