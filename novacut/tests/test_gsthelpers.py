@@ -149,9 +149,6 @@ class TestFunctions(TestCase):
         )
 
     def test_make_caps(self):
-        # FIXME: Is this special case when *desc* is `None` worth it?
-        self.assertIsNone(gsthelpers.make_caps('audio/x-raw', None))
-
         # audio caps:
         caps = gsthelpers.make_caps('audio/x-raw', {'rate': 44100})
         self.assertIsInstance(caps, Gst.Caps)

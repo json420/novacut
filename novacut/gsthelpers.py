@@ -175,10 +175,6 @@ def make_caps(mime, desc):
     'video/x-raw, height=(int)450, width=(int)800'
 
     """
-    assert mime in ('audio/x-raw', 'video/x-raw')
-    # FIXME: is allowing desc to be None useful enough to justify?
-    if desc is None:
-        return None
     return Gst.caps_from_string(make_caps_string(mime, desc))
 
 
