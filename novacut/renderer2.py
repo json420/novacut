@@ -53,7 +53,7 @@ log = logging.getLogger()
 # Provide very clear TypeError messages:
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 
-Slice = namedtuple('Slice', 'id src start stop filename framerate')
+Slice = namedtuple('Slice', 'id src start stop filename')
 Sequence = namedtuple('Sequence', 'id src')
 
 
@@ -129,8 +129,7 @@ class SliceIter:
                 'need start <= stop; got {} > {}'.format(start, stop)
             )
         filename = self.resolve(src)
-        framerate = self.get_framerate(src)
-        return Slice(_id, src, start, stop, filename, framerate)
+        return Slice(_id, src, start, stop, filename)
 
     def _doc_to_tuple(self, doc):
         _id = _str(doc, '_id')

@@ -131,14 +131,12 @@ def random_framerate():
 def random_slice(Dmedia):
     (start, stop) = misc.random_slice(123456)
     file_id = random_id(30)
-    (num, denom, framerate) = random_framerate()
     s = renderer.Slice(
         random_id(),
         file_id,
         start,
         stop,
         Dmedia._path(file_id),
-        framerate,
     )
     doc = {
         '_id': s.id,
@@ -149,14 +147,7 @@ def random_slice(Dmedia):
             'stop': stop,
         }
     }
-    fdoc = {
-        '_id': file_id,
-        'framerate': {
-            'num': num,
-            'denom': denom,
-        }
-    }
-    return (s, doc, fdoc)
+    return (s, doc)
 
 
 def random_sequence():
@@ -225,7 +216,7 @@ class TestSliceIter(CouchTestCase):
         self.assertIsInstance(s.src, tuple)
         self.assertEqual(s.src, src)
 
-        # video/slice when dmedia/file doc is missing:
+        # video/slice:
         _id = random_id()
         with self.assertRaises(NotFound):
             inst.get(_id)
@@ -240,53 +231,29 @@ class TestSliceIter(CouchTestCase):
                 'stop': stop,
             }
         }
-        db.save(doc)
-        with self.assertRaises(NotFound):  # dmedia/file doc is still misssing
-            inst.get(_id)
-        num = random.randrange(1, 9000)
-        denom = random.randrange(1, 9000)
-
-        # video/slice when dmedia/file doc is missing:
-        fdoc = {
-            '_id': file_id,
-            'framerate': {
-                'num': num,
-                'denom': denom,
-            }
-        }
-        db.save(fdoc)
-        s = inst.get(_id)
-        self.assertIsInstance(s, renderer.Slice)
-        self.assertEqual(s.id, _id)
-        self.assertEqual(s.src, file_id)
-        self.assertEqual(s.start, start)
-        self.assertEqual(s.stop, stop)
-        self.assertEqual(s.filename, Dmedia._path(file_id))
-        self.assertIsInstance(s.framerate, Fraction)
-        self.assertEqual(s.framerate, Fraction(num, denom))
 
     def test_get_many(self):
         Dmedia = MockDmedia()
         db = self.get_db(create=True)
         inst = renderer.SliceIter(Dmedia, db, random_id())
 
-        (s1, doc1, fdoc1) = random_slice(Dmedia)
-        (s2, doc2, fdoc2) = random_slice(Dmedia)
-        (s3, doc3) = random_sequence()
-        (s4, doc4) = random_sequence()
-
-        tups = [s1, s2, s3, s4]
-        random.shuffle(tups)
-        tups = tuple(tups)
+        pairs = [
+            random_slice(Dmedia) for i in range(5)
+        ]
+        pairs.extend(random_sequence() for i in range(3))
+        random.shuffle(pairs)
+        pairs = tuple(pairs)
+        tups = tuple(p[0] for p in pairs)
         ids = tuple(s.id for s in tups)
 
-        # No docs saved:
-        with self.assertRaises(ValueError) as cm:
-            inst.get_many(ids)
-        self.assertEqual(str(cm.exception), 'Not Found: {!r}'.format(ids[0]))
+        # Not all docs saved:
+        for (s, doc) in pairs:
+            with self.assertRaises(ValueError) as cm:
+                inst.get_many(ids)
+            self.assertEqual(str(cm.exception), 'Not Found: {!r}'.format(s.id))
+            db.save(doc)
 
         # All docs saved:
-        db.save_many([doc1, fdoc1, doc2, fdoc2, doc3, doc4])
         self.assertEqual(inst.get_many(ids), tups)
 
     def test_framerate(self):
