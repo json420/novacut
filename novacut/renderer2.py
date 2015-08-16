@@ -33,7 +33,7 @@ from dbase32 import random_id
 
 from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration, Timestamp
 from .misc import random_slice, random
-from .gsthelpers import make_element, get_framerate_from_struct, make_caps
+from .gsthelpers import make_element, get_framerate_from_struct, make_caps, make_element_from_desc
 
 
 Gst.init(None)
@@ -251,7 +251,12 @@ class Pipeline:
     def make_element(self, name, props=None):
         element = make_element(name, props)
         self.pipeline.add(element)
-        return element        
+        return element
+
+    def make_element_from_desc(self, desc):
+        element = make_element_from_desc(desc)
+        self.pipeline.add(element)
+        return element   
 
 
 def get_expected_ts(frame, framerate):
@@ -390,18 +395,6 @@ class Validator(Pipeline):
         mainloop.quit()
 
 
-def _get_caps_desc():
-    return {
-        'format': 'I420',
-        'width': 640,
-        'height': 480,
-        'interlace-mode': 'progressive',
-        'pixel-aspect-ratio': '1/1',
-        'chroma-site': 'mpeg2',
-        'colorimetry': 'bt709',
-    }
-
-
 class Input(Pipeline):
     def __init__(self, s, manager):
         super().__init__()
@@ -413,11 +406,11 @@ class Input(Pipeline):
         # Create elements
         src = self.make_element('filesrc', {'location': s.filename})
         dec = self.make_element('decodebin')
-        convert = self.make_element('videoconvert')
-        scale = self.make_element('videoscale')
+        convert = self.make_element('videoconvert', {'chroma-resampler': 3})
+        scale = self.make_element('videoscale', {'method': 5})
         sink = self.make_element('appsink',
             {
-                'caps': make_caps('video/x-raw', _get_caps_desc()),
+                'caps': manager.output.input_caps,
                 'emit-signals': True,
                 'max-buffers': 1,
                 'enable-last-sample': False,
@@ -478,31 +471,33 @@ class Input(Pipeline):
         return Gst.FlowReturn.OK
 
 
+#def check_caps_desc(d):
+#    assert set(d).issupperset(
+
+
 class Output(Pipeline):
-    def __init__(self, filename, framerate):
+    def __init__(self, settings, filename):
         super().__init__()
         self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
 
-        self.framerate = framerate
+        output_desc = settings['video']['caps']
+        input_desc = output_desc.copy()
+        self.framerate = input_desc.pop('framerate')
+        output_caps = make_caps('video/x-raw', output_desc)
+        self.input_caps = make_caps('video/x-raw', input_desc)
         self.i = 0
-        caps_desc = _get_caps_desc()
-        caps_desc['framerate'] = framerate
 
         self.src = self.make_element('appsrc',
             {
-                'caps': make_caps('video/x-raw', caps_desc),
+                'caps': output_caps,
                 'emit-signals': False,
                 'format': 3,
                 'max-bytes': 64 * 1024 * 1024,
                 'block': True,
             }
         )
-#        self.enc = self.make_element('x264enc',
-#            {'bitrate': 12288, 'psy-tune': 5}
-#        )
-#        self.mux = self.make_element('avmux_mov')
-        self.enc = self.make_element('theoraenc')
-        self.mux = self.make_element('oggmux')
+        self.enc = self.make_element_from_desc(settings['video']['encoder'])
+        self.mux = self.make_element_from_desc(settings['muxer'])
         self.sink = self.make_element('filesink', {'location': filename})
 
         self.src.link(self.enc)
@@ -533,13 +528,12 @@ class Output(Pipeline):
 
 
 class Manager:
-    __slots__ = ('slices', 'slices_iter', 'input', 'output', 'frames')
+    __slots__ = ('slices_iter', 'input', 'output', 'frames')
 
-    def __init__(self, slices, output):
-        self.slices = slices
+    def __init__(self, slices, settings, filename):
         self.slices_iter = iter(slices)
         self.input = None
-        self.output = output
+        self.output = Output(settings, filename)
         self.frames = 0
 
     def run(self):
