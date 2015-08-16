@@ -185,3 +185,20 @@ def get_framerate_from_struct(s):
     return Fraction(num, denom)
 
 
+def add_elements(parent, *elements):
+    for el in elements:
+        parent.add(el)
+
+
+def link_elements(*elements):
+    last = None
+    for el in elements:
+        if last is not None:
+            last.link(el)
+        last = el
+
+
+def add_and_link_elements(parent, *elements):
+    add_elements(parent, *elements)
+    link_elements(*elements)
+
