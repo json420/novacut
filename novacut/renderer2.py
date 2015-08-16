@@ -285,6 +285,13 @@ def format_ts_mismatch(ts, expected_ts):
     return '\n'.join('    ' + l for l in lines)
 
 
+def get_framerate_from_struct(s):
+    (success, num, denom) = s.get_fraction('framerate')
+    if not success:
+        raise Exception("could not get 'framerate' from video caps structure")
+    return Fraction(num, denom)
+
+
 class Validator(Pipeline):
     def __init__(self, filename, full_check=False):
         super().__init__()
@@ -396,6 +403,7 @@ class Input(Pipeline):
         self.s = s
         self.manager = manager
         self.cur = s.start
+        self.framerate = None
 
         # Create elements
         src = self.make_element('filesrc', {'location': s.filename})
@@ -418,14 +426,15 @@ class Input(Pipeline):
     def run(self):
         log.info('Playing %r', self.s)
         self.set_state('PAUSED', sync=True)
+        assert self.framerate is not None
         self.pipeline.seek(
             1.0,  # rate
             Gst.Format.TIME,        
             Gst.SeekFlags.FLUSH | Gst.SeekFlags.SEGMENT | Gst.SeekFlags.ACCURATE,
             Gst.SeekType.SET,
-            frame_to_nanosecond(self.s.start, self.s.framerate),
+            frame_to_nanosecond(self.s.start, self.framerate),
             Gst.SeekType.SET,
-            frame_to_nanosecond(self.s.stop, self.s.framerate),
+            frame_to_nanosecond(self.s.stop, self.framerate),
         )
         self.set_state('PLAYING')
 
@@ -434,11 +443,13 @@ class Input(Pipeline):
         string = caps.to_string()
         log.info('on_pad_added(): %s', string)
         if string.startswith('video/'):
+            self.framerate = get_framerate_from_struct(caps.get_structure(0))
+            log.info('framerate: %r', self.framerate)
             pad.link(self.sink.get_static_pad('sink'))
 
     def on_new_sample(self, sink):
         buf = sink.emit('pull-sample').get_buffer()
-        cur = nanosecond_to_frame(buf.pts, self.s.framerate)
+        cur = nanosecond_to_frame(buf.pts, self.framerate)
         #log.info('new-sample: [%s:%s] @%s', self.s.start, self.s.stop, cur)
         if self.cur != cur:
             self.fatal('cur: %s != %s', self.cur, cur)
@@ -544,7 +555,7 @@ class Manager:
         self.next()
 
     def input_complete(self, inst):
-        log.info('Manager.input_complete(<%r>)', inst.s.id)
+        log.info('Manager.input_complete(<%r>)', inst.s)
         GLib.idle_add(self.__input_complete, inst)
     
 
