@@ -33,7 +33,7 @@ from dbase32 import random_id
 
 from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration, Timestamp
 from .misc import random_slice, random
-from .gsthelpers import make_element, get_framerate_from_struct
+from .gsthelpers import make_element, get_framerate_from_struct, make_caps
 
 
 Gst.init(None)
@@ -390,6 +390,18 @@ class Validator(Pipeline):
         mainloop.quit()
 
 
+def _get_caps_desc():
+    return {
+        'format': 'I420',
+        'width': 640,
+        'height': 480,
+        'interlace-mode': 'progressive',
+        'pixel-aspect-ratio': '1/1',
+        'chroma-site': 'mpeg2',
+        'colorimetry': 'bt709',
+    }
+
+
 class Input(Pipeline):
     def __init__(self, s, manager):
         super().__init__()
@@ -401,8 +413,11 @@ class Input(Pipeline):
         # Create elements
         src = self.make_element('filesrc', {'location': s.filename})
         dec = self.make_element('decodebin')
-        self.sink = self.make_element('appsink',
+        convert = self.make_element('videoconvert')
+        scale = self.make_element('videoscale')
+        sink = self.make_element('appsink',
             {
+                'caps': make_caps('video/x-raw', _get_caps_desc()),
                 'emit-signals': True,
                 'max-buffers': 1,
                 'enable-last-sample': False,
@@ -411,10 +426,15 @@ class Input(Pipeline):
 
         # Connect signal handlers
         dec.connect('pad-added', WeakMethod(self, 'on_pad_added'))
-        self.sink.connect('new-sample', WeakMethod(self, 'on_new_sample'))
+        sink.connect('new-sample', WeakMethod(self, 'on_new_sample'))
 
         # Link elements
         src.link(dec)
+        convert.link(scale)
+        scale.link(sink)
+
+        # Needed in on_pad_added():
+        self.sink_pad = convert.get_static_pad('sink')
 
     def run(self):
         log.info('Playing %r', self.s)
@@ -438,7 +458,7 @@ class Input(Pipeline):
         if string.startswith('video/'):
             self.framerate = get_framerate_from_struct(caps.get_structure(0))
             log.info('framerate: %r', self.framerate)
-            pad.link(self.sink.get_static_pad('sink'))
+            pad.link(self.sink_pad)
 
     def on_new_sample(self, sink):
         buf = sink.emit('pull-sample').get_buffer()
@@ -465,11 +485,12 @@ class Output(Pipeline):
 
         self.framerate = framerate
         self.i = 0
-        caps = Gst.caps_from_string('video/x-raw, format=(string)I420, width=(int)1920, height=(int)1080, interlace-mode=(string)progressive, pixel-aspect-ratio=(fraction)1/1, chroma-site=(string)mpeg2, colorimetry=(string)bt709, framerate=(fraction)30000/1001')
+        caps_desc = _get_caps_desc()
+        caps_desc['framerate'] = framerate
 
         self.src = self.make_element('appsrc',
             {
-                'caps': caps,
+                'caps': make_caps('video/x-raw', caps_desc),
                 'emit-signals': False,
                 'format': 3,
                 'max-bytes': 64 * 1024 * 1024,
