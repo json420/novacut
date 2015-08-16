@@ -33,7 +33,8 @@ from dbase32 import random_id
 
 from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration, Timestamp
 from .misc import random_slice, random
-from .renderer import make_element
+from .gsthelpers import make_element, get_framerate_from_struct
+
 
 Gst.init(None)
 mainloop = GLib.MainLoop()
@@ -282,13 +283,6 @@ def format_ts_mismatch(ts, expected_ts):
         for row in rows
     ]
     return '\n'.join('    ' + l for l in lines)
-
-
-def get_framerate_from_struct(s):
-    (success, num, denom) = s.get_fraction('framerate')
-    if not success:
-        raise Exception("could not get 'framerate' from video caps structure")
-    return Fraction(num, denom)
 
 
 class Validator(Pipeline):

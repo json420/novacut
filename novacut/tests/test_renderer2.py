@@ -83,30 +83,6 @@ class TestFunctions(TestCase):
             for minval in (None, val, val - 1):
                 self.assertIs(_int(d, key, minval), val)
 
-    def test_get_framerate_from_struct(self):
-        class MockStructure:
-            def __init__(self, ret):
-                self._ret = ret
-
-            def get_fraction(self, key):
-                assert not hasattr(self, '_key')
-                self._key = key
-                return self._ret
-
-        s = MockStructure((True, 24000, 1001))
-        f = renderer.get_framerate_from_struct(s)
-        self.assertIsInstance(f, Fraction)
-        self.assertEqual(f, Fraction(24000, 1001))
-        self.assertEqual(s._key, 'framerate')
-
-        s = MockStructure((False, 24000, 1001))
-        with self.assertRaises(Exception) as cm:
-            renderer.get_framerate_from_struct(s)
-        self.assertEqual(str(cm.exception),
-            "could not get 'framerate' from video caps structure"
-        )
-        self.assertEqual(s._key, 'framerate')
-
 
 class MockDmedia:
     def __init__(self, parentdir=None):
