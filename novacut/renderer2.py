@@ -99,12 +99,22 @@ def _list(d, key, item_type=None, as_tuple=False):
     return val
 
 
+def _fraction(obj):
+    if isinstance(obj, Fraction):
+        return obj
+    elif isinstance(obj, dict):
+        return Fraction(
+            _int(obj, 'num',   1),
+            _int(obj, 'denom', 1)
+        )
+    else:
+        raise TypeError(
+            'invalid fraction: {!r}: {!r}'.format(type(obj), obj)
+        )
+
+
 def _framerate(doc):
-    d = _dict(doc, 'framerate') 
-    return Fraction(
-        _int(d, 'num',   1),
-        _int(d, 'denom', 1)
-    )
+    return _fraction(_dict(doc, 'framerate'))
 
 
 def _sequence(_id, node):
@@ -471,8 +481,19 @@ class Input(Pipeline):
         return Gst.FlowReturn.OK
 
 
-#def check_caps_desc(d):
-#    assert set(d).issupperset(
+def make_video_caps(desc):
+    framerate = _fraction(desc.pop('framerate'))
+    _int(desc, 'width', 32)
+    _int(desc, 'height', 32)
+    _str(desc, 'format')
+    _str(desc, 'interlace-mode')
+    _str(desc, 'pixel-aspect-ratio')
+    assert 'framerate' not in desc
+    input_caps = make_caps('video/x-raw', desc)
+    desc['framerate'] = framerate
+    output_caps = make_caps('video/x-raw', desc)
+    return (framerate, input_caps, output_caps)
+
 
 
 class Output(Pipeline):
@@ -480,11 +501,9 @@ class Output(Pipeline):
         super().__init__()
         self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
 
-        output_desc = settings['video']['caps']
-        input_desc = output_desc.copy()
-        self.framerate = input_desc.pop('framerate')
-        output_caps = make_caps('video/x-raw', output_desc)
-        self.input_caps = make_caps('video/x-raw', input_desc)
+        desc = settings['video']['caps']
+        (self.framerate, self.input_caps, output_caps) = make_video_caps(desc)
+        
         self.i = 0
 
         self.src = self.make_element('appsrc',
