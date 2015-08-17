@@ -36,7 +36,7 @@ from gi.repository import GLib, Gst
 import dbus
 from microfiber import Database, NotFound
 
-from novacut.renderer import make_element
+from novacut.gsthelpers import make_element
 from novacut.timefuncs import frame_to_nanosecond, nanosecond_to_frame
 
 COUNT = 15
