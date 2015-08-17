@@ -402,6 +402,7 @@ class Input(Pipeline):
         self.s = s
         self.frame = s.start
         self.framerate = None
+        self.complete = False
 
         # Create elements
         self.src = self.make_element('filesrc', {'location': s.filename})
@@ -464,16 +465,20 @@ class Input(Pipeline):
             pad.link(self.q.get_static_pad('sink'))
 
     def on_new_sample(self, sink):
+        if self.complete:
+            log.warning('ignoring extra frame beyond slice end')
+            return Gst.FlowReturn.OK
         buf = self.sink.emit('pull-sample').get_buffer()
         frame = nanosecond_to_frame(buf.pts, self.framerate)
-        if not (self.s.start <= frame < self.s.stop):
-            log.warning('frame %s is outside slice [%s:%s], ignoring',
-                frame, self.s.start, self.s.stop)
-            return Gst.FlowReturn.OK  
-        log.info('<-- frame %s from slice [%s:%s]', frame, self.s.start, self.s.stop)
+        if frame != self.frame:
+            self.fatal('expected frame %s, got frame %s from slice [%s:%s]',
+                self.frame, frame, self.s.start, self.s.stop
+            )
+        log.info('IN: %s from [%s:%s]', frame, self.s.start, self.s.stop)
         self.buffer_queue.put(buf)
         self.frame += 1
         if self.frame == self.s.stop:
+            log.info('final frame in slice, calling Manager.input_complete()')
             self.manager.input_complete(self)
         return Gst.FlowReturn.OK
 
@@ -551,7 +556,7 @@ class Output(Pipeline):
         ts = video_pts_and_duration(self.frame, self.frame + 1, self.framerate)
         buf.pts = ts.pts
         buf.duration = ts.duration
-        log.info('--> frame %s (pts=%s, duration=%s)', self.frame, ts.pts, ts.pts)
+        log.info('OUT: %s (pts=%s, duration=%s)', self.frame, ts.pts, ts.pts)
         self.frame += 1
         self.src.emit('push-buffer', buf)
         return False
