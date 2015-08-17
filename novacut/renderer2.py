@@ -394,10 +394,14 @@ class Validator(Pipeline):
 class Input(Pipeline):
     def __init__(self, s, manager):
         super().__init__()
+        self.bus.connect('message::segment-done', WeakMethod(self, 'on_segment_done'))
+        self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
+
         self.s = s
         self.manager = manager
         self.cur = s.start
         self.framerate = None
+        self.completed = False
 
         # Create elements
         src = self.make_element('filesrc', {'location': s.filename})
@@ -429,14 +433,30 @@ class Input(Pipeline):
         log.info('Playing %r', self.s)
         self.set_state('PAUSED', sync=True)
         assert self.framerate is not None
-        self.pipeline.seek(
-            1.0,  # rate
-            Gst.Format.TIME,        
-            Gst.SeekFlags.FLUSH | Gst.SeekFlags.SEGMENT | Gst.SeekFlags.ACCURATE,
-            Gst.SeekType.SET,
-            frame_to_nanosecond(self.s.start, self.framerate),
-            Gst.SeekType.SET,
-            frame_to_nanosecond(self.s.stop, self.framerate),
+#        self.pipeline.seek(
+#            1.0,  # rate
+#            Gst.Format.TIME,        
+#            Gst.SeekFlags.FLUSH | Gst.SeekFlags.SEGMENT | Gst.SeekFlags.ACCURATE,
+#            Gst.SeekType.SET,
+#            frame_to_nanosecond(self.s.start, self.framerate),
+#            Gst.SeekType.SET,
+#            frame_to_nanosecond(self.s.stop, self.framerate),
+#        )
+        # FIXME: SEGMENT seeks are currently unreliable on Trusty when it comes
+        # to the end of the slice.  Frequently 'segment-done' fires a few frames
+        # before the end of the slice, and on rare occasions it will fire after
+        # the end of the slice giving you extra frames.
+        #
+        # But now that we're running the slice decoding and output rendering in
+        # different pipelines, we have complete control of what we sent from
+        # this appsink to the output appsrc.  So we're doing a normal,
+        # non-segment seek, and if we happen to get any buffers after the end of
+        # the slice before this pipeline goes to State.NULL, we just ignore
+        # them.
+        self.pipeline.seek_simple(
+            Gst.Format.TIME,
+            Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE,
+            frame_to_nanosecond(self.s.start, self.framerate)
         )
         self.set_state('PLAYING')
 
@@ -451,10 +471,13 @@ class Input(Pipeline):
 
     def on_new_sample(self, sink):
         buf = sink.emit('pull-sample').get_buffer()
+        if self.completed:
+            log.warning('received buffer past slice end, ignoring')
+            return Gst.FlowReturn.OK
         cur = nanosecond_to_frame(buf.pts, self.framerate)
-        #log.info('new-sample: [%s:%s] @%s', self.s.start, self.s.stop, cur)
+        log.info('new-sample: [%s:%s] @%s', self.s.start, self.s.stop, cur)
         if self.cur != cur:
-            self.fatal('cur: %s != %s', self.cur, cur)
+            self.fatal('expected frame %s, got frame %s', self.cur, cur)
         if not (self.s.start <= cur < self.s.stop):
             self.fatal('false inequality: %s <= %s < %s',
                 self.s.start, cur, self.s.stop
@@ -463,8 +486,17 @@ class Input(Pipeline):
         self.cur += 1
         if self.cur == self.s.stop:
             log.info('last frame in slice')
+            self.completed = True
             self.manager.input_complete(self)
         return Gst.FlowReturn.OK
+
+    def on_segment_done(self, bus, msg):
+        if not self.completed:
+            self.fatal("recieved 'segment-done' before final frame in slice")
+
+    def on_eos(self, bus, msg):
+        if not self.completed:
+            self.fatal("recieved 'eos' before final frame in slice")
 
 
 def make_video_caps(desc):
