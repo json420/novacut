@@ -429,6 +429,10 @@ class Input(Pipeline):
         # Needed in on_pad_added():
         self.sink_pad = convert.get_static_pad('sink')
 
+    def fatal(self, msg, *args):
+        self.manager.input_fatal_error(self)
+        super().fatal(msg, *args)
+
     def run(self):
         log.info('Playing %r', self.s)
         self.set_state('PAUSED', sync=True)
@@ -565,13 +569,14 @@ class Output(Pipeline):
 
 
 class Manager:
-    __slots__ = ('slices_iter', 'input', 'output', 'frames')
+    __slots__ = ('slices_iter', 'input', 'output', 'frames', 'error')
 
     def __init__(self, slices, settings, filename):
         self.slices_iter = iter(slices)
         self.input = None
         self.output = Output(settings, filename)
         self.frames = 0
+        self.error = False
 
     def run(self):
         self.output.run()
@@ -599,6 +604,9 @@ class Manager:
         self.input = None
         self.next()
 
+    def input_fatal_error(self, inst):
+        self.error = True
+
     def input_complete(self, inst):
         log.info('Manager.input_complete(<%r>)', inst.s)
         GLib.idle_add(self.__input_complete, inst)
@@ -623,6 +631,8 @@ class Worker:
         renderer = Manager(slices, settings['node'], dst)
         renderer.run()
         mainloop.run()
+        if renderer.error:
+            raise SystemExit('renderer encountered a fatal error')
         if path.getsize(dst) < 1:
             raise SystemExit('file-size is zero for {}'.format(job_id))
 
