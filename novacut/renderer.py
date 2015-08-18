@@ -417,7 +417,6 @@ class Input(Pipeline):
             }
         )
 
-        self.bus.connect('message::segment-done', WeakMethod(self, 'on_segment_done'))
         self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
         self.dec.connect('pad-added', WeakMethod(self, 'on_pad_added'))
         self.sink.connect('new-sample', WeakMethod(self, 'on_new_sample'))
