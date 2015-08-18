@@ -467,7 +467,7 @@ class Input(Pipeline):
         if self.complete:
             log.warning('ignoring extra frame beyond slice end')
             return Gst.FlowReturn.OK
-        buf = self.sink.emit('pull-sample').get_buffer()
+        buf = self.sink.emit('pull-sample').get_buffer().copy()
         frame = nanosecond_to_frame(buf.pts, self.framerate)
         if frame != self.frame:
             self.fatal('expected frame %s, got frame %s from slice [%s:%s]',
@@ -478,14 +478,15 @@ class Input(Pipeline):
         self.frame += 1
         if self.frame == self.s.stop:
             log.info('final frame in slice, calling Manager.input_complete()')
+            self.complete = True
             self.manager.input_complete(self)
         return Gst.FlowReturn.OK
 
-    def on_segment_done(self, bus, msg):
-        log.info('segment-done')
-
     def on_eos(self, bus, msg):
-        log.info('eos')
+        if not self.complete:
+            log.warning('recieved EOS before end of slice, some frame were lost')
+            self.complete = True
+            self.manager.input_complete(self)
 
 
 def make_video_caps(desc):
