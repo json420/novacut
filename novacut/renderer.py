@@ -34,6 +34,23 @@ from microfiber import Database, dumps
 from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration, Timestamp
 from .gsthelpers import make_element, get_framerate_from_struct, make_caps, make_element_from_desc
 
+# FIXME: NEEDS_YUCKY_COPY?
+#
+# In GStreamer 1.2 (Trusty), appsink.emit('pull-sample') is, at least from the
+# Python GI perspective, returning the same buffer object *every* time.
+# Presumably it isn't actually reusing the same underlying memory region on the
+# C side, as that fundamentally breaks the GStreamer data model.
+#
+# But the symptom is this: if Output.push() sets buf.pts, buf.duration just
+# before Input.on_new_sample() reads buf.pts, buf.duration from (what should be)
+# the unique and unrelated buffer returned by
+# appsink.emit('pull-sample').get_buffer(), Input.on_new_sample() will fail
+# because it thinks it received the wrong frame... a frame with the exact same
+# timestamps just set by Output.push().
+#
+# The only work-around known currently is to copy the buffer, which of course
+# we normally would never want to do.  A very yucky copy indeed.
+NEEDS_YUCKY_COPY = (True if Gst.version() < (1, 4) else False)
 
 BUFFER_QUEUE_SIZE = 16
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
@@ -466,7 +483,9 @@ class Input(Pipeline):
         if self.complete:
             log.warning('ignoring extra frame beyond slice end')
             return Gst.FlowReturn.OK
-        buf = self.sink.emit('pull-sample').get_buffer().copy()
+        buf = self.sink.emit('pull-sample').get_buffer()
+        if NEEDS_YUCKY_COPY:  # See "FIXME: NEEDS_YUCKY_COPY?" at top of module:
+            buf.copy()
         frame = nanosecond_to_frame(buf.pts, self.framerate)
         if frame != self.frame:
             self.fatal('expected frame %s, got frame %s from slice [%s:%s]',
