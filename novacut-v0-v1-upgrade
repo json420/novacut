@@ -25,7 +25,7 @@ import sys
 from copy import deepcopy
 from subprocess import check_call
 
-from microfiber import Server, NotFound, BulkConflict, dumps
+from microfiber import Server, NotFound, BulkConflict
 from dmedia.service import init_if_needed, get_env
 from dmedia.util import init_views
 from dmedia.metastore import BufferedSave

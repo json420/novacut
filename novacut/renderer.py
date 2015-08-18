@@ -26,7 +26,6 @@ from collections import namedtuple
 import weakref
 from datetime import datetime
 import queue
-import threading
 import logging
 
 from gi.repository import GLib, Gst

@@ -37,7 +37,6 @@ from .. import renderer
 
 
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
-from collections import namedtuple
 
 
 random = SystemRandom()
