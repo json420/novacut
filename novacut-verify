@@ -37,7 +37,7 @@ import logging
 import sys
 
 import novacut
-from novacut.renderer2 import Validator, mainloop
+from novacut.renderer import Validator, mainloop
 
 
 logging.basicConfig(

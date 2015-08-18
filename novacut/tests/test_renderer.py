@@ -1,5 +1,5 @@
 # novacut: the collaborative video editor
-# Copyright (C) 2015 Novacut Inc
+# Copyright (C) 2011-2015 Novacut Inc
 #
 # This file is part of `novacut`.
 #
@@ -33,7 +33,7 @@ from usercouch.misc import CouchTestCase
 from microfiber import Database, NotFound
 
 from .. import misc
-from .. import renderer2 as renderer
+from .. import renderer
 
 
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
