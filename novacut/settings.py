@@ -26,68 +26,39 @@ Opinionated video and audio encoder settings.
 from . import schema
 
 
-vp8enc = {
-    'name': 'vp8enc',
-    'props': {
-        'quality': 9,
-        'tune': 1,  # Tune for SSIM
-        'threads': 2,
-    },
-}
-
-
-x264enc = {
-    'name': 'x264enc',
-    'props': {
-        # 'pass': 5,  # High end of quality is still too low
-        # 'quantizer': 10,  # Lower means higher-quality, default=21
-        'bitrate': 8192,
-        'psy-tune': 5,  # Tune for SSIM
-    },
-}
-
-
-avenc_aac = {
-    'name': 'avenc_aac',
-    'props': {
-        'bitrate': 256000,
-    },
-}
-
-
-vorbisenc = {
-    'name': 'vorbisenc',
-    'props': {
-        'quality': 0.5,
-    },
-}
-
-
-webm = {
-    'muxer': 'webmmux',
-    'ext': 'webm',
-    'video': {
-        'encoder': vp8enc,
-    },
-    'audio': {
-        'encoder': vorbisenc,
-    },
-}
-
-
 def default_settings():
     node = {
         'muxer': 'matroskamux',
         'ext': 'mkv',
         'video': {
-            'encoder': x264enc,
-#            'caps': {
-#                'width': 1280,
-#                'height': 720,
-#            }
+            'encoder': {
+                'name': 'x264enc',
+                'props': {
+                    'bitrate': 8192,
+                    'psy-tune': 5,  # Tune for SSIM
+                },
+            },
+            'caps': {
+                'format': 'I420',
+                'width': 1920,
+                'height': 1080,
+                'interlace-mode': 'progressive',
+                'pixel-aspect-ratio': '1/1',
+                'chroma-site': 'mpeg2',
+                'colorimetry': 'bt709',
+                'framerate': {
+                    'num': 30000,
+                    'denom': 1001,
+                },
+            },
         },
         'audio': {
-            'encoder': vorbisenc,
+            'encoder': {
+                'name': 'vorbisenc',
+                'props': {
+                    'quality': 0.5,
+                },
+            },
         },
     }
     return schema.create_settings(node)

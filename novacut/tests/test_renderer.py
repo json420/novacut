@@ -1,5 +1,5 @@
 # novacut: the collaborative video editor
-# Copyright (C) 2011 Novacut Inc
+# Copyright (C) 2011-2015 Novacut Inc
 #
 # This file is part of `novacut`.
 #
@@ -24,349 +24,289 @@ Unit tests for the `novacut.renderer` module.
 """
 
 from unittest import TestCase
+from os import path
 from fractions import Fraction
+from random import SystemRandom
 
 from dbase32 import random_id
-from gi.repository import Gst
+from usercouch.misc import CouchTestCase
+from microfiber import Database, NotFound
 
-from .base import TempDir, resolve, random_file_id, sample1, sample2
-from novacut.misc import random_slice
-from novacut.timefuncs import audio_pts_and_duration, video_pts_and_duration
-from novacut import renderer
+from .. import misc
+from .. import renderer
 
 
-class TestNoSuchElement(TestCase):
-    def test_init(self):
-        inst = renderer.NoSuchElement('foobar')
-        self.assertIsInstance(inst, Exception)
-        self.assertEqual(inst.name, 'foobar')
-        self.assertEqual(str(inst), "GStreamer element 'foobar' not available")
+TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
+
+
+random = SystemRandom()
 
 
 class TestFunctions(TestCase):
-    def test_make_element(self):
-        # Test with bad 'name' type:
+    def test_get(self):
+        _get = renderer._get
+        values = (
+            random_id(),
+            17,
+            16.9,
+            {'hello': 'world'},
+            ['hello', 'world'],
+        )
+        for val in values:
+            key = random_id()
+            d = {key: val}
+            badkey = random_id()
+            with self.assertRaises(TypeError) as cm:
+                _get(d, badkey, type(val))
+            self.assertEqual(str(cm.exception),
+                TYPE_ERROR.format(badkey, type(val), type(None), None)
+            )
+            self.assertIs(_get(d, key, type(val)), val)
+
+    def test_int(self):
+        _int = renderer._int
+        key = random_id()
+        badkey = random_id()
+        for val in (-17, -1, 0, 1, 17):
+            d = {key: val}
+            with self.assertRaises(TypeError) as cm:
+                _int(d, badkey)
+            self.assertEqual(str(cm.exception),
+                TYPE_ERROR.format(badkey, int, type(None), None)
+            )
+            with self.assertRaises(ValueError) as cm:
+                _int(d, key, val + 1)
+            self.assertEqual(str(cm.exception),
+                'need {!r} >= {}; got {}'.format(key, val + 1, val)
+            )
+            for minval in (None, val, val - 1):
+                self.assertIs(_int(d, key, minval), val)
+
+
+class MockDmedia:
+    def __init__(self, parentdir=None):
+        if parentdir is None:
+            parentdir = path.join('/', 'media', random_id())
+        assert path.abspath(parentdir) == parentdir
+        self.filesdir = path.join(parentdir, '.dmedia', 'files')
+
+    def _path(self, _id):
+        return path.join(self.filesdir, _id[:2], _id[2:])
+
+    def Resolve(self, _id):
+        return (_id, 0, self._path(_id))
+
+
+def random_framerate():
+    num = random.randrange(1, 54321)
+    denom = random.randrange(1, 54321)
+    return (num, denom, Fraction(num, denom))
+
+
+def random_slice(Dmedia):
+    (start, stop) = misc.random_slice(123456)
+    file_id = random_id(30)
+    s = renderer.Slice(
+        random_id(),
+        file_id,
+        start,
+        stop,
+        Dmedia._path(file_id),
+    )
+    doc = {
+        '_id': s.id,
+        'node': {
+            'type': 'video/slice',
+            'src': file_id,
+            'start': start,
+            'stop': stop,
+        }
+    }
+    return (s, doc)
+
+
+def random_sequence():
+    s = renderer.Sequence(random_id(),
+        tuple(random_id() for i in range(random.randrange(20)))
+    )
+    doc = {
+        '_id': s.id,
+        'node': {
+            'type': 'video/sequence',
+            'src': list(s.src),
+        }
+    }
+    return (s, doc)
+
+
+class TestSliceIter(CouchTestCase):
+    def get_db(self, create=False):
+        db = Database('foo-{}-1'.format(random_id().lower()), self.env)
+        if create is True:
+            self.assertEqual(db.ensure(), True)
+        return db
+
+    def test_init(self):
+        Dmedia = MockDmedia()
+        db = self.get_db()
+        root_id = random_id()
+        inst = renderer.SliceIter(Dmedia, db, root_id)
+        self.assertIs(inst.Dmedia, Dmedia)
+        self.assertIs(inst.db, db)
+        self.assertIs(inst.root_id, root_id)
+
+        # SliceIter.__init__() shouldn't try to create the database, etc:
+        self.assertIs(db.ensure(), True)
+
+    def test_get(self):
+        Dmedia = MockDmedia()
+        db = self.get_db(create=True)
+        inst = renderer.SliceIter(Dmedia, db, random_id())
+
+        # video/sequence with empty src:
+        _id = random_id()
+        with self.assertRaises(NotFound):
+            inst.get(_id)
+        doc = {
+            '_id': _id,
+            'node': {
+                'type': 'video/sequence',
+                'src': [],
+            }
+        }
+        db.save(doc)
+        s = inst.get(_id)
+        self.assertIsInstance(s, renderer.Sequence)
+        self.assertEqual(s.id, _id)
+        self.assertIsInstance(s.src, tuple)
+        self.assertEqual(s.src, tuple())
+
+        # video/sequence with populated src:
+        src = tuple(random_id() for i in range(29))
+        doc['node']['src'] = list(src)
+        db.save(doc)
+        s = inst.get(_id)
+        self.assertIsInstance(s, renderer.Sequence)
+        self.assertEqual(s.id, _id)
+        self.assertIsInstance(s.src, tuple)
+        self.assertEqual(s.src, src)
+
+        # video/slice:
+        _id = random_id()
+        with self.assertRaises(NotFound):
+            inst.get(_id)
+        file_id = random_id(30)
+        (start, stop) = misc.random_slice(5000)
+        doc = {
+            '_id': _id,
+            'node': {
+                'type': 'video/slice',
+                'src': file_id,
+                'start': start,
+                'stop': stop,
+            }
+        }
+
+    def test_get_many(self):
+        Dmedia = MockDmedia()
+        db = self.get_db(create=True)
+        inst = renderer.SliceIter(Dmedia, db, random_id())
+
+        pairs = [
+            random_slice(Dmedia) for i in range(5)
+        ]
+        pairs.extend(random_sequence() for i in range(3))
+        random.shuffle(pairs)
+        pairs = tuple(pairs)
+        tups = tuple(p[0] for p in pairs)
+        ids = tuple(s.id for s in tups)
+
+        # Not all docs saved:
+        for (s, doc) in pairs:
+            with self.assertRaises(ValueError) as cm:
+                inst.get_many(ids)
+            self.assertEqual(str(cm.exception), 'Not Found: {!r}'.format(s.id))
+            db.save(doc)
+
+        # All docs saved:
+        self.assertEqual(inst.get_many(ids), tups)
+
+    def test_framerate(self):
+        Dmedia = MockDmedia()
+        db = self.get_db(create=True)
+        inst = renderer.SliceIter(Dmedia, db, random_id())
+
+        # dmedia/file doc is missing:
+        _id = random_id(30)
+        with self.assertRaises(NotFound):
+            inst.get_framerate(_id)
+
+        # doc['framerate'] is missing:
+        doc = {'_id': _id}
+        db.save(doc)
         with self.assertRaises(TypeError) as cm:
-            renderer.make_element(b'theoraenc')
-        self.assertEqual(
-            str(cm.exception),
-            "name: need a <class 'str'>; got a <class 'bytes'>: b'theoraenc'"
+            inst.get_framerate(_id)
+        self.assertEqual(str(cm.exception),
+            TYPE_ERROR.format('framerate', dict, type(None), None)
         )
 
-        # Test with bad 'props' type:
+        # doc['framerate'] isn't a dict:
+        marker = random_id()
+        doc['framerate'] = marker
+        db.save(doc)
         with self.assertRaises(TypeError) as cm:
-            renderer.make_element('video/x-raw', 'width=800')
-        self.assertEqual(
-            str(cm.exception),
-            "props: need a <class 'dict'>; got a <class 'str'>: 'width=800'"
+            inst.get_framerate(_id)
+        self.assertEqual(str(cm.exception),
+            TYPE_ERROR.format('framerate', dict, str, marker)
         )
 
-        # Test our assumptions about Gst.ElementFactory.make():
-        self.assertIsNone(Gst.ElementFactory.make('foobar', None))
-
-        # Test that NoSuchElement is raised
-        with self.assertRaises(renderer.NoSuchElement) as cm:
-            renderer.make_element('foobar')
-        self.assertEqual(
-            str(cm.exception),
-            "GStreamer element 'foobar' not available"
+        # doc['framerate']['num'] and doc['framerate']['denom'] are missing:
+        doc['framerate'] = {}
+        db.save(doc)
+        with self.assertRaises(TypeError) as cm:
+            inst.get_framerate(_id)
+        self.assertEqual(str(cm.exception),
+            TYPE_ERROR.format('num', int, type(None), None)
         )
 
-        # Test with a good element
-        element = renderer.make_element('theoraenc')
-        self.assertIsInstance(element, Gst.Element)
-        self.assertEqual(element.get_factory().get_name(), 'theoraenc')
-        self.assertEqual(element.get_property('quality'), 48)
-        self.assertEqual(element.get_property('speed-level'), 1)
-
-        # Test with props also
-        element = renderer.make_element('theoraenc',
-            {'quality': 40, 'speed-level': 2}
-        )
-        self.assertIsInstance(element, Gst.Element)
-        self.assertEqual(element.get_factory().get_name(), 'theoraenc')
-        self.assertEqual(element.get_property('quality'), 40)
-        self.assertEqual(element.get_property('speed-level'), 2)
-
-    def test_element_from_desc(self):
-        el = renderer.element_from_desc('theoraenc')
-        self.assertIsInstance(el, Gst.Element)
-        self.assertEqual(el.get_factory().get_name(), 'theoraenc')
-        self.assertEqual(el.get_property('keyframe-force'), 64)
-        self.assertEqual(el.get_property('quality'), 48)
-
-        d = {'name': 'theoraenc'}
-        el = renderer.element_from_desc(d)
-        self.assertIsInstance(el, Gst.Element)
-        self.assertEqual(el.get_factory().get_name(), 'theoraenc')
-        self.assertEqual(el.get_property('keyframe-force'), 64)
-        self.assertEqual(el.get_property('quality'), 48)
-
-        d = {
-            'name': 'theoraenc',
-            'props': {
-                'quality': 40,
-                'keyframe-force': 16,
-            },
-        }
-        el = renderer.element_from_desc(d)
-        self.assertIsInstance(el, Gst.Element)
-        self.assertEqual(el.get_factory().get_name(), 'theoraenc')
-        self.assertEqual(el.get_property('keyframe-force'), 16)
-        self.assertEqual(el.get_property('quality'), 40)
-
-    def test_caps_string(self):
-        self.assertEqual(
-            renderer.caps_string('audio/x-raw'),
-            'audio/x-raw'
+        # doc['framerate']['denom'] is missing:
+        doc['framerate']['num'] = 1
+        db.save(doc)
+        with self.assertRaises(TypeError) as cm:
+            inst.get_framerate(_id)
+        self.assertEqual(str(cm.exception),
+            TYPE_ERROR.format('denom', int, type(None), None)
         )
 
-        self.assertEqual(
-            renderer.caps_string('audio/x-raw', {'rate': 44100}), 
-            'audio/x-raw, rate=44100'
-        )
+        # doc['framerate']['denom'] is < 1:
+        doc['framerate']['denom'] = 0
+        db.save(doc)
+        with self.assertRaises(ValueError) as cm:
+            inst.get_framerate(_id)
+        self.assertEqual(str(cm.exception), "need 'denom' >= 1; got 0")
 
-        self.assertEqual(
-            renderer.caps_string('audio/x-raw', {'rate': 44100, 'channels': 1}),
-            'audio/x-raw, channels=1, rate=44100'
-        )
+        # doc['framerate']['num'] is < 1:
+        doc['framerate']['denom'] = 34
+        doc['framerate']['num'] = 0
+        db.save(doc)
+        with self.assertRaises(ValueError) as cm:
+            inst.get_framerate(_id)
+        self.assertEqual(str(cm.exception), "need 'num' >= 1; got 0")
 
-    def test_make_caps(self):
-        self.assertIsNone(renderer.make_caps('audio/x-raw', None))
+        # All good:
+        doc['framerate']['num'] = 32
+        db.save(doc)
+        f = inst.get_framerate(_id)
+        self.assertIsInstance(f, Fraction)
+        self.assertEqual(f, Fraction(16, 17))
 
-        c = renderer.make_caps('audio/x-raw', {'rate': 44100})
-        self.assertIsInstance(c, Gst.Caps)
-        self.assertEqual(
-            c.to_string(),
-            'audio/x-raw, rate=(int)44100'
-        )
-
-        c = renderer.make_caps('audio/x-raw', {'rate': 44100, 'channels': 1})
-        self.assertIsInstance(c, Gst.Caps)
-        self.assertEqual(
-            c.to_string(),
-            'audio/x-raw, channels=(int)1, rate=(int)44100'
-        )
-
-    def test_get_framerate(self):
-        doc = {'framerate': {'num': 240, 'denom': 10}}
-        frac = renderer.get_framerate(doc)
-        self.assertIsInstance(frac, Fraction)
-        self.assertEqual(frac.numerator, 24)
-        self.assertEqual(frac.denominator, 1)
+        # Also all good:
+        doc['framerate']['num'] = 1
+        doc['framerate']['denom'] = 1
+        db.save(doc)
+        f = inst.get_framerate(_id)
+        self.assertIsInstance(f, Fraction)
+        self.assertEqual(f, Fraction(1, 1))
 
 
-class TestEncodeBin(TestCase):
-
-    def test_init(self):
-        # with props
-        d = {
-            'encoder': {
-                'name': 'vorbisenc',
-                'props': {
-                    'quality': 0.5,
-                },
-            },
-        }
-        inst = renderer.EncoderBin(d, 'audio/x-raw')
-        self.assertTrue(inst._d is d)
-        return
-
-        for el in (inst._q1, inst._q2, inst._q3):
-            self.assertIsInstance(el, Gst.Element)
-            self.assertTrue(el.get_parent() is inst)
-            self.assertEqual(el.get_factory().get_name(), 'queue')
-
-        self.assertIsInstance(inst._enc, Gst.Element)
-        self.assertTrue(inst._enc.get_parent() is inst)
-        self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
-        self.assertEqual(inst._enc.get_property('quality'), 0.5)
-
-        self.assertIsNone(inst._caps)
-
-        # default properties
-        d = {'encoder': {'name': 'vorbisenc'}}
-        inst = renderer.EncoderBin(d, 'audio/x-raw')
-        self.assertTrue(inst._d is d)
-
-        self.assertTrue(inst._q1.get_parent() is inst)
-        self.assertTrue(isinstance(inst._q1, Gst.Element))
-        self.assertEqual(inst._q1.get_factory().get_name(), 'queue')
-
-        self.assertTrue(inst._enc.get_parent() is inst)
-        self.assertTrue(isinstance(inst._enc, Gst.Element))
-        self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
-        self.assertNotEqual(inst._enc.get_property('quality'), 0.5)
-
-        self.assertTrue(inst._q2.get_parent() is inst)
-        self.assertTrue(isinstance(inst._q2, Gst.Element))
-        self.assertEqual(inst._q2.get_factory().get_name(), 'queue')
-
-        self.assertIsNone(inst._caps)
-
-        # with mime and caps
-        d = {
-            'encoder': {
-                'name': 'vorbisenc',
-                'props': {
-                    'quality': 0.5,
-                },
-            },
-            'filter': {
-                'mime': 'audio/x-raw',
-                'caps': {'rate': 44100, 'channels': 1},
-            },
-        }
-        inst = renderer.EncoderBin(d, 'audio/x-raw')
-        self.assertTrue(inst._d is d)
-        self.assertIsInstance(inst._caps, Gst.Caps)
-        self.assertEqual(
-            inst._caps.to_string(),
-            'audio/x-raw, channels=(int)1, rate=(int)44100'
-        )
-
-    def test_repr(self):
-        d = {
-            'encoder': 'vorbisenc',
-            'props': {
-                'quality': 0.5,
-            },
-        }
-
-        inst = renderer.EncoderBin(d, 'audio/x-raw')
-        self.assertEqual(
-            repr(inst),
-            'EncoderBin({!r})'.format(d)
-        )
-
-        class FooBar(renderer.EncoderBin):
-            pass
-        inst = FooBar(d, 'audio/x-raw')
-        self.assertEqual(
-            repr(inst),
-            'FooBar({!r})'.format(d)
-        )
-
-    def test_make(self):
-        d = {'encoder': 'vorbisenc'}
-        inst = renderer.EncoderBin(d, 'audio/x-raw')
-
-        enc = inst._make('theoraenc')
-        self.assertTrue(enc.get_parent() is inst)
-        self.assertTrue(isinstance(enc, Gst.Element))
-        self.assertEqual(enc.get_factory().get_name(), 'theoraenc')
-        self.assertEqual(enc.get_property('quality'), 48)
-        self.assertEqual(enc.get_property('keyframe-force'), 64)
-
-        enc = inst._make('theoraenc', {'quality': 50, 'keyframe-force': 32})
-        self.assertTrue(enc.get_parent() is inst)
-        self.assertTrue(isinstance(enc, Gst.Element))
-        self.assertEqual(enc.get_factory().get_name(), 'theoraenc')
-        self.assertEqual(enc.get_property('quality'), 50)
-        self.assertEqual(enc.get_property('keyframe-force'), 32)
-
-
-class TestAudioEncoder(TestCase):
-    def test_init(self):
-        d = {
-            'encoder': {
-                'name': 'vorbisenc',
-                'props': {
-                    'quality': 0.5,
-                },
-            },
-        }
-        inst = renderer.AudioEncoder(d)
-        self.assertTrue(isinstance(inst._enc, Gst.Element))
-        self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
-        self.assertEqual(inst._enc.get_property('quality'), 0.5)
-        self.assertIsNone(inst._caps)
-
-        d = {
-            'encoder': {
-                'name': 'vorbisenc',
-                'props': {'quality': 0.25},
-            },
-            'caps': {'rate': 44100},
-        }
-        inst = renderer.AudioEncoder(d)
-        self.assertTrue(isinstance(inst._enc, Gst.Element))
-        self.assertEqual(inst._enc.get_factory().get_name(), 'vorbisenc')
-        self.assertEqual(inst._enc.get_property('quality'), 0.25)
-        self.assertIsInstance(inst._caps, Gst.Caps)
-        self.assertEqual(
-            inst._caps.to_string(),
-            'audio/x-raw, rate=(int)44100'
-        )
-
-
-class TestVideoEncoder(TestCase):
-    def test_init(self):
-        d = {
-            'encoder': {
-                'name': 'theoraenc',
-                'props': {'quality': 40},
-            },
-        }
-        inst = renderer.VideoEncoder(d)
-        self.assertIsInstance(inst._enc, Gst.Element)
-        self.assertTrue(inst._enc.get_parent() is inst)
-        self.assertEqual(inst._enc.get_factory().get_name(), 'theoraenc')
-        self.assertEqual(inst._enc.get_property('quality'), 40)
-        self.assertIsNone(inst._caps)
-
-        d = {
-            'encoder': {
-                'name': 'theoraenc',
-                'props': {'quality': 40},
-            },
-            'caps': {
-                'format': 'Y42B',
-                'width': 960,
-                'height': 540,
-            },
-        }
-        inst = renderer.VideoEncoder(d)
-        self.assertIsInstance(inst._enc, Gst.Element)
-        self.assertTrue(inst._enc.get_parent() is inst)
-        self.assertEqual(inst._enc.get_factory().get_name(), 'theoraenc')
-        self.assertEqual(inst._enc.get_property('quality'), 40)
-        self.assertIsInstance(inst._caps, Gst.Caps)
-        self.assertEqual(
-            inst._caps.to_string(),
-            'video/x-raw, format=(string)Y42B, height=(int)540, width=(int)960'
-        )
-
-
-class TestRenderer(TestCase):
-    def test_init(self):
-        self.skipTest('FIXME')
-        tmp = TempDir()
-        builder = DummyBuilder(docs)
-
-        root = sequence1
-        settings = {
-            'muxer': {'name': 'oggmux'},
-        }
-        dst = tmp.join('out1.ogv')
-        inst = renderer.Renderer(root, settings, builder, dst)
-
-        self.assertIs(inst.root, root)
-        self.assertIs(inst.settings, settings)
-        self.assertIs(inst.builder, builder)
-
-        self.assertIsInstance(inst.sources, tuple)
-        self.assertEqual(len(inst.sources), 1)
-        src = inst.sources[0]
-        self.assertIs(src.get_parent(), inst.pipeline)
-        self.assertEqual(src.get_factory().get_name(), 'gnlcomposition')
-
-        self.assertIsInstance(inst.mux, Gst.Element)
-        self.assertIs(inst.mux.get_parent(), inst.pipeline)
-        self.assertEqual(inst.mux.get_factory().get_name(), 'oggmux')
-
-        self.assertIsInstance(inst.sink, Gst.Element)
-        self.assertIs(inst.sink.get_parent(), inst.pipeline)
-        self.assertEqual(inst.sink.get_factory().get_name(), 'filesink')
-        self.assertEqual(inst.sink.get_property('location'), dst)
 

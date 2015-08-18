@@ -1,5 +1,5 @@
 # novacut: the distributed video editor
-# Copyright (C) 2011 Novacut Inc
+# Copyright (C) 2011-2015 Novacut Inc
 #
 # This file is part of `novacut`.
 #
@@ -19,375 +19,593 @@
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
-"""
-Build GnonLin composition from Novacut edit description.
-"""
-
-from datetime import datetime
-import logging
 import os
 from os import path
 from fractions import Fraction
+from collections import namedtuple
+import weakref
+from datetime import datetime
+import queue
+import logging
 
-from microfiber import Database, dumps
-import gi
-gi.require_version('Gst', '1.0')
 from gi.repository import GLib, Gst
+from microfiber import Database, dumps
 
-from .timefuncs import video_slice_to_gnl
-
-
-Gst.init(None)
-log = logging.getLogger(__name__)
-log.info('**** Gst.version(): %r', Gst.version())
+from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration, Timestamp
+from .gsthelpers import make_element, get_framerate_from_struct, make_caps, make_element_from_desc
 
 
-# Provide very clear TypeError messages:
+BUFFER_QUEUE_SIZE = 16
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
+Slice = namedtuple('Slice', 'id src start stop filename')
+Sequence = namedtuple('Sequence', 'id src')
+
+log = logging.getLogger(__name__)
+Gst.init()
+mainloop = GLib.MainLoop()
 
 
+def _get(d, key, t):
+    assert type(d) is dict
+    val = d.get(key)
+    if type(val) is not t:
+        raise TypeError(TYPE_ERROR.format(key, t, type(val), val))
+    return val
 
-class NoSuchElement(Exception):
-    def __init__(self, name):
-        self.name = name
-        super().__init__('GStreamer element {!r} not available'.format(name))
+
+def _int(d, key, minval=None):
+    val = _get(d, key, int)
+    if minval is not None:
+        assert type(minval) is int
+        if val < minval:
+            raise ValueError(
+                'need {!r} >= {}; got {}'.format(key, minval, val)
+            )
+    return val
 
 
-def make_element(name, props=None):
-    if not isinstance(name, str):
-        raise TypeError(
-            TYPE_ERROR.format('name', str, type(name), name)
+def _str(d, key):
+    return _get(d, key, str)
+
+
+def _dict(d, key):
+    return _get(d, key, dict)
+
+
+def _list(d, key, item_type=None, as_tuple=False):
+    val = _get(d, key, list)
+    if item_type is not None:
+        for (i, item) in enumerate(val):
+            if type(item) is not item_type:
+                label = '{}[{}]'.format(key, i)
+                raise TypeError(
+                    TYPE_ERROR.format(label, item_type, type(item), item)
+                )
+    if as_tuple is True:
+        return tuple(val)
+    return val
+
+
+def _fraction(obj):
+    if isinstance(obj, Fraction):
+        return obj
+    elif isinstance(obj, dict):
+        return Fraction(
+            _int(obj, 'num',   1),
+            _int(obj, 'denom', 1)
         )
-    if not (props is None or isinstance(props, dict)):
+    else:
         raise TypeError(
-            TYPE_ERROR.format('props', dict, type(props), props)
+            'invalid fraction: {!r}: {!r}'.format(type(obj), obj)
         )
-    element = Gst.ElementFactory.make(name, None)
-    if element is None:
-        log.error('could not create GStreamer element %r', name)
-        raise NoSuchElement(name)
-    if props:
-        for (key, value) in props.items():
-            element.set_property(key, value)
-    return element
 
 
-def element_from_desc(desc):
-    """
-    Create a GStreamer element from a JSON serializable description.
-
-    For example:
-
-    >>> enc = element_from_desc('theoraenc')
-    >>> enc.get_factory().get_name()
-    'theoraenc'
-    
-    Or from a ``dict`` with the element name:
-
-    >>> enc = element_from_desc({'name': 'theoraenc'})
-    >>> enc.get_factory().get_name()
-    'theoraenc'
-    >>> enc.get_property('quality')
-    48
-
-    Or from a ``dict`` with the element name and props:
-
-    >>> enc = element_from_desc({'name': 'theoraenc', 'props': {'quality': 40}})
-    >>> enc.get_factory().get_name()
-    'theoraenc'
-    >>> enc.get_property('quality')
-    40
-
-    """
-    if isinstance(desc, dict):
-        return make_element(desc['name'], desc.get('props'))
-    return make_element(desc)
+def _framerate(doc):
+    return _fraction(_dict(doc, 'framerate'))
 
 
-def caps_string(mime, caps=None):
-    """
-    Build a GStreamer caps string.
-
-    For example:
-
-    >>> caps_string('video/x-raw')
-    'video/x-raw'
-
-    Or with specific caps:
-
-    >>> caps_string('video/x-raw', {'width': 800, 'height': 450})
-    'video/x-raw, height=450, width=800'
-
-    """
-    assert mime in ('audio/x-raw', 'video/x-raw')
-    accum = [mime]
-    if caps:
-        for key in sorted(caps):
-            accum.append('{}={}'.format(key, caps[key]))
-    return ', '.join(accum)
+def _sequence(_id, node):
+    return Sequence(_id, _list(node, 'src', item_type=str, as_tuple=True))
 
 
-def make_caps(mime, caps):
-    if caps is None:
-        return None
-    return Gst.caps_from_string(caps_string(mime, caps))
-
-
-def get_framerate(doc):
-    """
-    Return a `Fraction` extracted from the framerate in a dmedia/file doc.
-
-    For example:
-
-    >>> doc = {'framerate': {'num': 30000, 'denom': 1001}}
-    >>> get_framerate(doc)
-    Fraction(30000, 1001)
-
-    """
-    num = doc['framerate']['num']
-    denom = doc['framerate']['denom']
-    return Fraction(num, denom)
-
-
-class Builder:
-    def __init__(self, Dmedia, novacut_db):
+class SliceIter:
+    def __init__(self, Dmedia, db, root_id):
         self.Dmedia = Dmedia
-        self.novacut_db = novacut_db
-        self.last = None
-        self.audio = None
-        self.video = None
-        self.builders = {
-            'video/sequence': self.build_video_sequence,
-            'video/slice': self.build_video_slice,
+        self.db = db
+        self.root_id = root_id
+        self._map = {
+            'video/slice': self._slice,
+            'video/sequence': _sequence,
         }
 
-    def build_root(self, _id):
-        frames = self.build(_id, 0)
-        log.info('total video frames: %s', frames)
-        sources = filter(lambda s: s is not None, (self.video, self.audio))
-        for src in sources:
-            src.emit('commit', True)
-        return sources
+    def _slice(self, _id, node):
+        src = _str(node, 'src')
+        start = _int(node, 'start', 0)
+        stop = _int(node, 'stop', 0)
+        if start > stop:
+            raise ValueError(
+                'need start <= stop; got {} > {}'.format(start, stop)
+            )
+        filename = self.resolve(src)
+        return Slice(_id, src, start, stop, filename)
 
-    def get_doc(self, _id):
-        return self.novacut_db.get(_id)
+    def _doc_to_tuple(self, doc):
+        _id = _str(doc, '_id')
+        node = _dict(doc, 'node')
+        _type = _str(node, 'type')
+        func = self._map.get(_type)
+        if func is None:
+            raise ValueError(
+                '{}: bad node type: {!r}'.format(_id, _type)
+            )
+        n = func(_id, node)
+        return n
 
-    def resolve_file(self, _id):
-        (_id, status, filename) = self.Dmedia.Resolve(_id)
+    def get(self, _id):
+        return self._doc_to_tuple(self.db.get(_id))
+
+    def get_many(self, ids):
+        docs = self.db.get_many(ids)
+        if None in docs:
+            raise ValueError(
+                'Not Found: {!r}'.format(ids[docs.index(None)])
+            )
+        return tuple(self._doc_to_tuple(d) for d in docs)
+
+    def resolve(self, file_id):
+        (_id, status, name) = self.Dmedia.Resolve(file_id)
+        assert _id == file_id
         if status != 0:
-            msg = 'not local: {}'.format(_id)
+            msg = 'not local: {}'.format(file_id)
             log.error(msg)
-            raise SystemExit(msg)
-        return 'file://' + filename
+            raise ValueError(msg)
+        return name
 
-    def get_audio(self):
-        if self.audio is None:
-            self.audio = make_element('gnlcomposition')
-        return self.audio
+    def get_framerate(self, file_id):
+        return _framerate(self.db.get(file_id))
 
-    def get_video(self):
-        if self.video is None:
-            self.video = make_element('gnlcomposition')
-            self.video.set_property('caps', Gst.caps_from_string('video/x-raw'))
-        return self.video
-
-    def build(self, src_id, offset):
-        doc = self.get_doc(src_id)
-        builder = self.builders[doc['node']['type']]
-        return builder(doc, offset)
-
-    def build_video_sequence(self, doc, offset):
-        frames = 0
-        for src_id in doc['node']['src']:
-            frames += self.build(src_id, offset + frames)
-        return frames
-
-    def build_video_slice(self, doc, offset):
-        start = doc['node']['start']
-        stop = doc['node']['stop']
-        src = self.get_doc(doc['node']['src'])
-        framerate = get_framerate(src)
-        log.info('%r video slice %s: %s[%d:%d]',
-            framerate, doc['_id'], src['_id'], start, stop
-        )
-        framerate = get_framerate(src)
-        props = video_slice_to_gnl(offset, start, stop, framerate)
-        element = make_element('gnlurisource', props)
-        element.set_property('caps', Gst.caps_from_string('video/x-raw'))
-        element.set_property('uri', self.resolve_file(src['_id']))
-        self.get_video().add(element)
-        return stop - start
-
-
-class EncoderBin(Gst.Bin):
-    """
-    Base class for `AudioEncoder` and `VideoEncoder`.
-    """
-
-    def __init__(self, d, mime):
-        super().__init__()
-        self._d = d
-        assert mime in ('audio/x-raw', 'video/x-raw')
-
-        # Create elements
-        self._identity = self._make('identity', {'single-segment': True})
-        self._q1 = self._make('queue')
-        self._q2 = self._make('queue')
-        self._q3 = self._make('queue')
-        self._enc = self._from_desc(d['encoder'])
-
-        # Create the filter caps
-        self._caps = make_caps(mime, d.get('caps'))
-
-        # Link elements
-        self._identity.link(self._q1)
-        if self._caps is None:
-            self._q2.link(self._enc)
+    def iter_slices(self, s):
+        if type(s) is Slice:
+            # Only yield a non-empty slice:
+            if s.stop > s.start:
+                yield s
+        elif type(s) is Sequence:
+            # Only yield from a non-empty sequence:
+            if len(s.src) > 0:
+                for child in self.get_many(s.src):
+                    yield from self.iter_slices(child)
         else:
-            self._q2.link_filtered(self._enc, self._caps)
-        self._enc.link(self._q3)
+            TypeError('bad node: {!r}: {!r}'.format(type(s), s))
 
-        # Ghost Pads
-        self.add_pad(
-            Gst.GhostPad.new('sink', self._identity.get_static_pad('sink'))
-        )
-        self.add_pad(
-            Gst.GhostPad.new('src', self._q3.get_static_pad('src'))
-        )
-
-    def __repr__(self):
-        return '{}({!r})'.format(self.__class__.__name__, self._d)
-
-    def _make(self, name, props=None):
-        element = make_element(name, props)
-        self.add(element)
-        return element
-
-    def _from_desc(self, desc):
-        element = element_from_desc(desc)
-        self.add(element)
-        return element
+    def __iter__(self):
+        return self.iter_slices(self.get(self.root_id))
 
 
-class AudioEncoder(EncoderBin):
-    def __init__(self, d):
-        super().__init__(d, 'audio/x-raw')
+class WeakMethod:
+    __slots__ = ('proxy', 'method_name')
 
-        # Create elements:
-        self._conv = self._make('audioconvert')
-        self._rsp = self._make('audioresample', {'quality': 10})
-        self._rate = self._make('audiorate',
-            {'tolerance': Gst.SECOND * 4 // 48000}
-        )
+    def __init__(self, inst, method_name):
+        if not callable(getattr(inst, method_name)):
+            raise TypeError(
+                '{!r} attribute is not callable'.format(method_name)
+            )
+        self.proxy = weakref.proxy(inst)
+        self.method_name = method_name
 
-        # Link elements:
-        self._q1.link(self._conv)
-        self._conv.link(self._rsp)
-        self._rsp.link(self._rate)
-        self._rate.link(self._q2)
-
-
-class VideoEncoder(EncoderBin):
-    def __init__(self, d):
-        super().__init__(d, 'video/x-raw')
-
-        # Create elements:
-        self._scale = self._make('videoscale', {'method': 3})
-        self._color = self._make('videoconvert')
-
-        # Link elements:
-        self._q1.link(self._scale)
-        self._scale.link(self._color)
-        self._color.link(self._q2)
+    def __call__(self, *args):
+        try:
+            method = getattr(self.proxy, self.method_name)
+        except ReferenceError:
+            return
+        return method(*args)
 
 
-class Renderer:
-    def __init__(self, root, settings, builder, dst):
-        """
-        Initialize.
-
-        :param job: a ``dict`` describing the transcode to perform.
-        :param fs: a `FileStore` instance in which to store transcoded file
-        """
-        self.root = root
-        self.settings = settings
-        self.builder = builder
-        self.mainloop = GLib.MainLoop()
+class Pipeline:
+    def __init__(self):
         self.pipeline = Gst.Pipeline()
-
-        # Create bus and connect several handlers
         self.bus = self.pipeline.get_bus()
         self.bus.add_signal_watch()
-        self.bus.connect('message::eos', self.on_eos)
-        self.bus.connect('message::error', self.on_error)
+        self.bus.connect('message::error', WeakMethod(self, 'on_error'))
+        self.error = False
+
+    def set_state(self, name, sync=False):
+        log.info('%s.set_state(%r, sync=%r)',
+            self.__class__.__name__, name, sync
+        )
+        assert sync in (True, False)
+        state = getattr(Gst.State, name)
+        self.pipeline.set_state(state)
+        if sync is True:
+            self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
+
+    def destroy(self):
+        log.info('%s.destroy()', self.__class__.__name__)
+        self.set_state('NULL')
+        # bus.remove_signal_watch() might be the fix for this error:
+        #
+        #   "GStreamer-CRITICAL **: gst_poll_read_control: assertion 'set != NULL' failed"
+        #
+        # Which is happening after a large number of VideoSlice have been
+        # created and destroyed (~500 ish), which then leads to the process
+        # crashing with a "too many open file descriptors" OSError.
+        self.bus.remove_signal_watch()
+        del self.bus
+        del self.pipeline
+
+    def _fatal(self):
+        log.info('shuting down after fatal error')
+        self.destroy()
+        mainloop.quit()
+
+    def fatal(self, msg, *args):
+        log.error(msg, *args)
+        GLib.idle_add(self._fatal)
+
+    def on_error(self, bus, msg):
+        self.error = True
+        self.fatal('on_error: %s', msg.parse_error())
+
+    def make_element(self, name, props=None):
+        element = make_element(name, props)
+        self.pipeline.add(element)
+        return element
+
+    def make_element_from_desc(self, desc):
+        element = make_element_from_desc(desc)
+        self.pipeline.add(element)
+        return element   
+
+
+def get_expected_ts(frame, framerate):
+    return video_pts_and_duration(frame, frame + 1, framerate)
+
+
+def _row(label, ts):
+    return (label, str(ts.pts), str(ts.duration))
+
+def _ts_diff(ts, expected_ts):
+    return Timestamp(
+        ts.pts - expected_ts.pts,
+        ts.duration - expected_ts.duration
+    )
+
+
+def format_ts_mismatch(ts, expected_ts):
+    rows = (
+        ('', 'PTS', 'DURATION'),
+        _row('GOT:', ts),
+        _row('EXPECTED:', expected_ts),
+        _row('DIFF', _ts_diff(ts, expected_ts)),
+    )
+    widths = tuple(
+        max(len(r[i]) for r in rows) for i in range(3)
+    )
+    lines = [
+        ' '.join(row[i].rjust(widths[i]) for i in range(3))
+        for row in rows
+    ]
+    return '\n'.join('    ' + l for l in lines)
+
+
+class Validator(Pipeline):
+    def __init__(self, filename, full_check=False):
+        super().__init__()
+        self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
 
         # Create elements
-        self.mux = element_from_desc(settings['muxer'])
-        self.sink = make_element('filesink')
+        src = self.make_element('filesrc', {'location': filename})
+        dec = self.make_element('decodebin')
+        self.sink = self.make_element('fakesink', {'signal-handoffs': True})
 
-        self.pipeline.add(self.mux)
-        self.pipeline.add(self.sink)
+        # Connect signal handlers
+        dec.connect('pad-added', WeakMethod(self, 'on_pad_added'))
+        self.sink.connect('handoff', WeakMethod(self, 'on_handoff'))
 
-        # Add elements to pipeline
-        self.sources = builder.build_root(root)
-        self.encoders = {}
-        for key in ('video', 'audio'):
-            src = getattr(builder, key)
-            if src is None:
-                continue
-            self.encoders[key] = self.create_encoder(key)
-            src.connect('pad-added', self.on_pad_added, key)
-            self.pipeline.add(src)
+        # Link elements
+        src.link(dec)
 
-        # Set properties
-        self.sink.set_property('location', dst)
+        self.frame = 0
+        self.framerate = None
+        self.info = {'valid': True}
+        self.full_check = full_check
 
-        # Link *some* elements
-        # This is completed in self.on_pad_added()
-        self.mux.link(self.sink)
+    def mark_invalid(self):
+        self.info['valid'] = False
+        if not self.full_check:
+            self.fatal('Stopping check at first inconsistency')
 
-        self.audio = None
-        self.video = None
- 
     def run(self):
-        self.pipeline.set_state(Gst.State.PLAYING)
-        self.mainloop.run()
+        self.set_state('PAUSED', sync=True)
+        (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
+        if not success:
+            self.fatal('Could not query duration')
+        log.info('duration: %d ns', ns)
+        self.info['duration'] = ns
+        self.set_state('PLAYING')
 
-    def kill(self):
-        self.pipeline.set_state(Gst.State.NULL)
-        self.mainloop.quit()
+    def _info_from_caps(self, caps):
+        s = caps.get_structure(0)
 
-    def create_encoder(self, key):
-        if key in self.settings:
-            klass = {'audio': AudioEncoder, 'video': VideoEncoder}[key]
-            el = klass(self.settings[key])
-        else:
-            el = make_element('fakesink')
-        self.pipeline.add(el)
-        if key in self.settings:
-            log.info(el)
-            el.link(self.mux)
-        return el
+        (success, num, denom) = s.get_fraction('framerate')
+        if not success:
+            log.error('could not get framerate from video stream')
+            return False
 
-    def on_pad_added(self, element, pad, key):
-        try:
-            string = pad.query_caps(None).to_string()
-            log.info('pad-added: %r %r', key, string)
-            enc = self.encoders[key]
-            pad.link(enc.get_static_pad('sink'))
-        except Exception:
-            log.exception('Error in Renderer.on_pad_added():')
+        (sucess, width) = s.get_int('width')
+        if not success:
+            log.error('could not get width from video stream')
+            return False
+
+        (sucess, height) = s.get_int('height')
+        if not success:
+            log.error('could not get height from video stream')
+            return False
+
+        self.framerate = Fraction(num, denom)
+        self.info['framerate'] = {'num': num, 'denom': denom}
+        self.info['width'] = width
+        self.info['height'] = height
+
+        log.info('framerate: %d/%d', num, denom)
+        log.info('resolution: %dx%d', width, height)
+        return True
+
+    def on_pad_added(self, dec, pad):
+        caps = pad.get_current_caps()
+        string = caps.to_string()
+        log.info('on_pad_added(): %s', string)
+        if string.startswith('video/'):
+            if self._info_from_caps(caps) is True:
+                pad.link(self.sink.get_static_pad('sink'))
+            else:
+                self.fatal('error getting framerate/width/height from video caps')
+
+    def on_handoff(self, sink, buf, pad):
+        ts = Timestamp(buf.pts, buf.duration)
+        expected_ts = get_expected_ts(self.frame, self.framerate)
+        if self.frame == 0 and ts.pts != 0:
+            log.warning('non-zero PTS at frame 0: %r', ts)
+            self.mark_invalid()
+        elif ts != expected_ts:
+            log.warning('Timestamp mismatch at frame %d:\n%s',
+                self.frame, format_ts_mismatch(ts, expected_ts)
+            )
+            self.mark_invalid()
+        self.frame += 1
 
     def on_eos(self, bus, msg):
         log.info('eos')
-        self.kill()
+        frames = self.frame
+        info = self.info
+        info['frames'] = self.frame
+        expected_duration = frame_to_nanosecond(frames, self.framerate)
+        if info['duration'] != expected_duration:
+            log.warning('total duration: %d != %d',
+                info['duration'], expected_duration
+            )
+            info['valid'] = False
+        if info['valid'] is True:
+            log.info('Success, this is a conforming video!')
+        else:
+            log.warning('This is not a conforming video!')
+        self.destroy()
+        mainloop.quit()
 
-    def on_error(self, bus, msg):
-        self.error = msg.parse_error()
-        log.error(self.error)
-        self.kill()
+
+class Input(Pipeline):
+    def __init__(self, manager, buffer_queue, s, input_caps):
+        super().__init__()
+        self.manager = manager
+        self.buffer_queue = buffer_queue
+        assert 0 <= s.start < s.stop
+        self.s = s
+        self.frame = s.start
+        self.framerate = None
+        self.complete = False
+
+        # Create elements
+        self.src = self.make_element('filesrc', {'location': s.filename})
+        self.dec = self.make_element('decodebin')
+        self.q = self.make_element('queue')
+        self.convert = self.make_element('videoconvert')
+        self.scale = self.make_element('videoscale', {'method': 3})
+        self.sink = self.make_element('appsink',
+            {
+                'caps': input_caps,
+                'emit-signals': True,
+                'max-buffers': BUFFER_QUEUE_SIZE,
+            }
+        )
+
+        self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
+        self.dec.connect('pad-added', WeakMethod(self, 'on_pad_added'))
+        self.sink.connect('new-sample', WeakMethod(self, 'on_new_sample'))
+
+        # Link elements
+        self.src.link(self.dec)
+        self.q.link(self.convert)
+        self.convert.link(self.scale)
+        self.scale.link(self.sink)
+
+    def fatal(self, msg, *args):
+        self.manager.input_fatal_error(self)
+        super().fatal(msg, *args)
+
+    def run(self):
+        log.info('Playing %r', self.s)
+        self.set_state('PAUSED', sync=True)
+        assert self.framerate is not None
+        # FIXME: SEGMENT seeks are currently unreliable on Trusty when it comes
+        # to the end of the slice.  Frequently 'segment-done' fires a few frames
+        # before the end of the slice, and on rare occasions it will fire after
+        # the end of the slice giving you extra frames.
+        #
+        # But now that we're running the slice decoding and output rendering in
+        # different pipelines, we have complete control of what we sent from
+        # this appsink to the output appsrc.  So we're doing a normal,
+        # non-segment seek, and if we happen to get any buffers after the end of
+        # the slice before this pipeline goes to State.NULL, we just ignore
+        # them.
+        self.pipeline.seek_simple(
+            Gst.Format.TIME,
+            Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE,
+            frame_to_nanosecond(self.s.start, self.framerate)
+        )
+        self.set_state('PLAYING')
+
+    def on_pad_added(self, dec, pad):
+        caps = pad.get_current_caps()
+        string = caps.to_string()
+        log.info('on_pad_added(): %s', string)
+        if string.startswith('video/'):
+            self.framerate = get_framerate_from_struct(caps.get_structure(0))
+            log.info('framerate: %r', self.framerate)
+            pad.link(self.q.get_static_pad('sink'))
+
+    def on_new_sample(self, sink):
+        if self.complete:
+            log.warning('ignoring extra frame beyond slice end')
+            return Gst.FlowReturn.OK
+        buf = self.sink.emit('pull-sample').get_buffer().copy()
+        frame = nanosecond_to_frame(buf.pts, self.framerate)
+        if frame != self.frame:
+            self.fatal('expected frame %s, got frame %s from slice [%s:%s]',
+                self.frame, frame, self.s.start, self.s.stop
+            )
+        log.info('IN: %s from [%s:%s]', frame, self.s.start, self.s.stop)
+        self.buffer_queue.put(buf)
+        self.frame += 1
+        if self.frame == self.s.stop:
+            log.info('final frame in slice, calling Manager.input_complete()')
+            self.complete = True
+            self.manager.input_complete(self)
+        return Gst.FlowReturn.OK
+
+    def on_eos(self, bus, msg):
+        if not self.complete:
+            log.warning('recieved EOS before end of slice, some frame were lost')
+            self.complete = True
+            self.manager.input_complete(self)
 
 
+def make_video_caps(desc):
+    framerate = _fraction(desc.pop('framerate'))
+    _int(desc, 'width', 32)
+    _int(desc, 'height', 32)
+    _str(desc, 'format')
+    _str(desc, 'interlace-mode')
+    _str(desc, 'pixel-aspect-ratio')
+    assert 'framerate' not in desc
+    input_caps = make_caps('video/x-raw', desc)
+    desc['framerate'] = framerate
+    output_caps = make_caps('video/x-raw', desc)
+    return (framerate, input_caps, output_caps)
+
+
+class Output(Pipeline):
+    def __init__(self, buffer_queue, settings, filename):
+        super().__init__()
+        self.buffer_queue = buffer_queue
+        self.frame = 0
+        self.complete = False
+
+        desc = settings['video']['caps']
+        (self.framerate, self.input_caps, output_caps) = make_video_caps(desc)
+
+        self.src = self.make_element('appsrc',
+            {'caps': output_caps, 'format': 3}
+        )
+        self.q1 = self.make_element('queue')
+        self.enc = self.make_element_from_desc(settings['video']['encoder'])
+        self.q2 = self.make_element('queue')
+        self.mux = self.make_element_from_desc(settings['muxer'])
+        self.sink = self.make_element('filesink', {'location': filename})
+
+        self.src.link(self.q1)
+        self.q1.link(self.enc)
+        self.enc.link(self.q2)
+        self.q2.link(self.mux)
+        self.mux.link(self.sink)
+
+        self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
+        self.src.connect('need-data', WeakMethod(self, 'on_need_data'))
+
+    def run(self):
+        self.set_state('PLAYING')
+
+    def on_eos(self, bus, msg):
+        log.info('eos')
+        self.destroy()
+        mainloop.quit()
+
+    def on_need_data(self, appsrc, amount):
+        log.info('need-data: %s', amount)
+        if self.complete:
+            return
+        for i in range(16):
+            if self.push(self.buffer_queue.get()) is True:
+                self.complete = True
+                break
+
+    def push(self, buf):
+        if buf is None:
+            log.info('received end-of-render sentinel')
+            self.src.emit('end-of-stream')
+            return True
+        ts = video_pts_and_duration(self.frame, self.frame + 1, self.framerate)
+        buf.pts = ts.pts
+        buf.duration = ts.duration
+        log.info('OUT: %s (pts=%s, duration=%s)', self.frame, ts.pts, ts.pts)
+        self.frame += 1
+        self.src.emit('push-buffer', buf)
+        return False
+
+
+class Manager:
+    def __init__(self, slices, settings, filename):
+        self.slices_iter = iter(slices)
+        self.buffer_queue = queue.Queue(16)
+        self.input = None
+        self.output = Output(self.buffer_queue, settings, filename)
+        self.frames = 0
+        self.error = False
+        self.need_data = False
+
+    def run(self):
+        self.output.run()
+        self.next()
+
+    def next_slice(self):
+        try:
+            return next(self.slices_iter)
+        except StopIteration:
+            return None
+
+    def next(self):
+        assert self.input is None
+        s = self.next_slice()
+        if s is None:
+            self.buffer_queue.put(None)
+        else:
+            self.frames += (s.stop - s.start)
+            self.input = Input(self, self.buffer_queue, s, self.output.input_caps)
+            self.input.run()
+
+    def _input_complete(self, inst):
+        assert inst is self.input
+        self.input.destroy()
+        self.input = None
+        self.next()
+
+    def input_complete(self, inst):
+        log.info('slice complete: %s', inst.s)
+        GLib.idle_add(self._input_complete, inst)
+
+    def input_fatal_error(self, inst):
+        assert inst is self.input
+        self.error = True
+
+ 
 class Worker:
     def __init__(self, Dmedia, env):
         self.Dmedia = Dmedia
@@ -397,13 +615,18 @@ class Worker:
     def run(self, job_id):
         job = self.novacut_db.get(job_id)
         log.info('Rendering: %s', dumps(job, pretty=True))
-        root = job['node']['root']
         settings = self.novacut_db.get(job['node']['settings'])
         log.info('With settings: %s', dumps(settings['node'], pretty=True))
-        builder = Builder(self.Dmedia, self.novacut_db)
+
+        root_id = job['node']['root']
+        slices = SliceIter(self.Dmedia, self.novacut_db, root_id)
+
         dst = self.Dmedia.AllocateTmp()
-        renderer = Renderer(root, settings['node'], builder, dst)
+        renderer = Manager(slices, settings['node'], dst)
         renderer.run()
+        mainloop.run()
+        if renderer.error:
+            raise SystemExit('renderer encountered a fatal error')
         if path.getsize(dst) < 1:
             raise SystemExit('file-size is zero for {}'.format(job_id))
 
@@ -436,4 +659,7 @@ class Worker:
         self.novacut_db.save(job)
 
         obj['link'] = name
+
+
         return obj
+

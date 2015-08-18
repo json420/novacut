@@ -191,7 +191,6 @@ class App(BaseApp):
 
     def on_render_job(self, hub, job_id):
         log.info('on_render_job(%r)', job_id)
-        job = self.db.get(job_id)
         self.Renderer.RenderJob(job_id)
 
 app = App()

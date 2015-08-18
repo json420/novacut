@@ -34,7 +34,6 @@ def start_delta():
 
 import optparse
 import json
-import os
 from os import path
 from threading import Thread
 import subprocess

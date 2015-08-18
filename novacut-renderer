@@ -30,7 +30,6 @@ import json
 import os
 import logging
 
-from microfiber import Database, dumps
 from dmedia.service import get_proxy
 
 import novacut
@@ -65,4 +64,5 @@ env = json.loads(Dmedia.GetEnv())
 worker = Worker(Dmedia, env)
 result = worker.run(args.job_id)
 
-print(dumps(result, pretty=True))
+print(json.dumps(result, sort_keys=True, indent=4))
+
