@@ -33,7 +33,7 @@ from usercouch.misc import CouchTestCase
 from microfiber import Database, NotFound
 
 from .. import misc
-from .. import renderer
+from .. import render
 
 
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
@@ -44,7 +44,7 @@ random = SystemRandom()
 
 class TestFunctions(TestCase):
     def test_get(self):
-        _get = renderer._get
+        _get = render._get
         values = (
             random_id(),
             17,
@@ -64,7 +64,7 @@ class TestFunctions(TestCase):
             self.assertIs(_get(d, key, type(val)), val)
 
     def test_int(self):
-        _int = renderer._int
+        _int = render._int
         key = random_id()
         badkey = random_id()
         for val in (-17, -1, 0, 1, 17):
@@ -106,7 +106,7 @@ def random_framerate():
 def random_slice(Dmedia):
     (start, stop) = misc.random_slice(123456)
     file_id = random_id(30)
-    s = renderer.Slice(
+    s = render.Slice(
         random_id(),
         file_id,
         start,
@@ -126,7 +126,7 @@ def random_slice(Dmedia):
 
 
 def random_sequence():
-    s = renderer.Sequence(random_id(),
+    s = render.Sequence(random_id(),
         tuple(random_id() for i in range(random.randrange(20)))
     )
     doc = {
@@ -150,7 +150,7 @@ class TestSliceIter(CouchTestCase):
         Dmedia = MockDmedia()
         db = self.get_db()
         root_id = random_id()
-        inst = renderer.SliceIter(Dmedia, db, root_id)
+        inst = render.SliceIter(Dmedia, db, root_id)
         self.assertIs(inst.Dmedia, Dmedia)
         self.assertIs(inst.db, db)
         self.assertIs(inst.root_id, root_id)
@@ -161,7 +161,7 @@ class TestSliceIter(CouchTestCase):
     def test_get(self):
         Dmedia = MockDmedia()
         db = self.get_db(create=True)
-        inst = renderer.SliceIter(Dmedia, db, random_id())
+        inst = render.SliceIter(Dmedia, db, random_id())
 
         # video/sequence with empty src:
         _id = random_id()
@@ -176,7 +176,7 @@ class TestSliceIter(CouchTestCase):
         }
         db.save(doc)
         s = inst.get(_id)
-        self.assertIsInstance(s, renderer.Sequence)
+        self.assertIsInstance(s, render.Sequence)
         self.assertEqual(s.id, _id)
         self.assertIsInstance(s.src, tuple)
         self.assertEqual(s.src, tuple())
@@ -186,7 +186,7 @@ class TestSliceIter(CouchTestCase):
         doc['node']['src'] = list(src)
         db.save(doc)
         s = inst.get(_id)
-        self.assertIsInstance(s, renderer.Sequence)
+        self.assertIsInstance(s, render.Sequence)
         self.assertEqual(s.id, _id)
         self.assertIsInstance(s.src, tuple)
         self.assertEqual(s.src, src)
@@ -210,7 +210,7 @@ class TestSliceIter(CouchTestCase):
     def test_get_many(self):
         Dmedia = MockDmedia()
         db = self.get_db(create=True)
-        inst = renderer.SliceIter(Dmedia, db, random_id())
+        inst = render.SliceIter(Dmedia, db, random_id())
 
         pairs = [
             random_slice(Dmedia) for i in range(5)
@@ -234,7 +234,7 @@ class TestSliceIter(CouchTestCase):
     def test_framerate(self):
         Dmedia = MockDmedia()
         db = self.get_db(create=True)
-        inst = renderer.SliceIter(Dmedia, db, random_id())
+        inst = render.SliceIter(Dmedia, db, random_id())
 
         # dmedia/file doc is missing:
         _id = random_id(30)
