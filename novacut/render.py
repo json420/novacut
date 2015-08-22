@@ -271,10 +271,23 @@ class Renderer:
 
     def destroy(self):
         log.info('Renderer.destroy()')
+
+        # First shutdown the Input pipeline, as we want to prevent it from
+        # putting further items into the queue because of some trickiness below:
         if self.input is not None:
             self.input.destroy()
             self.input = None
+
+        # Then shutdown the Output pipeline, but very carefully: we must first
+        # *try* putting the end-of-render sentinel into the queue before we call
+        # Output.destroy(), otherwise Output.pipeline.set_state(Gst.State.NULL)
+        # can deadlock if Output.on_need_data() happens to be waiting for an
+        # item from the queue:
         if self.output is not None:
+            try:
+                self.buffer_queue.put(None, timeout=2)
+            except queue.Full:
+                log.warning('Could not add pre-destroy end-of-render sentinel')
             self.output.destroy()
             self.output = None
 
@@ -284,18 +297,11 @@ class Renderer:
             log.error('Renderer.complete() already called, ignoring')
             return
         self.success = (True if success is True else False)
-        if self.success is False:
-            # We need to do this before calling Output.destroy() otherwise it
-            # can deadlock when trying to put its pipeline into Gst.State.NULL
-            # while Output.on_need_data() is waiting for an item from the
-            # buffer_queue:
-            log.info('Adding end-of-render sential to prevent deadlock')
-            self.buffer_queue.put(None)
-        else:
+        self.destroy()
+        if self.success is True:
             log.info('**** Rendered %s slices, %s frames!',
                 len(self.slices), self.total_frames
             )
-        self.destroy()
         self.callback(self, self.success)
 
     def next_slice(self):
