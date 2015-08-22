@@ -89,20 +89,6 @@ def _dict(d, key):
     return _get(d, key, dict)
 
 
-def _list(d, key, item_type=None, as_tuple=False):
-    val = _get(d, key, list)
-    if item_type is not None:
-        for (i, item) in enumerate(val):
-            if type(item) is not item_type:
-                label = '{}[{}]'.format(key, i)
-                raise TypeError(
-                    TYPE_ERROR.format(label, item_type, type(item), item)
-                )
-    if as_tuple is True:
-        return tuple(val)
-    return val
-
-
 def _fraction(obj):
     if isinstance(obj, Fraction):
         return obj
@@ -115,14 +101,6 @@ def _fraction(obj):
         raise TypeError(
             'invalid fraction: {!r}: {!r}'.format(type(obj), obj)
         )
-
-
-def _framerate(doc):
-    return _fraction(_dict(doc, 'framerate'))
-
-
-def _sequence(_id, node):
-    return Sequence(_id, _list(node, 'src', item_type=str, as_tuple=True))
 
 
 class WeakMethod:
