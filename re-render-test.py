@@ -59,12 +59,13 @@ db = Database('novacut-1', env)
 def get_settings():
     return {
         'muxer': 'oggmux',
+        'ext': 'ogg',
         'video': {
             'encoder': 'theoraenc',
             'caps': {
                 'format': 'I420',
-                'width': 960,
-                'height': 540,
+                'width': 1920,
+                'height': 1080,
                 'interlace-mode': 'progressive',
                 'pixel-aspect-ratio': '1/1',
                 'chroma-site': 'mpeg2',
@@ -83,7 +84,8 @@ def on_complete(r, success):
 
 
 def render_one(root_id):
-    name = root_id + '.ogg'
+    settings = get_settings()
+    name = '.'.join([root_id, settings['ext']])
     dst = path.join(tmp, name)
     tmp_dst = path.join(tmp, 'tmp-' + name)
     if path.exists(dst):
@@ -94,7 +96,7 @@ def render_one(root_id):
         return
     log.info('[re-rendering edit graph at root node %s]', root_id)
     slices = get_slices(Dmedia, db, root_id)
-    r = Renderer(on_complete, slices, get_settings(), tmp_dst)
+    r = Renderer(on_complete, slices, settings, tmp_dst)
     r.run()
     mainloop.run()
     if r.success is not True:

@@ -163,7 +163,7 @@ class Input(Pipeline):
         if NEEDS_YUCKY_COPY:  # See "FIXME: NEEDS_YUCKY_COPY?" at top of module:
             buf = buf.copy()
         if self.check_frame(buf) is not True:
-            self.complete(False)  
+            self.complete(False)
             return Gst.FlowReturn.CUSTOM_ERROR
         self.buffer_queue.put(buf)
         self.frame += 1
@@ -224,16 +224,30 @@ class Output(Pipeline):
 
     def on_need_data(self, appsrc, amount):
         if self.sent_eos:
+            log.info('sent_eos is True, nothing to do in need-data callback')
             return
-        for i in range(16):
-            if self.push(appsrc, self.buffer_queue.get()) is True:
-                self.sent_eos = True
+
+        # We need to block on Queue.get() for the first buffer because if we
+        # don't push at least one buffer, "need-data" wont fire again:
+        if self.push(appsrc, self.buffer_queue.get()) is True:
+            return
+
+        # But as long as we're here, we'd like to push quite a few buffers, but
+        # for the remaining ones we wont block on Queue.get():
+        for i in range(17):
+            try:
+                buf = self.buffer_queue.get(block=False)
+            except queue.Empty:
                 break
+            if self.push(appsrc, buf) is True:
+                break
+        #log.info('pushed %s frames', i + 2)
 
     def push(self, appsrc, buf):
         assert self.sent_eos is False
         if buf is None:
             log.info('Output: received end-of-render sentinel')
+            self.sent_eos = True
             appsrc.emit('end-of-stream')
             return True
         ts = video_pts_and_duration(self.frame, self.frame + 1, self.framerate)
