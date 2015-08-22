@@ -227,26 +227,28 @@ class Output(Pipeline):
     def on_eos(self, bus, msg):
         self.complete(True)
 
+    def iter_queue_get(self):
+        q = self.buffer_queue
+        while self.success is None:
+            try:
+                yield q.get(timeout=2)
+                break
+            except queue.Empty:
+                pass
+        try:
+            for i in range(17):
+                if self.success is None:
+                    yield q.get(block=False)
+        except queue.Empty:
+            pass
+
     def on_need_data(self, appsrc, amount):
         if self.sent_eos:
             log.info('sent_eos is True, nothing to do in need-data callback')
             return
-
-        # We need to block on Queue.get() for the first buffer because if we
-        # don't push at least one buffer, "need-data" wont fire again:
-        if self.push(appsrc, self.buffer_queue.get()) is True:
-            return
-
-        # But as long as we're here, we'd like to push quite a few buffers, but
-        # for the remaining ones we wont block on Queue.get():
-        for i in range(17):
-            try:
-                buf = self.buffer_queue.get(block=False)
-            except queue.Empty:
-                break
+        for buf in self.iter_queue_get():
             if self.push(appsrc, buf) is True:
                 break
-        #log.info('pushed %s frames', i + 2)
 
     def push(self, appsrc, buf):
         assert self.sent_eos is False
@@ -290,23 +292,10 @@ class Renderer:
 
     def destroy(self):
         log.info('Renderer.destroy()')
-
-        # First shutdown the Input pipeline, as we want to prevent it from
-        # putting further items into the queue because of some trickiness below:
         if self.input is not None:
             self.input.destroy()
             self.input = None
-
-        # Then shutdown the Output pipeline, but very carefully: we must first
-        # *try* putting the end-of-render sentinel into the queue before we call
-        # Output.destroy(), otherwise Output.pipeline.set_state(Gst.State.NULL)
-        # can deadlock if Output.on_need_data() happens to be waiting for an
-        # item from the queue:
         if self.output is not None:
-            try:
-                self.buffer_queue.put(None, timeout=2)
-            except queue.Full:
-                log.warning('Could not add pre-destroy end-of-render sentinel')
             self.output.destroy()
             self.output = None
 
