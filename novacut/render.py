@@ -401,14 +401,15 @@ class Output(Pipeline):
             return
         for i in range(BUFFER_QUEUE_SIZE):
             if self.push(appsrc, self.buffer_queue.get()) is True:
+                self.sent_eos = True
                 break
         log.info('output frame %s', self.frame)
 
     def push(self, appsrc, buf):
+        assert self.sent_eos is False
         if buf is None:
             log.info('received end-of-render sentinel')
             appsrc.emit('end-of-stream')
-            self.sent_eos = True
             return True
         ts = video_pts_and_duration(self.frame, self.frame + 1, self.framerate)
         buf.pts = ts.pts
@@ -478,11 +479,10 @@ class Renderer:
             self.complete(False)
 
     def check_output_frames(self):
-        frames = self.output.frame + 1
-        if self.expected_frames == frames:
+        if self.expected_frames == self.output.frame:
             return True
-        log.error('expected %s total frames, output only recieved %s',
-            self.expected_frames, frames
+        log.error('expected %s total frames, output recieved %s',
+            self.expected_frames, self.output.frame
         )
         return False
 

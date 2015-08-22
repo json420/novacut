@@ -223,7 +223,7 @@ class TestRenderer(TestCase):
                 self._complete_calls.append(success)
 
         # success is True, correct total frames:
-        output = DummyOutput(16)
+        output = DummyOutput(17)
         inst = Subclass(17, output)
         self.assertIsNone(inst.on_output_complete(output, True))
         self.assertEqual(inst._complete_calls, [True])
