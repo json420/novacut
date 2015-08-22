@@ -130,9 +130,7 @@ class Input(Pipeline):
         appsink.connect('new-sample', self.on_new_sample)
 
     def run(self):
-        log.info('starting slice %s: %s[%s:%s]',
-            self.s.id, self.s.src, self.s.start, self.s.stop
-        )
+        log.info('Input slice %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
         self.set_state(Gst.State.PAUSED, sync=True)
         self.pipeline.seek_simple(
             Gst.Format.TIME,
@@ -144,10 +142,8 @@ class Input(Pipeline):
     def on_pad_added(self, dec, pad):
         caps = pad.get_current_caps()
         string = caps.to_string()
-        log.debug('on_pad_added(): %s', string)
         if string.startswith('video/'):
             self.framerate = get_framerate(caps.get_structure(0))
-            log.info('framerate: %r', self.framerate)
             pad.link(self.q.get_static_pad('sink'))
 
     def check_frame(self, buf):
@@ -172,9 +168,6 @@ class Input(Pipeline):
         self.buffer_queue.put(buf)
         self.frame += 1
         if self.frame == self.s.stop:
-            log.info('finished slice %s: %s[%s:%s]',
-                self.s.id, self.s.src, self.s.start, self.s.stop
-            )
             self.complete(True)
         return Gst.FlowReturn.OK
 
@@ -227,12 +220,10 @@ class Output(Pipeline):
         self.set_state(Gst.State.PLAYING)
 
     def on_eos(self, bus, msg):
-        log.info('Output.on_eos()')
         self.complete(True)
 
     def on_need_data(self, appsrc, amount):
         if self.sent_eos:
-            log.info('sent_eos is True, nothing to do in need-data callback')
             return
         for i in range(16):
             if self.push(appsrc, self.buffer_queue.get()) is True:
@@ -242,7 +233,7 @@ class Output(Pipeline):
     def push(self, appsrc, buf):
         assert self.sent_eos is False
         if buf is None:
-            log.info('received end-of-render sentinel')
+            log.info('Output: received end-of-render sentinel')
             appsrc.emit('end-of-stream')
             return True
         ts = video_pts_and_duration(self.frame, self.frame + 1, self.framerate)
@@ -271,18 +262,25 @@ class Renderer:
         self.input_caps = self.output.input_caps
 
     def run(self):
+        log.info('**** Rendering %s slices, %s frames...',
+            len(self.slices), self.total_frames
+        )
         self.slices_iter = iter(self.slices)
         self.output.run()
         self.next()
 
     def complete(self, success):
-        log.debug('Manager complete, success=%r', success)
+        log.info('%s.complete(%r)', self.__class__.__name__, success)
         if self.input is not None:
             self.input.destroy()
             self.input = None
         if self.output is not None:
             self.output.destroy()
             self.output = None
+        if success is True:
+            log.info('**** Rendered %s slices, %s frames!',
+                len(self.slices), self.total_frames
+            )
         self.success = success
         self.callback(self, success)
 
@@ -304,7 +302,6 @@ class Renderer:
             self.input.run()
 
     def on_input_complete(self, inst, success):
-        log.debug('input complete, success=%r', success)
         assert inst is self.input
         if success is True:
             self.input = None
@@ -321,7 +318,6 @@ class Renderer:
         return False
 
     def on_output_complete(self, inst, success):
-        log.debug('output complete, success=%r', success)
         assert inst is self.output
         if success is True and self.check_output_frames() is True:
             self.complete(True)

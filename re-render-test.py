@@ -78,7 +78,7 @@ def get_settings():
 mainloop = GLib.MainLoop()
 
 def on_complete(r, success):
-    log.info('on_complete(): %r', success)
+    log.info('[re-render complete, success=%r]', success)
     mainloop.quit()
 
 
@@ -92,7 +92,7 @@ def render_one(root_id):
     if path.exists(tmp_dst):
         log.info('Already in progress: %s', dst)
         return
-
+    log.info('[re-rendering edit graph at root node %s]', root_id)
     slices = get_slices(Dmedia, db, root_id)
     r = Renderer(on_complete, slices, get_settings(), tmp_dst)
     r.run()

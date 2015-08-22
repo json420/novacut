@@ -219,7 +219,6 @@ class Pipeline:
         self.bus.connect('message::error', self.on_error)
 
     def destroy(self):
-        log.debug('%s.destroy()', self.__class__.__name__)
         if hasattr(self, 'bus'):
             self.bus.remove_signal_watch()
             del self.bus
@@ -229,7 +228,7 @@ class Pipeline:
 
     def do_complete(self, success):
         assert isinstance(success, bool)
-        log.debug('%s.complete(%r)', self.__class__.__name__, success)
+        log.info('%s.complete(%r)', self.__class__.__name__, success)
         self.destroy()
         assert self.success is None
         self.success = success
@@ -249,9 +248,6 @@ class Pipeline:
 
     def set_state(self, state, sync=False):
         assert isinstance(sync, bool)
-        log.debug('%s.set_state(%r, sync=%r)',
-            self.__class__.__name__, state, sync
-        )
         self.pipeline.set_state(state)
         if sync is True:
             self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
