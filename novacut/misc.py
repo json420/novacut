@@ -49,3 +49,10 @@ def random_slice(count):
     stop = random.randrange(start + 1, count + 1)
     return Slice(start, stop)
 
+
+def random_start_stop(count=123456):
+    assert count >= 1
+    start = random.randrange(0, count)
+    stop = random.randrange(start + 1, count + 1)
+    return (start, stop)
+

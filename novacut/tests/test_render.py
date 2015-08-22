@@ -27,10 +27,14 @@ from unittest import TestCase
 from os import path
 from fractions import Fraction
 from random import SystemRandom
+from queue import Queue
 
 from dbase32 import random_id
+from gi.repository import Gst
 
 from .. import misc
+from .. import timefuncs
+from ..misc import random_start_stop
 from .. import render
 
 
@@ -101,38 +105,50 @@ def random_framerate():
     return (num, denom, Fraction(num, denom))
 
 
-def random_slice(Dmedia):
-    (start, stop) = misc.random_slice(123456)
-    file_id = random_id(30)
-    s = render.Slice(
-        random_id(),
-        file_id,
-        start,
-        stop,
-        Dmedia._path(file_id),
-    )
-    doc = {
-        '_id': s.id,
-        'node': {
-            'type': 'video/slice',
-            'src': file_id,
-            'start': start,
-            'stop': stop,
-        }
-    }
-    return (s, doc)
+def random_slice():
+    (start, stop) = random_start_stop()
+    filename = '/tmp/' + random_id() + '.mov'
+    return render.Slice(random_id(), random_id(30), start, stop, filename)
 
 
-def random_sequence():
-    s = render.Sequence(random_id(),
-        tuple(random_id() for i in range(random.randrange(20)))
-    )
-    doc = {
-        '_id': s.id,
-        'node': {
-            'type': 'video/sequence',
-            'src': list(s.src),
-        }
-    }
-    return (s, doc)
+
+class TestInput(TestCase):
+    def test_init(self):
+        def callback(inst, success):
+            pass
+        buffer_queue = Queue()
+        s = random_slice()
+        input_caps = Gst.caps_from_string('video/x-raw')
+
+        inst = render.Input(callback, buffer_queue, s, input_caps)
+        self.assertIs(inst.buffer_queue, buffer_queue)
+        self.assertIs(inst.s, s)
+        self.assertIs(inst.frame, s.start)
+        self.assertIsNone(inst.framerate)
+        self.assertIs(inst.drained, False)
+
+        # Make sure gsthelpers.Pipeline.__init__() was called:
+        self.assertIs(inst.callback, callback)
+        self.assertIsInstance(inst.pipeline, Gst.Pipeline)
+        self.assertIsInstance(inst.bus, Gst.Bus)
+        self.assertIsNone(inst.destroy())
+        self.assertFalse(hasattr(inst, 'pipeline'))
+        self.assertFalse(hasattr(inst, 'bus'))
+
+    def test_check_frame(self):
+        class Subclass(render.Input):
+            def __init__(self, s, frame, framerate):
+                self.s = s
+                self.frame = frame
+                self.framerate = framerate
+
+        s = random_slice()
+        framerate = Fraction(30000, 1001)
+        inst = Subclass(s, s.start, framerate)
+        buf = timefuncs.video_pts_and_duration(s.start, s.start + 1, framerate)
+        self.assertIs(inst.check_frame(buf), True)
+        self.assertEqual(inst.frame, s.start)
+        inst.frame += 1
+        self.assertIs(inst.check_frame(buf), False)
+        self.assertEqual(inst.frame, s.start + 1)
 

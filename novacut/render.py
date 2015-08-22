@@ -32,7 +32,14 @@ from gi.repository import GLib, Gst
 from microfiber import Database, dumps
 
 from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration, Timestamp
-from .gsthelpers import make_element, get_framerate, make_caps, make_element_from_desc
+from .gsthelpers import (
+    Pipeline,
+    make_element,
+    make_element_from_desc,
+    get_framerate,
+    make_caps,
+    add_and_link_elements,
+)
 
 # FIXME: NEEDS_YUCKY_COPY?
 #
@@ -120,63 +127,7 @@ class WeakMethod:
         except ReferenceError:
             return
         return method(*args)
-
-
-class Pipeline:
-    def __init__(self):
-        self.pipeline = Gst.Pipeline()
-        self.bus = self.pipeline.get_bus()
-        self.bus.add_signal_watch()
-        self.bus.connect('message::error', WeakMethod(self, 'on_error'))
-        self.error = False
-
-    def set_state(self, name, sync=False):
-        log.info('%s.set_state(%r, sync=%r)',
-            self.__class__.__name__, name, sync
-        )
-        assert sync in (True, False)
-        state = getattr(Gst.State, name)
-        self.pipeline.set_state(state)
-        if sync is True:
-            self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
-
-    def destroy(self):
-        log.info('%s.destroy()', self.__class__.__name__)
-        self.set_state('NULL')
-        # bus.remove_signal_watch() might be the fix for this error:
-        #
-        #   "GStreamer-CRITICAL **: gst_poll_read_control: assertion 'set != NULL' failed"
-        #
-        # Which is happening after a large number of VideoSlice have been
-        # created and destroyed (~500 ish), which then leads to the process
-        # crashing with a "too many open file descriptors" OSError.
-        self.bus.remove_signal_watch()
-        del self.bus
-        del self.pipeline
-
-    def _fatal(self):
-        log.info('shuting down after fatal error')
-        self.destroy()
-        mainloop.quit()
-
-    def fatal(self, msg, *args):
-        log.error(msg, *args)
-        GLib.idle_add(self._fatal)
-
-    def on_error(self, bus, msg):
-        self.error = True
-        self.fatal('on_error: %s', msg.parse_error())
-
-    def make_element(self, name, props=None):
-        element = make_element(name, props)
-        self.pipeline.add(element)
-        return element
-
-    def make_element_from_desc(self, desc):
-        element = make_element_from_desc(desc)
-        self.pipeline.add(element)
-        return element   
-
+  
 
 def get_expected_ts(frame, framerate):
     return video_pts_and_duration(frame, frame + 1, framerate)
@@ -315,23 +266,23 @@ class Validator(Pipeline):
 
 
 class Input(Pipeline):
-    def __init__(self, manager, buffer_queue, s, input_caps):
-        super().__init__()
-        self.manager = manager
+    def __init__(self, callback, buffer_queue, s, input_caps):
+        super().__init__(callback)
         self.buffer_queue = buffer_queue
         assert 0 <= s.start < s.stop
         self.s = s
         self.frame = s.start
         self.framerate = None
-        self.complete = False
+        self.drained = False
+        self.bus.connect('message::eos', self.on_eos)
 
         # Create elements
-        self.src = self.make_element('filesrc', {'location': s.filename})
-        self.dec = self.make_element('decodebin')
-        self.q = self.make_element('queue')
-        self.convert = self.make_element('videoconvert')
-        self.scale = self.make_element('videoscale', {'method': 3})
-        self.sink = self.make_element('appsink',
+        src = make_element('filesrc', {'location': s.filename})
+        dec = make_element('decodebin')
+        self.q = make_element('queue')
+        convert = make_element('videoconvert')
+        scale = make_element('videoscale', {'method': 3})
+        sink = make_element('appsink',
             {
                 'caps': input_caps,
                 'emit-signals': True,
@@ -339,35 +290,20 @@ class Input(Pipeline):
             }
         )
 
-        self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
-        self.dec.connect('pad-added', WeakMethod(self, 'on_pad_added'))
-        self.sink.connect('new-sample', WeakMethod(self, 'on_new_sample'))
+        # Add elements to pipeline and link:
+        add_and_link_elements(self.pipeline,
+            src, dec, self.q, convert, scale, sink
+        )
 
-        # Link elements
-        self.src.link(self.dec)
-        self.q.link(self.convert)
-        self.convert.link(self.scale)
-        self.scale.link(self.sink)
-
-    def fatal(self, msg, *args):
-        self.manager.input_fatal_error(self)
-        super().fatal(msg, *args)
+        # Connect element signal handlers:
+        dec.connect('pad-added', self.on_pad_added)
+        sink.connect('new-sample', self.on_new_sample)
 
     def run(self):
-        log.info('Playing %r', self.s)
-        self.set_state('PAUSED', sync=True)
-        assert self.framerate is not None
-        # FIXME: SEGMENT seeks are currently unreliable on Trusty when it comes
-        # to the end of the slice.  Frequently 'segment-done' fires a few frames
-        # before the end of the slice, and on rare occasions it will fire after
-        # the end of the slice giving you extra frames.
-        #
-        # But now that we're running the slice decoding and output rendering in
-        # different pipelines, we have complete control of what we sent from
-        # this appsink to the output appsrc.  So we're doing a normal,
-        # non-segment seek, and if we happen to get any buffers after the end of
-        # the slice before this pipeline goes to State.NULL, we just ignore
-        # them.
+        log.info('starting slice %s: %s[%s:%s]',
+            self.s.id, self.s.src, self.s.start, self.s.stop
+        )
+        self.set_state(Gst.State.PAUSED, sync=True)
         self.pipeline.seek_simple(
             Gst.Format.TIME,
             Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE,
@@ -383,6 +319,15 @@ class Input(Pipeline):
             self.framerate = get_framerate(caps.get_structure(0))
             log.info('framerate: %r', self.framerate)
             pad.link(self.q.get_static_pad('sink'))
+
+    def check_frame(self, buf):
+        frame = nanosecond_to_frame(buf.pts, self.framerate)
+        if self.frame == frame:
+            return True
+        log.error('expected frame %s, got %s from slice %s: %s[%s:%s]',
+            self.frame, frame, self.s.id, self.s.src, self.s.start, self.s.stop
+        )
+        return False
 
     def on_new_sample(self, sink):
         if self.complete:
