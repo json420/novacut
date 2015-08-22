@@ -179,7 +179,7 @@ class Input(Pipeline):
         return Gst.FlowReturn.OK
 
     def on_eos(self, bus, msg):
-        if self.frame < self.stop:
+        if self.frame < self.s.stop:
             log.error('recieved EOS before end of slice, some frame were lost')
             self.complete(False)
 
