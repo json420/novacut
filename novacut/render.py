@@ -36,6 +36,11 @@ from .gsthelpers import (
     add_and_link_elements,
 )
 
+
+log = logging.getLogger(__name__)
+TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
+Slice = namedtuple('Slice', 'id src start stop filename')
+
 # FIXME: NEEDS_YUCKY_COPY?
 #
 # In GStreamer 1.2 (Trusty), appsink.emit('pull-sample') is, at least from the
@@ -53,14 +58,6 @@ from .gsthelpers import (
 # The only work-around known currently is to copy the buffer, which of course
 # we normally would never want to do.  A very yucky copy indeed.
 NEEDS_YUCKY_COPY = (True if Gst.version() < (1, 4) else False)
-
-BUFFER_QUEUE_SIZE = 16
-TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
-Slice = namedtuple('Slice', 'id src start stop filename')
-Sequence = namedtuple('Sequence', 'id src')
-
-log = logging.getLogger(__name__)
-Gst.init()
 
 
 def _get(d, key, t):
@@ -122,11 +119,7 @@ class Input(Pipeline):
         convert = make_element('videoconvert')
         scale = make_element('videoscale', {'method': 3})
         appsink = make_element('appsink',
-            {
-                'caps': input_caps,
-                'emit-signals': True,
-                'max-buffers': BUFFER_QUEUE_SIZE,
-            }
+            {'caps': input_caps, 'emit-signals': True, 'max-buffers': 8}
         )
 
         # Add elements to pipeline and link:
@@ -152,7 +145,7 @@ class Input(Pipeline):
     def on_pad_added(self, dec, pad):
         caps = pad.get_current_caps()
         string = caps.to_string()
-        log.info('on_pad_added(): %s', string)
+        log.debug('on_pad_added(): %s', string)
         if string.startswith('video/'):
             self.framerate = get_framerate(caps.get_structure(0))
             log.info('framerate: %r', self.framerate)
@@ -190,7 +183,7 @@ class Input(Pipeline):
     def on_eos(self, bus, msg):
         if self.drained is not True:
             log.error('recieved EOS before end of slice, some frame were lost')
-            self.complete(False)
+            GLib.idle_add(self.complete, False)
 
 
 def make_video_caps(desc):
@@ -241,13 +234,12 @@ class Output(Pipeline):
 
     def on_need_data(self, appsrc, amount):
         if self.sent_eos:
-            log.info('sent_eos is True, nothing to do in need-need callback')
+            log.info('sent_eos is True, nothing to do in need-data callback')
             return
-        for i in range(BUFFER_QUEUE_SIZE):
+        for i in range(16):
             if self.push(appsrc, self.buffer_queue.get()) is True:
                 self.sent_eos = True
                 break
-        log.info('output frame %s', self.frame)
 
     def push(self, appsrc, buf):
         assert self.sent_eos is False
@@ -273,7 +265,7 @@ class Renderer:
         self.slices = slices
         self.success = None
         self.total_frames = sum(s.stop - s.start for s in slices)
-        self.buffer_queue = queue.Queue(BUFFER_QUEUE_SIZE)
+        self.buffer_queue = queue.Queue(24)
         self.input = None
         self.output = Output(
             self.on_output_complete, self.buffer_queue, settings, filename
@@ -286,7 +278,7 @@ class Renderer:
         self.next()
 
     def complete(self, success):
-        log.info('Manager complete, success=%r', success)
+        log.debug('Manager complete, success=%r', success)
         if self.input is not None:
             self.input.destroy()
             self.input = None
@@ -314,7 +306,7 @@ class Renderer:
             self.input.run()
 
     def on_input_complete(self, inst, success):
-        log.info('input complete, success=%r', success)
+        log.debug('input complete, success=%r', success)
         assert inst is self.input
         if success is True:
             self.input = None
@@ -331,7 +323,7 @@ class Renderer:
         return False
 
     def on_output_complete(self, inst, success):
-        log.info('output complete, success=%r', success)
+        log.debug('output complete, success=%r', success)
         assert inst is self.output
         if success is True and self.check_output_frames() is True:
             self.complete(True)

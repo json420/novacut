@@ -229,7 +229,7 @@ class Pipeline:
 
     def complete(self, success):
         assert isinstance(success, bool)
-        log.info('%s.complete(%r)', self.__class__.__name__, success)
+        log.debug('%s.complete(%r)', self.__class__.__name__, success)
         self.destroy()
         assert self.success is None
         self.success = success
