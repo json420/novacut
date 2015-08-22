@@ -477,10 +477,22 @@ class Renderer:
         else:
             self.complete(False)
 
+    def check_output_frames(self):
+        frames = self.output.frame + 1
+        if self.expected_frames == frames:
+            return True
+        log.error('expected %s total frames, output only recieved %s',
+            self.expected_frames, frames
+        )
+        return False
+
     def on_output_complete(self, inst, success):
         log.info('output complete, success=%r', success)
         assert inst is self.output
-        self.complete(success)
+        if success is True and self.check_output_frames() is True:
+            self.complete(True)
+        else:
+            self.complete(False)
 
 
 class Worker:

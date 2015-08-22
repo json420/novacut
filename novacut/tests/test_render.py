@@ -208,6 +208,34 @@ class TestRenderer(TestCase):
             'video/x-raw, chroma-site=(string)mpeg2, colorimetry=(string)bt709, format=(string)I420, height=(int)1080, interlace-mode=(string)progressive, pixel-aspect-ratio=(fraction)1/1, width=(int)1920'
         )
 
+    def test_on_output_complete(self):
+        class DummyOutput:
+            def __init__(self, frame):
+                self.frame = frame
 
+        class Subclass(render.Renderer):
+            def __init__(self, expected_frames, output):
+                self.expected_frames = expected_frames
+                self.output = output
+                self._complete_calls = []
 
+            def complete(self, success):
+                self._complete_calls.append(success)
+
+        # success is True, correct total frames:
+        output = DummyOutput(16)
+        inst = Subclass(17, output)
+        self.assertIsNone(inst.on_output_complete(output, True))
+        self.assertEqual(inst._complete_calls, [True])
+
+        # success is False, correct total frames:
+        inst = Subclass(17, output)
+        self.assertIsNone(inst.on_output_complete(output, False))
+        self.assertEqual(inst._complete_calls, [False])
+
+        # success is True, incorrect total frames:
+        for total in (16, 18):
+            inst = Subclass(total, output)
+            self.assertIsNone(inst.on_output_complete(output, True))
+            self.assertEqual(inst._complete_calls, [False])
 
