@@ -115,7 +115,6 @@ def random_slice():
     return render.Slice(random_id(), random_id(30), start, stop, filename)
 
 
-
 class TestInput(TestCase):
     def test_init(self):
         def callback(inst, success):
@@ -129,7 +128,6 @@ class TestInput(TestCase):
         self.assertIs(inst.s, s)
         self.assertIs(inst.frame, s.start)
         self.assertIsNone(inst.framerate)
-        self.assertIs(inst.drained, False)
 
         # Make sure gsthelpers.Pipeline.__init__() was called:
         self.assertIs(inst.callback, callback)

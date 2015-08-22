@@ -29,7 +29,7 @@ don't want to accumulate too much magic wrapper sauce!
 from fractions import Fraction
 import logging
 
-from gi.repository import Gst
+from gi.repository import Gst, GLib
 
 
 log = logging.getLogger(__name__)
@@ -244,9 +244,21 @@ class Pipeline:
         if sync is True:
             self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
 
+    def idle_add(self, callback, *args):
+        """
+        Mockable GLib.idle_add().
+
+        It seems you probably can't call Gst.Bus.remove_signal_watch() from
+        within a callback for a signal it fired, otherwise you get a deadlock.
+
+        But we don't want the complexity of having to run the mainloop for most
+        unit tests, so this method can be overridden in special test subclasses.
+        """
+        GLib.idle_add(callback, *args)
+
     def on_error(self, bus, msg):
         log.error('%s.on_error(): %s',
             self.__class__.__name__, msg.parse_error()
         )
-        self.complete(False)
+        self.idle_add(self.complete, False)
 

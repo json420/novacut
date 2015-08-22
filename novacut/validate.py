@@ -26,7 +26,7 @@ Check video for timestamp conformance.
 from fractions import Fraction
 import logging
 
-from gi.repository import Gst, GLib
+from gi.repository import Gst
 
 from .timefuncs import Timestamp, frame_to_nanosecond, video_pts_and_duration
 from .gsthelpers import Pipeline, make_element, add_elements
@@ -94,14 +94,14 @@ class Validator(Pipeline):
         self.info['valid'] = False
         if not self.full_check:
             log.info('Stopping check at first inconsistency')
-            GLib.idle_add(self.complete, False)
+            self.idle_add(self.complete, False)
 
     def run(self):
         self.set_state(Gst.State.PAUSED, sync=True)
         (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
         if not success:
             log.error('Could not query duration')
-            GLib.idle_add(self.complete, False)
+            self.idle_add(self.complete, False)
             return
         log.info('duration: %d ns', ns)
         self.info['duration'] = ns

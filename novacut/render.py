@@ -24,7 +24,7 @@ from collections import namedtuple
 import queue
 import logging
 
-from gi.repository import GLib, Gst
+from gi.repository import Gst
 
 from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration
 from .gsthelpers import (
@@ -109,7 +109,6 @@ class Input(Pipeline):
         self.s = s
         self.frame = s.start
         self.framerate = None
-        self.drained = False
         self.bus.connect('message::eos', self.on_eos)
 
         # Create elements
@@ -168,7 +167,7 @@ class Input(Pipeline):
         if NEEDS_YUCKY_COPY:  # See "FIXME: NEEDS_YUCKY_COPY?" at top of module:
             buf = buf.copy()
         if self.check_frame(buf) is not True:
-            GLib.idle_add(self.complete, False)  
+            self.idle_add(self.complete, False)  
             return Gst.FlowReturn.CUSTOM_ERROR
         self.buffer_queue.put(buf)
         self.frame += 1
@@ -176,14 +175,13 @@ class Input(Pipeline):
             log.info('finished slice %s: %s[%s:%s]',
                 self.s.id, self.s.src, self.s.start, self.s.stop
             )
-            self.drained = True
-            GLib.idle_add(self.complete, True)
+            self.idle_add(self.complete, True)
         return Gst.FlowReturn.OK
 
     def on_eos(self, bus, msg):
-        if self.drained is not True:
+        if self.frame < self.stop:
             log.error('recieved EOS before end of slice, some frame were lost')
-            GLib.idle_add(self.complete, False)
+            self.idle_add(self.complete, False)
 
 
 def make_video_caps(desc):
@@ -230,7 +228,7 @@ class Output(Pipeline):
 
     def on_eos(self, bus, msg):
         log.info('Output.on_eos()')
-        self.complete(True)
+        self.idle_add(self.complete, True)
 
     def on_need_data(self, appsrc, amount):
         if self.sent_eos:

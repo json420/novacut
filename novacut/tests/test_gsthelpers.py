@@ -342,12 +342,17 @@ class TestPipeline(TestCase):
                 self._calls += 1
                 return self._error
 
+
         class Subclass(gsthelpers.Pipeline):
             def __init__(self):
                 self._complete_calls = []
 
             def complete(self, success):
                 self._complete_calls.append(success)
+
+            def idle_add(self, cb, *args):
+                # See Pipeline.idle_add()
+                cb(*args)
 
         inst = Subclass() 
         msg = DummyMessage(random_id())
