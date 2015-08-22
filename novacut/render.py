@@ -269,20 +269,34 @@ class Renderer:
         self.output.run()
         self.next()
 
-    def complete(self, success):
-        log.info('%s.complete(%r)', self.__class__.__name__, success)
+    def destroy(self):
+        log.info('Renderer.destroy()')
         if self.input is not None:
             self.input.destroy()
             self.input = None
         if self.output is not None:
             self.output.destroy()
             self.output = None
-        if success is True:
+
+    def complete(self, success):
+        log.info('Renderer.complete(%r)', success)
+        if self.success is not None:
+            log.error('Renderer.complete() already called, ignoring')
+            return
+        self.success = (True if success is True else False)
+        if self.success is False:
+            # We need to do this before calling Output.destroy() otherwise it
+            # can deadlock when trying to put its pipeline into Gst.State.NULL
+            # while Output.on_need_data() is waiting for an item from the
+            # buffer_queue:
+            log.info('Adding end-of-render sential to prevent deadlock')
+            self.buffer_queue.put(None)
+        else:
             log.info('**** Rendered %s slices, %s frames!',
                 len(self.slices), self.total_frames
             )
-        self.success = success
-        self.callback(self, success)
+        self.destroy()
+        self.callback(self, self.success)
 
     def next_slice(self):
         try:
@@ -291,6 +305,9 @@ class Renderer:
             return None
 
     def next(self):
+        if self.success is not None:
+            log.error('Ignoring call to Renderer.next()')
+            return
         assert self.input is None
         s = self.next_slice()
         if s is None:

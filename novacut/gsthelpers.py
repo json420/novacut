@@ -227,12 +227,15 @@ class Pipeline:
             del self.pipeline
 
     def do_complete(self, success):
-        assert isinstance(success, bool)
         log.info('%s.complete(%r)', self.__class__.__name__, success)
+        if self.success is not None:
+            log.error('%s.complete() already called, ignoring',
+                self.__class__.__name__
+            )
+            return
+        self.success = (True if success is True else False)
         self.destroy()
-        assert self.success is None
-        self.success = success
-        self.callback(self, success)
+        self.callback(self, self.success)
 
     def complete(self, success):
         """
