@@ -263,6 +263,7 @@ class TestPipeline(TestCase):
             def __init__(self, pipeline, bus):
                 self.pipeline = pipeline
                 self.bus = bus
+                self.success = None
 
         # First try when 'pipeline' and 'bus' attributes exist:
         pipeline = DummyPipeline()

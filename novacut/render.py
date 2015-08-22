@@ -165,7 +165,12 @@ class Input(Pipeline):
         if self.check_frame(buf) is not True:
             self.complete(False)
             return Gst.FlowReturn.CUSTOM_ERROR
-        self.buffer_queue.put(buf)
+        while self.success is None:
+            try:
+                self.buffer_queue.put(buf, timeout=2)
+                break
+            except queue.Full:
+                pass
         self.frame += 1
         if self.frame == self.s.stop:
             self.complete(True)

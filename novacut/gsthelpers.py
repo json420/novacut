@@ -219,6 +219,8 @@ class Pipeline:
         self.bus.connect('message::error', self.on_error)
 
     def destroy(self):
+        if self.success is None:
+            self.success = False
         if hasattr(self, 'bus'):
             self.bus.remove_signal_watch()
             del self.bus
