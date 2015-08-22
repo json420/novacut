@@ -189,7 +189,7 @@ class TestFunctions(TestCase):
             'video/x-raw, framerate=(fraction)30000/1001, height=(int)1920, width=(int)1080'
         )
 
-    def test_get_framerate_from_struct(self):
+    def test_get_framerate(self):
         class MockStructure:
             def __init__(self, ret):
                 self._ret = ret
@@ -200,14 +200,14 @@ class TestFunctions(TestCase):
                 return self._ret
 
         s = MockStructure((True, 24000, 1001))
-        f = gsthelpers.get_framerate_from_struct(s)
+        f = gsthelpers.get_framerate(s)
         self.assertIsInstance(f, Fraction)
         self.assertEqual(f, Fraction(24000, 1001))
         self.assertEqual(s._key, 'framerate')
 
         s = MockStructure((False, 24000, 1001))
         with self.assertRaises(Exception) as cm:
-            gsthelpers.get_framerate_from_struct(s)
+            gsthelpers.get_framerate(s)
         self.assertEqual(str(cm.exception),
             "could not get 'framerate' from video caps structure"
         )

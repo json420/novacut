@@ -32,7 +32,7 @@ from gi.repository import GLib, Gst
 from microfiber import Database, dumps
 
 from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration, Timestamp
-from .gsthelpers import make_element, get_framerate_from_struct, make_caps, make_element_from_desc
+from .gsthelpers import make_element, get_framerate, make_caps, make_element_from_desc
 
 # FIXME: NEEDS_YUCKY_COPY?
 #
@@ -380,7 +380,7 @@ class Input(Pipeline):
         string = caps.to_string()
         log.info('on_pad_added(): %s', string)
         if string.startswith('video/'):
-            self.framerate = get_framerate_from_struct(caps.get_structure(0))
+            self.framerate = get_framerate(caps.get_structure(0))
             log.info('framerate: %r', self.framerate)
             pad.link(self.q.get_static_pad('sink'))
 

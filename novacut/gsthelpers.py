@@ -178,7 +178,7 @@ def make_caps(mime, desc):
     return Gst.caps_from_string(make_caps_string(mime, desc))
 
 
-def get_framerate_from_struct(s):
+def get_framerate(s):
     (success, num, denom) = s.get_fraction('framerate')
     if not success:
         raise Exception("could not get 'framerate' from video caps structure")
