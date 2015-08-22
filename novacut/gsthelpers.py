@@ -202,3 +202,46 @@ def add_and_link_elements(parent, *elements):
     add_elements(parent, *elements)
     link_elements(*elements)
 
+
+class Pipeline:
+    def __init__(self, callback):
+        if not callable(callback):
+            raise TypeError(
+                'callback: not callable: {!r}'.format(callback)
+            )
+        self.callback = callback
+        self.pipeline = Gst.Pipeline()
+        self.bus = self.pipeline.get_bus()
+        self.bus.add_signal_watch()
+        self.bus.connect('message::error', self.on_error)
+
+    def destroy(self):
+        log.debug('%s.destroy()', self.__class__.__name__)
+        if hasattr(self, 'bus'):
+            self.bus.remove_signal_watch()
+            del self.bus
+        if hasattr(self, 'pipeline'):
+            self.pipeline.set_state(Gst.State.NULL)
+            del self.pipeline
+
+    def complete(self, success):
+        assert isinstance(success, bool)
+        log.info('%s.complete(%r)', self.__class__.__name__, success)
+        self.destroy()
+        self.callback(self, success)
+
+    def set_state(self, state, sync=False):
+        assert isinstance(sync, bool)
+        log.debug('%s.set_state(%r, sync=%r)',
+            self.__class__.__name__, state, sync
+        )
+        self.pipeline.set_state(state)
+        if sync is True:
+            self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
+
+    def on_error(self, bus, msg):
+        log.error('%s.on_error(): %s',
+            self.__class__.__name__, msg.parse_error()
+        )
+        self.complete(False)
+

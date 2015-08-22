@@ -213,3 +213,142 @@ class TestFunctions(TestCase):
         )
         self.assertEqual(s._key, 'framerate')
 
+
+class Callback:
+    def __init__(self):
+        self._calls = []
+
+    def __call__(self, inst, success):
+        self._calls.append((inst, success))
+
+
+class TestPipeline(TestCase):
+    def test_init(self):
+        # callback() not callable:
+        bad = random_id()
+        with self.assertRaises(TypeError) as cm:
+            gsthelpers.Pipeline(bad)
+        self.assertEqual(str(cm.exception),
+            'callback: not callable: {!r}'.format(bad)
+        )
+
+        # callback() is callable:
+        def callback(inst, success):
+            pass
+        inst = gsthelpers.Pipeline(callback)
+        self.assertIs(inst.callback, callback)
+        self.assertIsInstance(inst.pipeline, Gst.Pipeline)
+        self.assertIsInstance(inst.bus, Gst.Bus)
+        self.assertIsNone(inst.destroy())
+        self.assertFalse(hasattr(inst, 'pipeline'))
+        self.assertFalse(hasattr(inst, 'bus'))
+
+    def test_destroy(self):
+        class DummyPipeline:
+            def __init__(self):
+                self._calls = []
+
+            def set_state(self, state):
+                self._calls.append(state)
+
+        class DummyBus:
+            def __init__(self):
+                self._calls = 0
+
+            def remove_signal_watch(self):
+                self._calls += 1
+
+        class Subclass(gsthelpers.Pipeline):
+            def __init__(self, pipeline, bus):
+                self.pipeline = pipeline
+                self.bus = bus
+
+        # First try when 'pipeline' and 'bus' attributes exist:
+        pipeline = DummyPipeline()
+        bus = DummyBus()
+        inst = Subclass(pipeline, bus)
+        self.assertIs(inst.pipeline, pipeline)
+        self.assertIs(inst.bus, bus)
+        self.assertIsNone(inst.destroy())
+        self.assertFalse(hasattr(inst, 'pipeline'))
+        self.assertFalse(hasattr(inst, 'bus'))
+        self.assertEqual(pipeline._calls, [Gst.State.NULL])
+        self.assertEqual(bus._calls, 1)
+
+        # Make sure it's well behaved after attributes have been deleted:
+        self.assertIsNone(inst.destroy())
+        self.assertFalse(hasattr(inst, 'pipeline'))
+        self.assertFalse(hasattr(inst, 'bus'))
+        self.assertEqual(pipeline._calls, [Gst.State.NULL])
+        self.assertEqual(bus._calls, 1)
+
+    def test_complete(self):
+        class Subclass(gsthelpers.Pipeline):
+            def __init__(self, callback):
+                self.callback =  callback
+                self._destroy_calls = 0
+
+            def destroy(self):
+                self._destroy_calls += 1
+
+        for success in (True, False):
+            callback = Callback()
+            inst = Subclass(callback)
+            self.assertIsNone(inst.complete(success))
+            self.assertEqual(inst._destroy_calls, 1)
+            self.assertEqual(callback._calls, [(inst, success)])
+
+    def test_set_state(self):
+        class DummyPipeline:
+            def __init__(self):
+                self._calls = []
+
+            def set_state(self, state):
+                self._calls.append(('set_state', state))
+
+            def get_state(self, timeout):
+                self._calls.append(('get_state', timeout))
+
+        class Subclass(gsthelpers.Pipeline):
+            def __init__(self, pipeline):
+                self.pipeline = pipeline
+
+        # When sync is False:
+        pipeline = DummyPipeline()
+        inst = Subclass(pipeline)
+        state = random_id()
+        self.assertIsNone(inst.set_state(state))
+        self.assertEqual(pipeline._calls, [('set_state', state)])
+
+        # When sync is True:
+        pipeline = DummyPipeline()
+        inst = Subclass(pipeline)
+        state = random_id()
+        self.assertIsNone(inst.set_state(state, sync=True))
+        self.assertEqual(pipeline._calls,
+            [('set_state', state), ('get_state', Gst.CLOCK_TIME_NONE)]
+        )
+
+    def test_on_error(self):
+        class DummyMessage:
+            def __init__(self, error):
+                self._error = error
+                self._calls = 0
+
+            def parse_error(self):
+                self._calls += 1
+                return self._error
+
+        class Subclass(gsthelpers.Pipeline):
+            def __init__(self):
+                self._complete_calls = []
+
+            def complete(self, success):
+                self._complete_calls.append(success)
+
+        inst = Subclass() 
+        msg = DummyMessage(random_id())
+        self.assertIsNone(inst.on_error('bus', msg))
+        self.assertEqual(msg._calls, 1)
+        self.assertEqual(inst._complete_calls, [False])
+
