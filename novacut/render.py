@@ -118,7 +118,7 @@ class Input(Pipeline):
         convert = make_element('videoconvert')
         scale = make_element('videoscale', {'method': 3})
         appsink = make_element('appsink',
-            {'caps': input_caps, 'emit-signals': True, 'max-buffers': 8}
+            {'caps': input_caps, 'emit-signals': True, 'max-buffers': 4}
         )
 
         # Add elements to pipeline and link:
@@ -170,7 +170,7 @@ class Input(Pipeline):
                 self.buffer_queue.put(buf, timeout=2)
                 break
             except queue.Full:
-                pass
+                log.info('timeout waiting for Queue.put()')
         self.frame += 1
         if self.frame == self.s.stop:
             self.complete(True)
@@ -227,28 +227,32 @@ class Output(Pipeline):
     def on_eos(self, bus, msg):
         self.complete(True)
 
-    def iter_queue_get(self):
+    def get_buffers(self):
         q = self.buffer_queue
+        buffers = []
         while self.success is None:
             try:
-                yield q.get(timeout=2)
-                break
+                buf = q.get(timeout=2)
+                buffers.append(buf)
+                if len(buffers) >= 24 or buf is None:
+                    break
             except queue.Empty:
-                pass
-        try:
-            for i in range(17):
-                if self.success is None:
-                    yield q.get(block=False)
-        except queue.Empty:
-            pass
+                log.info('timeout waiting for Queue.get()')
+        return buffers
 
     def on_need_data(self, appsrc, amount):
         if self.sent_eos:
             log.info('sent_eos is True, nothing to do in need-data callback')
             return
-        for buf in self.iter_queue_get():
-            if self.push(appsrc, buf) is True:
-                break
+        buffers = self.get_buffers()
+        if self.success is None:
+            for buf in buffers:
+                self.push(appsrc, buf)
+        else:
+            log.warring(
+                'Output.complete() most have been called, ignoring %s buffers',
+                len(buffers)
+            )
 
     def push(self, appsrc, buf):
         assert self.sent_eos is False
@@ -275,7 +279,7 @@ class Renderer:
         self.slices = slices
         self.success = None
         self.total_frames = sum(s.stop - s.start for s in slices)
-        self.buffer_queue = queue.Queue(24)
+        self.buffer_queue = queue.Queue(32)
         self.input = None
         self.output = Output(
             self.on_output_complete, self.buffer_queue, settings, filename
@@ -286,8 +290,8 @@ class Renderer:
         log.info('**** Rendering %s slices, %s frames...',
             len(self.slices), self.total_frames
         )
-        self.slices_iter = iter(self.slices)
         self.output.run()
+        self.slices_iter = iter(self.slices)
         self.next()
 
     def destroy(self):
@@ -342,6 +346,9 @@ class Renderer:
 
     def check_output_frames(self):
         if self.total_frames == self.output.frame:
+            log.info('Output received all %s expected frames from Input!',
+                self.total_frames
+            )
             return True
         log.error('expected %s total frames, output recieved %s',
             self.total_frames, self.output.frame

@@ -35,6 +35,7 @@ from dmedia.service import get_proxy
 from microfiber import Database
 
 from novacut.render import Renderer
+from novacut.settings import get_default_settings
 from novacut.renderservice import get_slices
 
 
@@ -84,7 +85,7 @@ def on_complete(r, success):
 
 
 def render_one(root_id):
-    settings = get_settings()
+    settings = get_default_settings()
     name = '.'.join([root_id, settings['ext']])
     dst = path.join(tmp, name)
     tmp_dst = path.join(tmp, 'tmp-' + name)
@@ -95,6 +96,7 @@ def render_one(root_id):
         log.info('Already in progress: %s', dst)
         return
     log.info('[re-rendering edit graph at root node %s]', root_id)
+    log.info(tmp_dst)
     slices = get_slices(Dmedia, db, root_id)
     r = Renderer(on_complete, slices, settings, tmp_dst)
     r.run()
@@ -102,6 +104,7 @@ def render_one(root_id):
     if r.success is not True:
         raise SystemExit('fatal error in renderer')
     os.rename(tmp_dst, dst)
+    log.info('Result:\n%s\n', dst)
 
 
 for r in db.view('doc', 'type', key='novacut/job', include_docs=True)['rows']:
