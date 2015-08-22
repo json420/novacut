@@ -33,7 +33,7 @@ import logging
 from dmedia.service import get_proxy
 
 import novacut
-from novacut.render import Worker
+from novacut.renderservice import Worker
 
 
 logging.basicConfig(

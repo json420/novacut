@@ -23,7 +23,18 @@
 Adds CouchDB and Dmedia integration atop `novacut.render`.
 """
 
-from .render import Slice
+import os
+from os import path
+from datetime import datetime
+import logging
+
+from gi.repository import GLib
+from microfiber import Database, dumps
+
+from .render import Slice, Renderer
+
+
+log = logging.getLogger(__name__)
 
 
 # MAX_DEPTH of edit graph (to prevent recursive loops within sequences):
@@ -136,4 +147,66 @@ def get_slices(Dmedia, db, root_id):
         Slice(_id, src, start, stop, _map[src])
         for (_id, src, start, stop) in raw_slices
     )
+
+
+class Worker:
+    def __init__(self, Dmedia, env):
+        self.Dmedia = Dmedia
+        self.novacut_db = Database('novacut-1', env)
+        self.dmedia_db = Database('dmedia-1', env)
+        self.mainloop = GLib.MainLoop()
+
+    def on_complete(self, renderer, success):
+        log.info('Renderer completed with success=%r', success)
+        self.mainloop.quit()
+
+    def run(self, job_id):
+        job = self.novacut_db.get(job_id)
+        log.info('Rendering: %s', dumps(job, pretty=True))
+        settings = self.novacut_db.get(job['node']['settings'])
+        log.info('With settings: %s', dumps(settings['node'], pretty=True))
+
+        root_id = job['node']['root']
+        slices = get_slices(self.Dmedia, self.novacut_db, root_id)
+
+        dst = self.Dmedia.AllocateTmp()
+        renderer = Renderer(self.on_complete, slices, settings['node'], dst)
+        renderer.run()
+        self.mainloop.run()
+        if renderer.success is not True:
+            raise SystemExit('renderer encountered a fatal error')
+        if path.getsize(dst) < 1:
+            raise SystemExit('file-size is zero for {}'.format(job_id))
+
+        obj = self.Dmedia.HashAndMove(dst, 'render')
+        _id = obj['file_id']
+        doc = self.dmedia_db.get(_id)
+        doc['render_of'] = job_id
+
+        # Create the symlink
+        ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        if settings['node'].get('ext'):
+            ts += '.' + settings['node']['ext']
+
+        home = path.abspath(os.environ['HOME'])
+        name = path.join('Novacut', ts)
+        link = path.join(home, name)
+        d = path.dirname(link)
+        if not path.isdir(d):
+            os.mkdir(d)
+        target = obj['file_path']
+        os.symlink(target, link)
+        doc['link'] = name
+
+        self.dmedia_db.save(doc)
+        job['renders'][_id] = {
+            'bytes': doc['bytes'],
+            'time': doc['time'],
+            'link': name,
+        }
+        self.novacut_db.save(job)
+
+        obj['link'] = name
+
+        return obj
 
