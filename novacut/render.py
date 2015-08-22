@@ -428,7 +428,7 @@ class Renderer:
         self.callback = callback
         self.slices = slices
         self.success = None
-        self.expected_frames = sum(s.stop - s.start for s in slices)
+        self.total_frames = sum(s.stop - s.start for s in slices)
         self.buffer_queue = queue.Queue(BUFFER_QUEUE_SIZE)
         self.input = None
         self.output = Output(
@@ -479,10 +479,10 @@ class Renderer:
             self.complete(False)
 
     def check_output_frames(self):
-        if self.expected_frames == self.output.frame:
+        if self.total_frames == self.output.frame:
             return True
         log.error('expected %s total frames, output recieved %s',
-            self.expected_frames, self.output.frame
+            self.total_frames, self.output.frame
         )
         return False
 

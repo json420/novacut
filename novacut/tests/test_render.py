@@ -196,7 +196,7 @@ class TestRenderer(TestCase):
         self.assertIs(inst.callback, callback)
         self.assertIs(inst.slices, slices)
         self.assertIsNone(inst.success)
-        self.assertEqual(inst.expected_frames,
+        self.assertEqual(inst.total_frames,
             sum(s.stop - s.start for s in slices)
         )
         self.assertIsInstance(inst.buffer_queue, Queue)
@@ -214,8 +214,8 @@ class TestRenderer(TestCase):
                 self.frame = frame
 
         class Subclass(render.Renderer):
-            def __init__(self, expected_frames, output):
-                self.expected_frames = expected_frames
+            def __init__(self, total_frames, output):
+                self.total_frames = total_frames
                 self.output = output
                 self._complete_calls = []
 
