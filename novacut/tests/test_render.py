@@ -32,8 +32,8 @@ from queue import Queue
 from dbase32 import random_id
 from gi.repository import Gst
 
-from .. import misc
 from .. import timefuncs
+from ..settings import get_default_settings
 from ..misc import random_start_stop
 from .. import render
 
@@ -105,9 +105,13 @@ def random_framerate():
     return (num, denom, Fraction(num, denom))
 
 
+def random_filename():
+    return '/tmp/' + random_id() + '.mov'
+
+
 def random_slice():
     (start, stop) = random_start_stop()
-    filename = '/tmp/' + random_id() + '.mov'
+    filename = random_filename()
     return render.Slice(random_id(), random_id(30), start, stop, filename)
 
 
@@ -151,4 +155,59 @@ class TestInput(TestCase):
         inst.frame += 1
         self.assertIs(inst.check_frame(buf), False)
         self.assertEqual(inst.frame, s.start + 1)
+
+
+class TestOutput(TestCase):
+    def test_init(self):
+        def callback(inst, success):
+            pass
+        buffer_queue = Queue()
+        settings = get_default_settings()
+        filename = random_filename()
+
+        inst = render.Output(callback, buffer_queue, settings, filename)
+        self.assertIs(inst.buffer_queue, buffer_queue)
+        self.assertEqual(inst.frame, 0)
+        self.assertIs(inst.sent_eos, False)
+        self.assertEqual(inst.framerate, Fraction(30000, 1001))
+        self.assertIsInstance(inst.input_caps, Gst.Caps)
+        self.assertEqual(inst.input_caps.to_string(),
+            'video/x-raw, chroma-site=(string)mpeg2, colorimetry=(string)bt709, format=(string)I420, height=(int)1080, interlace-mode=(string)progressive, pixel-aspect-ratio=(fraction)1/1, width=(int)1920'
+        )
+
+        # Make sure gsthelpers.Pipeline.__init__() was called:
+        self.assertIs(inst.callback, callback)
+        self.assertIsInstance(inst.pipeline, Gst.Pipeline)
+        self.assertIsInstance(inst.bus, Gst.Bus)
+        self.assertIsNone(inst.destroy())
+        self.assertFalse(hasattr(inst, 'pipeline'))
+        self.assertFalse(hasattr(inst, 'bus'))
+
+
+class TestRenderer(TestCase):
+    def test_init(self):
+        def callback(inst, success):
+            pass
+        slices = tuple(random_slice() for i in range(69))
+        settings = get_default_settings()
+        filename = random_filename()
+
+        inst = render.Renderer(callback, slices, settings, filename)
+        self.assertIs(inst.callback, callback)
+        self.assertIs(inst.slices, slices)
+        self.assertIsNone(inst.success)
+        self.assertEqual(inst.expected_frames,
+            sum(s.stop - s.start for s in slices)
+        )
+        self.assertIsInstance(inst.buffer_queue, Queue)
+        self.assertIsNone(inst.input)
+        self.assertIsInstance(inst.output, render.Output)
+        self.assertIs(inst.input_caps, inst.output.input_caps)
+        self.assertIsInstance(inst.input_caps, Gst.Caps)
+        self.assertEqual(inst.input_caps.to_string(),
+            'video/x-raw, chroma-site=(string)mpeg2, colorimetry=(string)bt709, format=(string)I420, height=(int)1080, interlace-mode=(string)progressive, pixel-aspect-ratio=(fraction)1/1, width=(int)1920'
+        )
+
+
+
 

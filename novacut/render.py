@@ -66,7 +66,6 @@ Sequence = namedtuple('Sequence', 'id src')
 
 log = logging.getLogger(__name__)
 Gst.init()
-mainloop = GLib.MainLoop()
 
 
 def _get(d, key, t):
@@ -262,7 +261,6 @@ class Validator(Pipeline):
         else:
             log.warning('This is not a conforming video!')
         self.destroy()
-        mainloop.quit()
 
 
 class Input(Pipeline):
@@ -282,7 +280,7 @@ class Input(Pipeline):
         self.q = make_element('queue')
         convert = make_element('videoconvert')
         scale = make_element('videoscale', {'method': 3})
-        sink = make_element('appsink',
+        appsink = make_element('appsink',
             {
                 'caps': input_caps,
                 'emit-signals': True,
@@ -291,13 +289,12 @@ class Input(Pipeline):
         )
 
         # Add elements to pipeline and link:
-        add_and_link_elements(self.pipeline,
-            src, dec, self.q, convert, scale, sink
-        )
+        add_and_link_elements(self.pipeline, src, dec)
+        add_and_link_elements(self.pipeline, self.q, convert, scale, appsink)
 
         # Connect element signal handlers:
         dec.connect('pad-added', self.on_pad_added)
-        sink.connect('new-sample', self.on_new_sample)
+        appsink.connect('new-sample', self.on_new_sample)
 
     def run(self):
         log.info('starting slice %s: %s[%s:%s]',
@@ -309,7 +306,7 @@ class Input(Pipeline):
             Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE,
             frame_to_nanosecond(self.s.start, self.framerate)
         )
-        self.set_state('PLAYING')
+        self.set_state(Gst.State.PLAYING)
 
     def on_pad_added(self, dec, pad):
         caps = pad.get_current_caps()
@@ -329,32 +326,27 @@ class Input(Pipeline):
         )
         return False
 
-    def on_new_sample(self, sink):
-        if self.complete:
-            log.warning('ignoring extra frame beyond slice end')
-            return Gst.FlowReturn.OK
-        buf = self.sink.emit('pull-sample').get_buffer()
+    def on_new_sample(self, appsink):
+        buf = appsink.emit('pull-sample').get_buffer()
         if NEEDS_YUCKY_COPY:  # See "FIXME: NEEDS_YUCKY_COPY?" at top of module:
-            buf.copy()
-        frame = nanosecond_to_frame(buf.pts, self.framerate)
-        if frame != self.frame:
-            self.fatal('expected frame %s, got frame %s from slice [%s:%s]',
-                self.frame, frame, self.s.start, self.s.stop
-            )
-        log.info('IN: %s from [%s:%s]', frame, self.s.start, self.s.stop)
+            buf = buf.copy()
+        if self.check_frame(buf) is not True:
+            GLib.idle_add(self.complete, False)  
+            return Gst.FlowReturn.CUSTOM_ERROR
         self.buffer_queue.put(buf)
         self.frame += 1
         if self.frame == self.s.stop:
-            log.info('final frame in slice, calling Manager.input_complete()')
-            self.complete = True
-            self.manager.input_complete(self)
+            log.info('finished slice %s: %s[%s:%s]',
+                self.s.id, self.s.src, self.s.start, self.s.stop
+            )
+            self.drained = True
+            GLib.idle_add(self.complete, True)
         return Gst.FlowReturn.OK
 
     def on_eos(self, bus, msg):
-        if not self.complete:
-            log.warning('recieved EOS before end of slice, some frame were lost')
-            self.complete = True
-            self.manager.input_complete(self)
+        if self.drained is not True:
+            log.error('recieved EOS before end of slice, some frame were lost')
+            self.complete(False)
 
 
 def make_video_caps(desc):
@@ -372,77 +364,92 @@ def make_video_caps(desc):
 
 
 class Output(Pipeline):
-    def __init__(self, buffer_queue, settings, filename):
-        super().__init__()
+    def __init__(self, callback, buffer_queue, settings, filename):
+        super().__init__(callback)
+        self.bus.connect('message::eos', self.on_eos)
         self.buffer_queue = buffer_queue
         self.frame = 0
-        self.complete = False
+        self.sent_eos = False
 
         desc = settings['video']['caps']
         (self.framerate, self.input_caps, output_caps) = make_video_caps(desc)
 
-        self.src = self.make_element('appsrc',
-            {'caps': output_caps, 'format': 3}
-        )
-        self.q1 = self.make_element('queue')
-        self.enc = self.make_element_from_desc(settings['video']['encoder'])
-        self.q2 = self.make_element('queue')
-        self.mux = self.make_element_from_desc(settings['muxer'])
-        self.sink = self.make_element('filesink', {'location': filename})
+        # Create elements:
+        appsrc = make_element('appsrc', {'caps': output_caps, 'format': 3})
+        q1 = make_element('queue')
+        enc = make_element_from_desc(settings['video']['encoder'])
+        q2 = make_element('queue')
+        mux = make_element_from_desc(settings['muxer'])
+        sink = make_element('filesink', {'location': filename})
 
-        self.src.link(self.q1)
-        self.q1.link(self.enc)
-        self.enc.link(self.q2)
-        self.q2.link(self.mux)
-        self.mux.link(self.sink)
+        # Add elements to pipeline and link:
+        add_and_link_elements(self.pipeline, appsrc, q1, enc, q2, mux, sink)
 
-        self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
-        self.src.connect('need-data', WeakMethod(self, 'on_need_data'))
+        # Connect element signal handlers:
+        appsrc.connect('need-data', self.on_need_data)
 
     def run(self):
-        self.set_state('PLAYING')
+        self.set_state(Gst.State.PLAYING)
 
     def on_eos(self, bus, msg):
-        log.info('eos')
-        self.destroy()
-        mainloop.quit()
+        log.info('Output.on_eos()')
+        self.complete(True)
 
     def on_need_data(self, appsrc, amount):
-        log.info('need-data: %s', amount)
-        if self.complete:
+        if self.sent_eos:
+            log.info('sent_eos is True, nothing to do in need-need callback')
             return
-        for i in range(16):
-            if self.push(self.buffer_queue.get()) is True:
-                self.complete = True
+        for i in range(BUFFER_QUEUE_SIZE):
+            if self.push(appsrc, self.buffer_queue.get()) is True:
                 break
+        log.info('output frame %s', self.frame)
 
-    def push(self, buf):
+    def push(self, appsrc, buf):
         if buf is None:
             log.info('received end-of-render sentinel')
-            self.src.emit('end-of-stream')
+            appsrc.emit('end-of-stream')
+            self.sent_eos = True
             return True
         ts = video_pts_and_duration(self.frame, self.frame + 1, self.framerate)
         buf.pts = ts.pts
         buf.duration = ts.duration
-        log.info('OUT: %s (pts=%s, duration=%s)', self.frame, ts.pts, ts.pts)
+        appsrc.emit('push-buffer', buf)
         self.frame += 1
-        self.src.emit('push-buffer', buf)
         return False
 
 
-class Manager:
-    def __init__(self, slices, settings, filename):
-        self.slices_iter = iter(slices)
-        self.buffer_queue = queue.Queue(16)
+class Renderer:
+    def __init__(self, callback, slices, settings, filename):
+        if not callable(callback):
+            raise TypeError(
+                'callback: not callable: {!r}'.format(callback)
+            )
+        self.callback = callback
+        self.slices = slices
+        self.success = None
+        self.expected_frames = sum(s.stop - s.start for s in slices)
+        self.buffer_queue = queue.Queue(BUFFER_QUEUE_SIZE)
         self.input = None
-        self.output = Output(self.buffer_queue, settings, filename)
-        self.frames = 0
-        self.error = False
-        self.need_data = False
+        self.output = Output(
+            self.on_output_complete, self.buffer_queue, settings, filename
+        )
+        self.input_caps = self.output.input_caps
 
     def run(self):
+        self.slices_iter = iter(self.slices)
         self.output.run()
         self.next()
+
+    def complete(self, success):
+        log.info('Manager complete, success=%r', success)
+        if self.input is not None:
+            self.input.destroy()
+            self.input = None
+        if self.output is not None:
+            self.output.destroy()
+            self.output = None
+        self.success = success
+        self.callback(self, success)
 
     def next_slice(self):
         try:
@@ -456,25 +463,26 @@ class Manager:
         if s is None:
             self.buffer_queue.put(None)
         else:
-            self.frames += (s.stop - s.start)
-            self.input = Input(self, self.buffer_queue, s, self.output.input_caps)
+            self.input = Input(
+                self.on_input_complete, self.buffer_queue, s, self.input_caps
+            )
             self.input.run()
 
-    def _input_complete(self, inst):
+    def on_input_complete(self, inst, success):
+        log.info('input complete, success=%r', success)
         assert inst is self.input
-        self.input.destroy()
-        self.input = None
-        self.next()
+        if success is True:
+            self.input = None
+            self.next()
+        else:
+            self.complete(False)
 
-    def input_complete(self, inst):
-        log.info('slice complete: %s', inst.s)
-        GLib.idle_add(self._input_complete, inst)
+    def on_output_complete(self, inst, success):
+        log.info('output complete, success=%r', success)
+        assert inst is self.output
+        self.complete(success)
 
-    def input_fatal_error(self, inst):
-        assert inst is self.input
-        self.error = True
 
- 
 class Worker:
     def __init__(self, Dmedia, env):
         self.Dmedia = Dmedia
@@ -493,7 +501,6 @@ class Worker:
         dst = self.Dmedia.AllocateTmp()
         renderer = Manager(slices, settings['node'], dst)
         renderer.run()
-        mainloop.run()
         if renderer.error:
             raise SystemExit('renderer encountered a fatal error')
         if path.getsize(dst) < 1:

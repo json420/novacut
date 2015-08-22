@@ -26,8 +26,8 @@ Opinionated video and audio encoder settings.
 from . import schema
 
 
-def default_settings():
-    node = {
+def get_default_settings():
+    return {
         'muxer': 'matroskamux',
         'ext': 'mkv',
         'video': {
@@ -61,5 +61,9 @@ def default_settings():
             },
         },
     }
+
+
+def default_settings():
+    node = get_default_settings()
     return schema.create_settings(node)
 
