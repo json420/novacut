@@ -94,14 +94,14 @@ class Validator(Pipeline):
         self.info['valid'] = False
         if not self.full_check:
             log.info('Stopping check at first inconsistency')
-            self.idle_add(self.complete, False)
+            self.complete(False)
 
     def run(self):
         self.set_state(Gst.State.PAUSED, sync=True)
         (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
         if not success:
             log.error('Could not query duration')
-            self.idle_add(self.complete, False)
+            self.complete(False)
             return
         log.info('duration: %d ns', ns)
         self.info['duration'] = ns

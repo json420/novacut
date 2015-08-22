@@ -227,13 +227,25 @@ class Pipeline:
             self.pipeline.set_state(Gst.State.NULL)
             del self.pipeline
 
-    def complete(self, success):
+    def do_complete(self, success):
         assert isinstance(success, bool)
         log.debug('%s.complete(%r)', self.__class__.__name__, success)
         self.destroy()
         assert self.success is None
         self.success = success
         self.callback(self, success)
+
+    def complete(self, success):
+        """
+        Calls Pipeline.do_complete() via GLib.idle_add().
+
+        It seems you probably can't call Gst.Bus.remove_signal_watch() from
+        within a callback for a signal it fired, otherwise you get a deadlock.
+
+        But we don't want the complexity of having to run the mainloop for most
+        unit tests, so this method can be overridden in special test subclasses.
+        """
+        GLib.idle_add(self.do_complete, success)
 
     def set_state(self, state, sync=False):
         assert isinstance(sync, bool)
@@ -244,21 +256,9 @@ class Pipeline:
         if sync is True:
             self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
 
-    def idle_add(self, callback, *args):
-        """
-        Mockable GLib.idle_add().
-
-        It seems you probably can't call Gst.Bus.remove_signal_watch() from
-        within a callback for a signal it fired, otherwise you get a deadlock.
-
-        But we don't want the complexity of having to run the mainloop for most
-        unit tests, so this method can be overridden in special test subclasses.
-        """
-        GLib.idle_add(callback, *args)
-
     def on_error(self, bus, msg):
         log.error('%s.on_error(): %s',
             self.__class__.__name__, msg.parse_error()
         )
-        self.idle_add(self.complete, False)
+        self.complete(False)
 

@@ -167,7 +167,7 @@ class Input(Pipeline):
         if NEEDS_YUCKY_COPY:  # See "FIXME: NEEDS_YUCKY_COPY?" at top of module:
             buf = buf.copy()
         if self.check_frame(buf) is not True:
-            self.idle_add(self.complete, False)  
+            self.complete(False)  
             return Gst.FlowReturn.CUSTOM_ERROR
         self.buffer_queue.put(buf)
         self.frame += 1
@@ -175,13 +175,13 @@ class Input(Pipeline):
             log.info('finished slice %s: %s[%s:%s]',
                 self.s.id, self.s.src, self.s.start, self.s.stop
             )
-            self.idle_add(self.complete, True)
+            self.complete(True)
         return Gst.FlowReturn.OK
 
     def on_eos(self, bus, msg):
         if self.frame < self.stop:
             log.error('recieved EOS before end of slice, some frame were lost')
-            self.idle_add(self.complete, False)
+            self.complete(False)
 
 
 def make_video_caps(desc):
@@ -228,7 +228,7 @@ class Output(Pipeline):
 
     def on_eos(self, bus, msg):
         log.info('Output.on_eos()')
-        self.idle_add(self.complete, True)
+        self.complete(True)
 
     def on_need_data(self, appsrc, amount):
         if self.sent_eos:

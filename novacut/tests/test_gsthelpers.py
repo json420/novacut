@@ -283,7 +283,7 @@ class TestPipeline(TestCase):
         self.assertEqual(pipeline._calls, [Gst.State.NULL])
         self.assertEqual(bus._calls, 1)
 
-    def test_complete(self):
+    def test_do_complete(self):
         class Subclass(gsthelpers.Pipeline):
             def __init__(self, callback):
                 self.callback =  callback
@@ -296,7 +296,7 @@ class TestPipeline(TestCase):
         for success in (True, False):
             callback = Callback()
             inst = Subclass(callback)
-            self.assertIsNone(inst.complete(success))
+            self.assertIsNone(inst.do_complete(success))
             self.assertIs(inst.success, success)
             self.assertEqual(inst._destroy_calls, 1)
             self.assertEqual(callback._calls, [(inst, success)])
@@ -349,10 +349,6 @@ class TestPipeline(TestCase):
 
             def complete(self, success):
                 self._complete_calls.append(success)
-
-            def idle_add(self, cb, *args):
-                # See Pipeline.idle_add()
-                cb(*args)
 
         inst = Subclass() 
         msg = DummyMessage(random_id())
