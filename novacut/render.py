@@ -23,7 +23,6 @@ import os
 from os import path
 from fractions import Fraction
 from collections import namedtuple
-import weakref
 from datetime import datetime
 import queue
 import logging
@@ -31,7 +30,7 @@ import logging
 from gi.repository import GLib, Gst
 from microfiber import Database, dumps
 
-from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration, Timestamp
+from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration
 from .gsthelpers import (
     Pipeline,
     make_element,
@@ -107,160 +106,6 @@ def _fraction(obj):
         raise TypeError(
             'invalid fraction: {!r}: {!r}'.format(type(obj), obj)
         )
-
-
-class WeakMethod:
-    __slots__ = ('proxy', 'method_name')
-
-    def __init__(self, inst, method_name):
-        if not callable(getattr(inst, method_name)):
-            raise TypeError(
-                '{!r} attribute is not callable'.format(method_name)
-            )
-        self.proxy = weakref.proxy(inst)
-        self.method_name = method_name
-
-    def __call__(self, *args):
-        try:
-            method = getattr(self.proxy, self.method_name)
-        except ReferenceError:
-            return
-        return method(*args)
-  
-
-def get_expected_ts(frame, framerate):
-    return video_pts_and_duration(frame, frame + 1, framerate)
-
-
-def _row(label, ts):
-    return (label, str(ts.pts), str(ts.duration))
-
-def _ts_diff(ts, expected_ts):
-    return Timestamp(
-        ts.pts - expected_ts.pts,
-        ts.duration - expected_ts.duration
-    )
-
-
-def format_ts_mismatch(ts, expected_ts):
-    rows = (
-        ('', 'PTS', 'DURATION'),
-        _row('GOT:', ts),
-        _row('EXPECTED:', expected_ts),
-        _row('DIFF', _ts_diff(ts, expected_ts)),
-    )
-    widths = tuple(
-        max(len(r[i]) for r in rows) for i in range(3)
-    )
-    lines = [
-        ' '.join(row[i].rjust(widths[i]) for i in range(3))
-        for row in rows
-    ]
-    return '\n'.join('    ' + l for l in lines)
-
-
-class Validator(Pipeline):
-    def __init__(self, filename, full_check=False):
-        super().__init__()
-        self.bus.connect('message::eos', WeakMethod(self, 'on_eos'))
-
-        # Create elements
-        src = self.make_element('filesrc', {'location': filename})
-        dec = self.make_element('decodebin')
-        self.sink = self.make_element('fakesink', {'signal-handoffs': True})
-
-        # Connect signal handlers
-        dec.connect('pad-added', WeakMethod(self, 'on_pad_added'))
-        self.sink.connect('handoff', WeakMethod(self, 'on_handoff'))
-
-        # Link elements
-        src.link(dec)
-
-        self.frame = 0
-        self.framerate = None
-        self.info = {'valid': True}
-        self.full_check = full_check
-
-    def mark_invalid(self):
-        self.info['valid'] = False
-        if not self.full_check:
-            self.fatal('Stopping check at first inconsistency')
-
-    def run(self):
-        self.set_state('PAUSED', sync=True)
-        (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
-        if not success:
-            self.fatal('Could not query duration')
-        log.info('duration: %d ns', ns)
-        self.info['duration'] = ns
-        self.set_state('PLAYING')
-
-    def _info_from_caps(self, caps):
-        s = caps.get_structure(0)
-
-        (success, num, denom) = s.get_fraction('framerate')
-        if not success:
-            log.error('could not get framerate from video stream')
-            return False
-
-        (sucess, width) = s.get_int('width')
-        if not success:
-            log.error('could not get width from video stream')
-            return False
-
-        (sucess, height) = s.get_int('height')
-        if not success:
-            log.error('could not get height from video stream')
-            return False
-
-        self.framerate = Fraction(num, denom)
-        self.info['framerate'] = {'num': num, 'denom': denom}
-        self.info['width'] = width
-        self.info['height'] = height
-
-        log.info('framerate: %d/%d', num, denom)
-        log.info('resolution: %dx%d', width, height)
-        return True
-
-    def on_pad_added(self, dec, pad):
-        caps = pad.get_current_caps()
-        string = caps.to_string()
-        log.info('on_pad_added(): %s', string)
-        if string.startswith('video/'):
-            if self._info_from_caps(caps) is True:
-                pad.link(self.sink.get_static_pad('sink'))
-            else:
-                self.fatal('error getting framerate/width/height from video caps')
-
-    def on_handoff(self, sink, buf, pad):
-        ts = Timestamp(buf.pts, buf.duration)
-        expected_ts = get_expected_ts(self.frame, self.framerate)
-        if self.frame == 0 and ts.pts != 0:
-            log.warning('non-zero PTS at frame 0: %r', ts)
-            self.mark_invalid()
-        elif ts != expected_ts:
-            log.warning('Timestamp mismatch at frame %d:\n%s',
-                self.frame, format_ts_mismatch(ts, expected_ts)
-            )
-            self.mark_invalid()
-        self.frame += 1
-
-    def on_eos(self, bus, msg):
-        log.info('eos')
-        frames = self.frame
-        info = self.info
-        info['frames'] = self.frame
-        expected_duration = frame_to_nanosecond(frames, self.framerate)
-        if info['duration'] != expected_duration:
-            log.warning('total duration: %d != %d',
-                info['duration'], expected_duration
-            )
-            info['valid'] = False
-        if info['valid'] is True:
-            log.info('Success, this is a conforming video!')
-        else:
-            log.warning('This is not a conforming video!')
-        self.destroy()
 
 
 class Input(Pipeline):

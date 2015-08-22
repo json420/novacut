@@ -204,12 +204,15 @@ def add_and_link_elements(parent, *elements):
 
 
 class Pipeline:
+    __slots__ = ('callback', 'success', 'pipeline', 'bus')
+
     def __init__(self, callback):
         if not callable(callback):
             raise TypeError(
                 'callback: not callable: {!r}'.format(callback)
             )
         self.callback = callback
+        self.success = None
         self.pipeline = Gst.Pipeline()
         self.bus = self.pipeline.get_bus()
         self.bus.add_signal_watch()
@@ -228,6 +231,8 @@ class Pipeline:
         assert isinstance(success, bool)
         log.info('%s.complete(%r)', self.__class__.__name__, success)
         self.destroy()
+        assert self.success is None
+        self.success = success
         self.callback(self, success)
 
     def set_state(self, state, sync=False):

@@ -237,6 +237,7 @@ class TestPipeline(TestCase):
             pass
         inst = gsthelpers.Pipeline(callback)
         self.assertIs(inst.callback, callback)
+        self.assertIsNone(inst.success)
         self.assertIsInstance(inst.pipeline, Gst.Pipeline)
         self.assertIsInstance(inst.bus, Gst.Bus)
         self.assertIsNone(inst.destroy())
@@ -286,6 +287,7 @@ class TestPipeline(TestCase):
         class Subclass(gsthelpers.Pipeline):
             def __init__(self, callback):
                 self.callback =  callback
+                self.success = None
                 self._destroy_calls = 0
 
             def destroy(self):
@@ -295,6 +297,7 @@ class TestPipeline(TestCase):
             callback = Callback()
             inst = Subclass(callback)
             self.assertIsNone(inst.complete(success))
+            self.assertIs(inst.success, success)
             self.assertEqual(inst._destroy_calls, 1)
             self.assertEqual(callback._calls, [(inst, success)])
 

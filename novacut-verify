@@ -36,8 +36,10 @@ import json
 import logging
 import sys
 
+from gi.repository import GLib
+
 import novacut
-from novacut.renderer import Validator, mainloop
+from novacut.validate import Validator
 
 
 logging.basicConfig(
@@ -68,13 +70,19 @@ if not path.isfile(filename):
     log.error('Not a file: %r', filename)
     sys.exit(3)
 
-validator = Validator(filename, args.full_check)
-validator.run()
+
+mainloop = GLib.MainLoop()
+
+def on_complete(validator, success):
+    mainloop.quit()
+
+
+validator = Validator(on_complete, filename, args.full_check)
+GLib.idle_add(validator.run)
 mainloop.run()
 info = json.dumps(validator.info, sort_keys=True, indent=4)
 print(info)
-if validator.error:
+if validator.success is not True:
+    log.error('Not a conforming video!')
     sys.exit(4)
-if validator.info.get('valid') is not True:
-    sys.exit(5)
 
