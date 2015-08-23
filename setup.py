@@ -136,7 +136,7 @@ setup(
         'novacut-cli',
         'novacut-v0-v1-upgrade',
         'novacut-reset',
-        'novacut-verify',
+        'novacut-video-checker',
     ],
     data_files=[
         ('share/couchdb/apps/novacut',
