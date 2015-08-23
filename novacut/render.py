@@ -159,6 +159,11 @@ class Input(Pipeline):
         if self.frame >= self.s.stop:
             log.warning('Ignoring extra frames past end of slice')
             return Gst.FlowReturn.EOS
+        if self.success is not None:
+            log.warning(
+                'Ignoring frame received after Input.complete() was called'
+            )
+            return Gst.FlowReturn.EOS
         buf = appsink.emit('pull-sample').get_buffer()
         if NEEDS_YUCKY_COPY:  # See "FIXME: NEEDS_YUCKY_COPY?" at top of module:
             buf = buf.copy()
@@ -170,7 +175,7 @@ class Input(Pipeline):
                 self.buffer_queue.put(buf, timeout=2)
                 break
             except queue.Full:
-                log.info('timeout waiting for Queue.put()')
+                pass
         self.frame += 1
         if self.frame == self.s.stop:
             self.complete(True)
@@ -237,7 +242,7 @@ class Output(Pipeline):
                 if len(buffers) >= 16 or buf is None:
                     break
             except queue.Empty:
-                log.info('timeout waiting for Queue.get()')
+                pass
         return buffers
 
     def on_need_data(self, appsrc, amount):
@@ -250,7 +255,7 @@ class Output(Pipeline):
                 self.push(appsrc, buf)
         else:
             log.warring(
-                'Output.complete() most have been called, ignoring %s buffers',
+                'Output.complete() must have been called, ignoring %s buffers',
                 len(buffers)
             )
 
@@ -346,11 +351,11 @@ class Renderer:
 
     def check_output_frames(self):
         if self.total_frames == self.output.frame:
-            log.info('Output received all %s expected frames from Input!',
+            log.info('Output received all %s frames from Input!',
                 self.total_frames
             )
             return True
-        log.error('expected %s total frames, output recieved %s',
+        log.error('Expected %s total frames, output received %s',
             self.total_frames, self.output.frame
         )
         return False
