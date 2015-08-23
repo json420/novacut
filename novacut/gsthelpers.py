@@ -204,21 +204,27 @@ def add_and_link_elements(parent, *elements):
 
 
 class Pipeline:
-    __slots__ = ('callback', 'success', 'pipeline', 'bus')
-
     def __init__(self, callback):
         if not callable(callback):
             raise TypeError(
                 'callback: not callable: {!r}'.format(callback)
             )
         self.callback = callback
+        self.handlers = []
         self.success = None
         self.pipeline = Gst.Pipeline()
         self.bus = self.pipeline.get_bus()
         self.bus.add_signal_watch()
-        self.bus.connect('message::error', self.on_error)
+        self.connect(self.bus, 'message::error', self.on_error)
+
+    def connect(self, obj, signal, callback):
+        hid = obj.connect(signal, callback)
+        self.handlers.append((obj, hid))
 
     def destroy(self):
+        while self.handlers:
+            (obj, hid) = self.handlers.pop()
+            obj.handler_disconnect(hid)
         if self.success is None:
             self.success = False
         if hasattr(self, 'bus'):

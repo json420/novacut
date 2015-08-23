@@ -109,13 +109,11 @@ class Input(Pipeline):
         self.s = s
         self.frame = s.start
         self.framerate = None
-        self.bus.connect('message::eos', self.on_eos)
 
         # Create elements
         src = make_element('filesrc', {'location': s.filename})
         dec = make_element('decodebin')
-        self.q = make_element('queue')
-        convert = make_element('videoconvert')
+        self.convert = make_element('videoconvert')
         scale = make_element('videoscale', {'method': 3})
         appsink = make_element('appsink',
             {'caps': input_caps, 'emit-signals': True, 'max-buffers': 1}
@@ -123,11 +121,12 @@ class Input(Pipeline):
 
         # Add elements to pipeline and link:
         add_and_link_elements(self.pipeline, src, dec)
-        add_and_link_elements(self.pipeline, self.q, convert, scale, appsink)
+        add_and_link_elements(self.pipeline, self.convert, scale, appsink)
 
-        # Connect element signal handlers:
-        dec.connect('pad-added', self.on_pad_added)
-        appsink.connect('new-sample', self.on_new_sample)
+        # Connect signal handlers using Pipeline.connect():
+        self.connect(self.bus, 'message::eos', self.on_eos)
+        self.connect(dec, 'pad-added', self.on_pad_added)
+        self.connect(appsink, 'new-sample', self.on_new_sample)
 
     def run(self):
         log.info('Input slice %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
@@ -144,7 +143,8 @@ class Input(Pipeline):
         string = caps.to_string()
         if string.startswith('video/'):
             self.framerate = get_framerate(caps.get_structure(0))
-            pad.link(self.q.get_static_pad('sink'))
+            pad.link(self.convert.get_static_pad('sink'))
+            #del self.convert
 
     def check_frame(self, buf):
         frame = nanosecond_to_frame(buf.pts, self.framerate)
@@ -204,7 +204,6 @@ def make_video_caps(desc):
 class Output(Pipeline):
     def __init__(self, callback, buffer_queue, settings, filename):
         super().__init__(callback)
-        self.bus.connect('message::eos', self.on_eos)
         self.buffer_queue = buffer_queue
         self.frame = 0
         self.sent_eos = False
@@ -214,17 +213,18 @@ class Output(Pipeline):
 
         # Create elements:
         appsrc = make_element('appsrc', {'caps': output_caps, 'format': 3})
-        q1 = make_element('queue')
         enc = make_element_from_desc(settings['video']['encoder'])
-        q2 = make_element('queue')
         mux = make_element_from_desc(settings['muxer'])
-        sink = make_element('filesink', {'location': filename})
+        sink = make_element('filesink',
+            {'location': filename, 'buffer-mode': 2}
+        )
 
         # Add elements to pipeline and link:
-        add_and_link_elements(self.pipeline, appsrc, q1, enc, q2, mux, sink)
+        add_and_link_elements(self.pipeline, appsrc, enc, mux, sink)
 
-        # Connect element signal handlers:
-        appsrc.connect('need-data', self.on_need_data)
+        # Connect signal handlers using Pipeline.connect():
+        self.connect(self.bus, 'message::eos', self.on_eos)
+        self.connect(appsrc, 'need-data', self.on_need_data)
 
     def run(self):
         self.set_state(Gst.State.PLAYING)
@@ -250,14 +250,14 @@ class Output(Pipeline):
             log.info('sent_eos is True, nothing to do in need-data callback')
             return
         buffers = self.get_buffers()
-        if self.success is None:
-            for buf in buffers:
-                self.push(appsrc, buf)
-        else:
+        if self.success is not None:
             log.warring(
                 'Output.complete() must have been called, ignoring %s buffers',
                 len(buffers)
             )
+            return
+        while buffers:
+            self.push(appsrc, buffers.pop(0))
 
     def push(self, appsrc, buf):
         assert self.sent_eos is False

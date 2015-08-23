@@ -264,6 +264,7 @@ class TestPipeline(TestCase):
                 self.pipeline = pipeline
                 self.bus = bus
                 self.success = None
+                self.handlers = []
 
         # First try when 'pipeline' and 'bus' attributes exist:
         pipeline = DummyPipeline()
