@@ -36,16 +36,8 @@ import novacut
 from novacut.renderservice import Worker
 
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='\t'.join([
-        '%(levelname)s',
-        '%(processName)s',
-        '%(threadName)s',
-        '%(message)s',
-    ]),
-)
-log = logging.getLogger()
+novacut.configure_logging()
+log = logging.getLogger(__name__)
 
 
 # We render at a fairly low priority, so the UI stays responsive:
