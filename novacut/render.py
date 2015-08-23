@@ -118,7 +118,7 @@ class Input(Pipeline):
         convert = make_element('videoconvert')
         scale = make_element('videoscale', {'method': 3})
         appsink = make_element('appsink',
-            {'caps': input_caps, 'emit-signals': True, 'max-buffers': 4}
+            {'caps': input_caps, 'emit-signals': True, 'max-buffers': 1}
         )
 
         # Add elements to pipeline and link:
@@ -234,7 +234,7 @@ class Output(Pipeline):
             try:
                 buf = q.get(timeout=2)
                 buffers.append(buf)
-                if len(buffers) >= 24 or buf is None:
+                if len(buffers) >= 16 or buf is None:
                     break
             except queue.Empty:
                 log.info('timeout waiting for Queue.get()')
@@ -279,7 +279,7 @@ class Renderer:
         self.slices = slices
         self.success = None
         self.total_frames = sum(s.stop - s.start for s in slices)
-        self.buffer_queue = queue.Queue(32)
+        self.buffer_queue = queue.Queue(16)
         self.input = None
         self.output = Output(
             self.on_output_complete, self.buffer_queue, settings, filename
