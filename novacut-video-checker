@@ -46,7 +46,6 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='\t'.join([
         '%(levelname)s',
-        '%(threadName)s',
         '%(message)s',
     ]),
 )
