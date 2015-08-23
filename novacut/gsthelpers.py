@@ -29,7 +29,7 @@ don't want to accumulate too much magic wrapper sauce!
 from fractions import Fraction
 import logging
 
-from gi.repository import Gst
+from gi.repository import Gst, GLib
 
 
 log = logging.getLogger(__name__)
@@ -178,7 +178,7 @@ def make_caps(mime, desc):
     return Gst.caps_from_string(make_caps_string(mime, desc))
 
 
-def get_framerate_from_struct(s):
+def get_framerate(s):
     (success, num, denom) = s.get_fraction('framerate')
     if not success:
         raise Exception("could not get 'framerate' from video caps structure")
@@ -201,4 +201,65 @@ def link_elements(*elements):
 def add_and_link_elements(parent, *elements):
     add_elements(parent, *elements)
     link_elements(*elements)
+
+
+class Pipeline:
+    __slots__ = ('callback', 'success', 'pipeline', 'bus')
+
+    def __init__(self, callback):
+        if not callable(callback):
+            raise TypeError(
+                'callback: not callable: {!r}'.format(callback)
+            )
+        self.callback = callback
+        self.success = None
+        self.pipeline = Gst.Pipeline()
+        self.bus = self.pipeline.get_bus()
+        self.bus.add_signal_watch()
+        self.bus.connect('message::error', self.on_error)
+
+    def destroy(self):
+        if self.success is None:
+            self.success = False
+        if hasattr(self, 'bus'):
+            self.bus.remove_signal_watch()
+            del self.bus
+        if hasattr(self, 'pipeline'):
+            self.pipeline.set_state(Gst.State.NULL)
+            del self.pipeline
+
+    def do_complete(self, success):
+        log.info('%s.complete(%r)', self.__class__.__name__, success)
+        if self.success is not None:
+            log.error('%s.complete() already called, ignoring',
+                self.__class__.__name__
+            )
+            return
+        self.success = (True if success is True else False)
+        self.destroy()
+        self.callback(self, self.success)
+
+    def complete(self, success):
+        """
+        Calls Pipeline.do_complete() via GLib.idle_add().
+
+        It seems you probably can't call Gst.Bus.remove_signal_watch() from
+        within a callback for a signal it fired, otherwise you get a deadlock.
+
+        But we don't want the complexity of having to run the mainloop for most
+        unit tests, so this method can be overridden in special test subclasses.
+        """
+        GLib.idle_add(self.do_complete, success)
+
+    def set_state(self, state, sync=False):
+        assert isinstance(sync, bool)
+        self.pipeline.set_state(state)
+        if sync is True:
+            self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
+
+    def on_error(self, bus, msg):
+        log.error('%s.on_error(): %s',
+            self.__class__.__name__, msg.parse_error()
+        )
+        self.complete(False)
 
