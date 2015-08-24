@@ -251,7 +251,7 @@ class Output(Pipeline):
             return
         buffers = self.get_buffers()
         if self.success is not None:
-            log.warring(
+            log.warning(
                 'Output.complete() must have been called, ignoring %s buffers',
                 len(buffers)
             )
