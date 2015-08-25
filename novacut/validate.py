@@ -69,7 +69,7 @@ def get_expected_ts(frame, framerate):
 class Validator(Pipeline):
     def __init__(self, callback, filename, full_check=False):
         super().__init__(callback)
-        self.bus.connect('message::eos', self.on_eos)
+        self.connect(self.bus, 'message::eos', self.on_eos)
         self.frame = 0
         self.framerate = None
         self.info = {'valid': True}
@@ -87,8 +87,8 @@ class Validator(Pipeline):
         self.q.link(sink)
 
         # Connect element signal handlers:
-        dec.connect('pad-added', self.on_pad_added)
-        sink.connect('handoff', self.on_handoff)
+        self.connect(dec, 'pad-added', self.on_pad_added)
+        self.connect(sink, 'handoff', self.on_handoff)
 
     def mark_invalid(self):
         self.info['valid'] = False
