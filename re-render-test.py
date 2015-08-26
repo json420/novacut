@@ -35,7 +35,7 @@ from dmedia.service import get_proxy
 from microfiber import Database
 
 from novacut.render import Renderer
-from novacut.settings import get_default_settings
+from novacut.validate import Validator
 from novacut.renderservice import get_slices
 
 
@@ -65,8 +65,8 @@ def get_settings():
             'encoder': 'theoraenc',
             'caps': {
                 'format': 'I420',
-                'width': 1920,
-                'height': 1080,
+                'width': 960,
+                'height': 540,
                 'interlace-mode': 'progressive',
                 'pixel-aspect-ratio': '1/1',
                 'chroma-site': 'mpeg2',
@@ -80,12 +80,12 @@ def get_settings():
 mainloop = GLib.MainLoop()
 
 def on_complete(r, success):
-    log.info('[re-render complete, success=%r]', success)
+    log.info('on_complete: success=%r', success)
     mainloop.quit()
 
 
 def render_one(root_id):
-    settings = get_default_settings()
+    settings = get_settings()
     name = '.'.join([root_id, settings['ext']])
     dst = path.join(tmp, name)
     tmp_dst = path.join(tmp, 'tmp-' + name)
@@ -102,7 +102,17 @@ def render_one(root_id):
     r.run()
     mainloop.run()
     if r.success is not True:
-        raise SystemExit('fatal error in renderer')
+        raise SystemExit('fatal error in Renderer')
+    v = Validator(on_complete, tmp_dst, False, False)
+    v.run()
+    mainloop.run()
+    if v.success is not True:
+        raise SystemExit('fatal error in Validator')
+    expected_frames = sum(s.stop - s.start for s in slices)
+    if expected_frames != v.info['frames']:
+        raise SystemExit(
+            'expected {} frames, got {}'.format(expected_frames, v.info['frames'])
+        )
     os.rename(tmp_dst, dst)
     log.info('Result:\n%s\n', dst)
 
