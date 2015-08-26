@@ -84,6 +84,39 @@ class TestValidator(TestCase):
                 self.assertFalse(hasattr(inst, 'bus'))
                 self.assertEqual(sys.getrefcount(inst), 2)
 
+    def test_mark_invalid(self):
+        class Subclass(validate.Validator):
+            def __init__(self, full):
+                assert isinstance(full, bool)
+                self.full = full
+                self.info = {'valid': True}
+                self._complete_calls = []
+
+            def complete(self, success):
+                self._complete_calls.append(success)
+
+        # Test when full=False:
+        inst = Subclass(False)
+        self.assertIsNone(inst.mark_invalid())
+        self.assertEqual(inst.info, {'valid': False})
+        self.assertEqual(inst._complete_calls, [False])
+
+        # Repeat, should only call Pipeline.complete() once:
+        self.assertIsNone(inst.mark_invalid())
+        self.assertEqual(inst.info, {'valid': False})
+        self.assertEqual(inst._complete_calls, [False])
+
+        # Test when full=True:
+        inst = Subclass(True)
+        self.assertIsNone(inst.mark_invalid())
+        self.assertEqual(inst.info, {'valid': False})
+        self.assertEqual(inst._complete_calls, [])
+
+        # Repeat, should still not call Pipeline.complete():
+        self.assertIsNone(inst.mark_invalid())
+        self.assertEqual(inst.info, {'valid': False})
+        self.assertEqual(inst._complete_calls, [])
+
     def test_check_frame(self):
         class Subclass(validate.Validator):
             def __init__(self, frame, framerate, strict):
