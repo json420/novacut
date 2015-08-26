@@ -135,7 +135,7 @@ class TestValidator(TestCase):
         framerate = Fraction(24000, 1001)
 
         # Exactly matching ts.pts, ts.buf:
-        ts = video_pts_and_duration(frame, frame + 1, framerate)
+        ts = video_pts_and_duration(frame, framerate)
         for strict in (True, False):
             inst = Subclass(frame, framerate, strict)
             self.assertIsNone(inst.check_frame(ts))

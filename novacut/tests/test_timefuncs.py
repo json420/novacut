@@ -123,44 +123,52 @@ class TestFunctions(TestCase):
     def test_video_pts_and_duration(self):
         framerate = Fraction(30000, 1001)
 
-        ts = timefuncs.video_pts_and_duration(0, 1, framerate)
+        ts = timefuncs.video_pts_and_duration(0, framerate)
         self.assertIsInstance(ts, timefuncs.Timestamp)
         self.assertEqual(ts.pts, 0)
         self.assertEqual(ts.duration, 33366666)
         self.assertEqual(ts, timefuncs.Timestamp(0, 33366666))
 
-        self.assertEqual(
-            timefuncs.video_pts_and_duration(0, 1, framerate),
-            (0, 33366666),
-        )
-        self.assertEqual(
-            timefuncs.video_pts_and_duration(1, 2, framerate),
-            (33366666, 33366667),
-        )
+        ts = timefuncs.video_pts_and_duration(1, framerate)
+        self.assertIsInstance(ts, timefuncs.Timestamp)
+        self.assertEqual(ts.pts, 33366666)
+        self.assertEqual(ts.duration, 33366667)
+        self.assertEqual(ts, timefuncs.Timestamp(33366666, 33366667))
+
         accum = 0
-        for i in range(100000):
-            (pts, dur) = timefuncs.video_pts_and_duration(i, i+1, framerate)
+        for frame in range(10000):
+            (pts, dur) = timefuncs.video_pts_and_duration(frame, framerate)
             self.assertEqual(pts, accum)
-            self.assertEqual(pts, timefuncs.frame_to_nanosecond(i, framerate))
+            self.assertEqual(pts,
+                timefuncs.frame_to_nanosecond(frame, framerate)
+            )
             self.assertIn(dur, (33366666, 33366667))
             accum += dur
+            self.assertEqual(accum,
+                timefuncs.frame_to_nanosecond(frame + 1, framerate)
+            )
 
         framerate = Fraction(24, 1)
         self.assertEqual(
-            timefuncs.video_pts_and_duration(0, 1, framerate),
+            timefuncs.video_pts_and_duration(0, framerate),
             (0, 41666666),
         )
         self.assertEqual(
-            timefuncs.video_pts_and_duration(1, 2, framerate),
+            timefuncs.video_pts_and_duration(1, framerate),
             (41666666, 41666667),
         )
         accum = 0
-        for i in range(100000):
-            (pts, dur) = timefuncs.video_pts_and_duration(i, i+1, framerate)
+        for frame in range(10000):
+            (pts, dur) = timefuncs.video_pts_and_duration(frame, framerate)
             self.assertEqual(pts, accum)
-            self.assertEqual(pts, timefuncs.frame_to_nanosecond(i, framerate))
+            self.assertEqual(pts,
+                timefuncs.frame_to_nanosecond(frame, framerate)
+            )
             self.assertIn(dur, (41666666, 41666667))
             accum += dur
+            self.assertEqual(accum,
+                timefuncs.frame_to_nanosecond(frame + 1, framerate)
+            )
 
     def test_audio_pts_and_duration(self):
         samplerate = 48000
@@ -203,28 +211,6 @@ class TestFunctions(TestCase):
             self.assertEqual(pts, timefuncs.sample_to_nanosecond(i, samplerate))
             self.assertIn(dur, (22675, 22676))
             accum += dur
-
-    def test_video_pts_and_duration2(self):
-        rate = Fraction(30000, 1001)
-        count = 500
-        accum = 0
-        offset = 0
-        for i in range(2000):
-            s = random_slice(count)
-            frames = s.stop - s.start
-
-            # The slice
-            (pts, dur) = timefuncs.video_pts_and_duration(
-                    s.start, s.stop, rate)
-
-            # Global position and duration in the edit
-            (g_pts, g_dur) = timefuncs.video_pts_and_duration(
-                    offset, offset + frames, rate)
-
-            self.assertEqual(g_pts, accum)
-            self.assertLessEqual(abs(g_dur - dur), 1)
-            accum += g_dur
-            offset += frames
 
     def test_audio_pts_and_duration2(self):
         rate = 48000
