@@ -58,8 +58,11 @@ parser.add_argument('filename', help='Path of video file to validate')
 #parser.add_argument('--frames', type=int, metavar='N',
 #    help='Exit with error unless file contains N frames of video',
 #)
-parser.add_argument('--full-check', action='store_true', default=False,
-    help='Always check full video (instead of stopping at first problem)'
+parser.add_argument('--full', action='store_true', default=False,
+    help='Check full video (instead of stopping at first error)'
+)
+parser.add_argument('--strict', action='store_true', default=False,
+    help='Do strict per-frame checking'
 )
 args = parser.parse_args()
 
@@ -76,7 +79,7 @@ def on_complete(validator, success):
     mainloop.quit()
 
 
-validator = Validator(on_complete, filename, args.full_check)
+validator = Validator(on_complete, filename, args.full, args.strict)
 GLib.idle_add(validator.run)
 mainloop.run()
 info = json.dumps(validator.info, sort_keys=True, indent=4)

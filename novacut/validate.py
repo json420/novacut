@@ -67,33 +67,36 @@ def get_expected_ts(frame, framerate):
 
 
 class Validator(Pipeline):
-    def __init__(self, callback, filename, full_check=False):
+    def __init__(self, callback, filename, full, strict):
         super().__init__(callback)
-        self.connect(self.bus, 'message::eos', self.on_eos)
+        assert isinstance(full, bool)
+        assert isinstance(strict, bool)
+        self.full = full
+        self.strict = strict
         self.frame = 0
         self.framerate = None
         self.info = {'valid': True}
-        self.full_check = full_check
 
         # Create elements:
-        src = make_element('filesrc', {'location': filename})
-        dec = make_element('decodebin')
+        self.src = make_element('filesrc', {'location': filename})
+        self.dec = make_element('decodebin')
         self.q = make_element('queue')
-        sink = make_element('fakesink', {'signal-handoffs': True})
+        self.sink = make_element('fakesink', {'signal-handoffs': True})
 
         # Add elements to pipeline and link:
-        add_elements(self.pipeline, src, dec, self.q, sink)
-        src.link(dec)
-        self.q.link(sink)
+        add_elements(self.pipeline, self.src, self.dec, self.q, self.sink)
+        self.src.link(self.dec)
+        self.q.link(self.sink)
 
-        # Connect element signal handlers:
-        self.connect(dec, 'pad-added', self.on_pad_added)
-        self.connect(sink, 'handoff', self.on_handoff)
+        # Connect signal handlers with Pipeline.connect():
+        self.connect(self.bus, 'message::eos', self.on_eos)
+        self.connect(self.dec, 'pad-added', self.on_pad_added)
+        self.connect(self.sink, 'handoff', self.on_handoff)
 
     def mark_invalid(self):
         self.info['valid'] = False
-        if not self.full_check:
-            log.info('Stopping check at first inconsistency')
+        if not self.full:
+            log.info('Stopping check at first error')
             self.complete(False)
 
     def run(self):
