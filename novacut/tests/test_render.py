@@ -28,6 +28,7 @@ from os import path
 from fractions import Fraction
 from random import SystemRandom
 from queue import Queue
+import sys
 
 from dbase32 import random_id
 from gi.repository import Gst
@@ -85,20 +86,6 @@ class TestFunctions(TestCase):
                 self.assertIs(_int(d, key, minval), val)
 
 
-class MockDmedia:
-    def __init__(self, parentdir=None):
-        if parentdir is None:
-            parentdir = path.join('/', 'media', random_id())
-        assert path.abspath(parentdir) == parentdir
-        self.filesdir = path.join(parentdir, '.dmedia', 'files')
-
-    def _path(self, _id):
-        return path.join(self.filesdir, _id[:2], _id[2:])
-
-    def Resolve(self, _id):
-        return (_id, 0, self._path(_id))
-
-
 def random_framerate():
     num = random.randrange(1, 54321)
     denom = random.randrange(1, 54321)
@@ -129,13 +116,46 @@ class TestInput(TestCase):
         self.assertIs(inst.frame, s.start)
         self.assertIsNone(inst.framerate)
 
+        # filesrc:
+        self.assertIsInstance(inst.src, Gst.Element)
+        self.assertEqual(inst.src.get_factory().get_name(), 'filesrc')
+        self.assertEqual(inst.src.get_property('location'), s.filename)
+
+        # decodebin:
+        self.assertIsInstance(inst.dec, Gst.Element)
+        self.assertEqual(inst.dec.get_factory().get_name(), 'decodebin')
+
+        # videoconvert:
+        self.assertIsInstance(inst.convert, Gst.Element)
+        self.assertEqual(inst.convert.get_factory().get_name(), 'videoconvert')
+
+        # videoscale:
+        self.assertIsInstance(inst.scale, Gst.Element)
+        self.assertEqual(inst.scale.get_factory().get_name(), 'videoscale')
+        self.assertEqual(inst.scale.get_property('method'), 3)
+
+        # appsink:
+        self.assertIsInstance(inst.sink, Gst.Element)
+        self.assertEqual(inst.sink.get_factory().get_name(), 'appsink')
+        self.assertEqual(inst.sink.get_property('caps').to_string(),
+            'video/x-raw'
+        )
+        self.assertIs(inst.sink.get_property('emit-signals'), True)
+        self.assertEqual(inst.sink.get_property('max-buffers'), 1)
+
+        # Make sure all elements have been added to Pipeline:
+        for child in [inst.src, inst.dec, inst.convert, inst.scale, inst.sink]:
+            self.assertIs(child.get_parent(), inst.pipeline)
+
         # Make sure gsthelpers.Pipeline.__init__() was called:
         self.assertIs(inst.callback, callback)
         self.assertIsInstance(inst.pipeline, Gst.Pipeline)
         self.assertIsInstance(inst.bus, Gst.Bus)
+        self.assertEqual(sys.getrefcount(inst), 6)
         self.assertIsNone(inst.destroy())
         self.assertFalse(hasattr(inst, 'pipeline'))
         self.assertFalse(hasattr(inst, 'bus'))
+        self.assertEqual(sys.getrefcount(inst), 2)
 
     def test_check_frame(self):
         class Subclass(render.Input):
@@ -193,13 +213,43 @@ class TestOutput(TestCase):
             'video/x-raw, chroma-site=(string)mpeg2, colorimetry=(string)bt709, format=(string)I420, height=(int)1080, interlace-mode=(string)progressive, pixel-aspect-ratio=(fraction)1/1, width=(int)1920'
         )
 
+        # appsrc:
+        self.assertIsInstance(inst.src, Gst.Element)
+        self.assertEqual(inst.src.get_factory().get_name(), 'appsrc')
+        self.assertEqual(inst.src.get_property('caps').to_string(),
+            'video/x-raw, chroma-site=(string)mpeg2, colorimetry=(string)bt709, format=(string)I420, framerate=(fraction)30000/1001, height=(int)1080, interlace-mode=(string)progressive, pixel-aspect-ratio=(fraction)1/1, width=(int)1920'
+        )
+        self.assertEqual(inst.src.get_property('format'), 3)
+
+        # x264enc:
+        self.assertIsInstance(inst.enc, Gst.Element)
+        self.assertEqual(inst.enc.get_factory().get_name(), 'x264enc')
+        self.assertEqual(inst.enc.get_property('bitrate'), 8192)
+        self.assertEqual(inst.enc.get_property('psy-tune'), 5)
+
+        # matroskamux:
+        self.assertIsInstance(inst.mux, Gst.Element)
+        self.assertEqual(inst.mux.get_factory().get_name(), 'matroskamux')
+
+        # filesink:
+        self.assertIsInstance(inst.sink, Gst.Element)
+        self.assertEqual(inst.sink.get_factory().get_name(), 'filesink')
+        self.assertEqual(inst.sink.get_property('location'), filename)
+        self.assertEqual(inst.sink.get_property('buffer-mode'), 2)
+
+        # Make sure all elements have been added to Pipeline:
+        for child in [inst.src, inst.enc, inst.mux, inst.sink]:
+            self.assertIs(child.get_parent(), inst.pipeline)
+
         # Make sure gsthelpers.Pipeline.__init__() was called:
         self.assertIs(inst.callback, callback)
         self.assertIsInstance(inst.pipeline, Gst.Pipeline)
         self.assertIsInstance(inst.bus, Gst.Bus)
+        self.assertEqual(sys.getrefcount(inst), 5)
         self.assertIsNone(inst.destroy())
         self.assertFalse(hasattr(inst, 'pipeline'))
         self.assertFalse(hasattr(inst, 'bus'))
+        self.assertEqual(sys.getrefcount(inst), 2)
 
 
 class TestRenderer(TestCase):

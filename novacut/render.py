@@ -26,7 +26,11 @@ import logging
 
 from gi.repository import Gst
 
-from .timefuncs import frame_to_nanosecond, nanosecond_to_frame, video_pts_and_duration
+from .timefuncs import (
+    frame_to_nanosecond,
+    nanosecond_to_frame,
+    video_pts_and_duration,
+)
 from .gsthelpers import (
     Pipeline,
     make_element,
@@ -111,22 +115,22 @@ class Input(Pipeline):
         self.framerate = None
 
         # Create elements
-        src = make_element('filesrc', {'location': s.filename})
-        dec = make_element('decodebin')
+        self.src = make_element('filesrc', {'location': s.filename})
+        self.dec = make_element('decodebin')
         self.convert = make_element('videoconvert')
-        scale = make_element('videoscale', {'method': 3})
-        appsink = make_element('appsink',
+        self.scale = make_element('videoscale', {'method': 3})
+        self.sink = make_element('appsink',
             {'caps': input_caps, 'emit-signals': True, 'max-buffers': 1}
         )
 
         # Add elements to pipeline and link:
-        add_and_link_elements(self.pipeline, src, dec)
-        add_and_link_elements(self.pipeline, self.convert, scale, appsink)
+        add_and_link_elements(self.pipeline, self.src, self.dec)
+        add_and_link_elements(self.pipeline, self.convert, self.scale, self.sink)
 
         # Connect signal handlers using Pipeline.connect():
         self.connect(self.bus, 'message::eos', self.on_eos)
-        self.connect(dec, 'pad-added', self.on_pad_added)
-        self.connect(appsink, 'new-sample', self.on_new_sample)
+        self.connect(self.dec, 'pad-added', self.on_pad_added)
+        self.connect(self.sink, 'new-sample', self.on_new_sample)
 
     def run(self):
         log.info('Input slice %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
@@ -144,7 +148,6 @@ class Input(Pipeline):
         if string.startswith('video/'):
             self.framerate = get_framerate(caps.get_structure(0))
             pad.link(self.convert.get_static_pad('sink'))
-            #del self.convert
 
     def check_frame(self, buf):
         frame = nanosecond_to_frame(buf.pts, self.framerate)
@@ -212,19 +215,21 @@ class Output(Pipeline):
         (self.framerate, self.input_caps, output_caps) = make_video_caps(desc)
 
         # Create elements:
-        appsrc = make_element('appsrc', {'caps': output_caps, 'format': 3})
-        enc = make_element_from_desc(settings['video']['encoder'])
-        mux = make_element_from_desc(settings['muxer'])
-        sink = make_element('filesink',
+        self.src = make_element('appsrc', {'caps': output_caps, 'format': 3})
+        self.enc = make_element_from_desc(settings['video']['encoder'])
+        self.mux = make_element_from_desc(settings['muxer'])
+        self.sink = make_element('filesink',
             {'location': filename, 'buffer-mode': 2}
         )
 
         # Add elements to pipeline and link:
-        add_and_link_elements(self.pipeline, appsrc, enc, mux, sink)
+        add_and_link_elements(self.pipeline,
+            self.src, self.enc, self.mux, self.sink
+        )
 
         # Connect signal handlers using Pipeline.connect():
         self.connect(self.bus, 'message::eos', self.on_eos)
-        self.connect(appsrc, 'need-data', self.on_need_data)
+        self.connect(self.src, 'need-data', self.on_need_data)
 
     def run(self):
         self.set_state(Gst.State.PLAYING)
