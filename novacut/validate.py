@@ -28,7 +28,12 @@ import logging
 
 from gi.repository import Gst
 
-from .timefuncs import Timestamp, frame_to_nanosecond, video_pts_and_duration, nanosecond_to_frame
+from .timefuncs import (
+    Timestamp,
+    frame_to_nanosecond,
+    nanosecond_to_frame,
+    video_pts_and_duration,
+)
 from .gsthelpers import Pipeline, make_element, add_elements
 
 
@@ -102,7 +107,7 @@ class Validator(Pipeline):
     def check_frame(self, ts):
         frame = nanosecond_to_frame(ts.pts, self.framerate)
         if frame != self.frame:
-            log.error('Expected frame %s, got frame %s (pts=%s, duration=%s)',
+            log.error('Expected frame %s, got %s (pts=%s, duration=%s)',
                 self.frame, frame, ts.pts, ts.duration
             )
             self.mark_invalid()
@@ -114,6 +119,24 @@ class Validator(Pipeline):
                 self.frame, format_ts_mismatch(ts, expected_ts)
             )
             self.mark_invalid()
+
+    def check_duration(self):
+        frames = self.info['frames']
+        duration = self.info['duration']
+        expected_frames = nanosecond_to_frame(duration, self.framerate)
+        expected_duration = frame_to_nanosecond(frames, self.framerate)
+        if expected_frames != frames:
+            log.error('Expected %s total frames, got %s',
+                expected_frames, frames
+            )
+            self.info['valid'] = False
+        if self.strict is False:
+            return
+        if expected_duration != duration:
+            log.warning('Expected duration of %s nanoseconds, got %s',
+                expected_duration, duration
+            )
+            self.info['valid'] = False
 
     def run(self):
         self.set_state(Gst.State.PAUSED, sync=True)
@@ -162,29 +185,13 @@ class Validator(Pipeline):
                 pad.link(self.q.get_static_pad('sink'))
 
     def on_handoff(self, sink, buf, pad):
-        ts = Timestamp(buf.pts, buf.duration)
-        expected_ts = get_expected_ts(self.frame, self.framerate)
-        if self.frame == 0 and ts.pts != 0:
-            log.warning('non-zero PTS at frame 0: %r', ts)
-            self.mark_invalid()
-        elif ts != expected_ts:
-            log.warning('Timestamp mismatch at frame %d:\n%s',
-                self.frame, format_ts_mismatch(ts, expected_ts)
-            )
-            self.mark_invalid()
+        self.check_frame(Timestamp(buf.pts, buf.duration))
         self.frame += 1
 
     def on_eos(self, bus, msg):
         log.info('eos')
-        frames = self.frame
-        info = self.info
-        info['frames'] = self.frame
-        expected_duration = frame_to_nanosecond(frames, self.framerate)
-        if info['duration'] != expected_duration:
-            log.warning('total duration: %d != %d',
-                info['duration'], expected_duration
-            )
-            info['valid'] = False
+        self.info['frames'] = self.frame
+        self.check_duration()
         if info['valid'] is True:
             log.info('Success, this is a conforming video!')
         else:

@@ -181,3 +181,53 @@ class TestValidator(TestCase):
             self.assertIsNone(inst.check_frame(bad_ts))
             self.assertEqual(inst._mark_invalid_calls, 2)
 
+    def test_check_duration(self):
+        class Subclass(validate.Validator):
+            def __init__(self, framerate, frames, duration, strict):
+                assert isinstance(framerate, Fraction)
+                assert isinstance(frames, int) and frames >= 0
+                assert isinstance(duration, int)
+                assert isinstance(strict, bool)
+                self.framerate = framerate
+                self.info = {'frames': frames, 'duration': duration}
+                self.strict = strict
+ 
+        framerate = Fraction(24000, 1001)
+        frames = random.randrange(123456)
+
+        # Exactly matching duration:
+        duration = frame_to_nanosecond(frames, framerate)
+        for strict in (True, False):
+            inst = Subclass(framerate, frames, duration, strict)
+            self.assertIsNone(inst.check_duration())
+            self.assertEqual(inst.info,
+                {'frames': frames, 'duration': duration}
+            )
+ 
+        # Duration is off by one nanosecond, strict=False:
+        bad = (duration - 1, duration + 1)
+        for bad_dur in bad:
+            inst = Subclass(framerate, frames, bad_dur, False)
+            self.assertIsNone(inst.check_duration())
+            self.assertEqual(inst.info,
+                {'frames': frames, 'duration': bad_dur}
+            )
+
+        # Duration is off by one nanosecond, strict=True:
+        for bad_dur in bad:
+            inst = Subclass(framerate, frames, bad_dur, True)
+            self.assertIsNone(inst.check_duration())
+            self.assertEqual(inst.info,
+                {'frames': frames, 'duration': bad_dur, 'valid': False}
+            )
+
+        # Duration doesn't round to frames:
+        error = int(duration * 0.51)
+        for bad_dur in (duration - error, duration + error):
+            for strict in (True, False):
+                inst = Subclass(framerate, frames, bad_dur, strict)
+                self.assertIsNone(inst.check_duration())
+                self.assertEqual(inst.info,
+                    {'frames': frames, 'duration': bad_dur, 'valid': False}
+                )
+
