@@ -130,7 +130,10 @@ setup(
     author='Jason Gerard DeRose',
     author_email='jderose@novacut.com',
     license='AGPLv3+',
-    packages=['novacut'],
+    packages=[
+        'novacut',
+        'novacut.tests',
+    ],
     scripts=[
         'novacut-gtk',
         'novacut-cli',
