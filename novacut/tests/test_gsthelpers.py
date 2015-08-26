@@ -244,6 +244,31 @@ class TestPipeline(TestCase):
         self.assertFalse(hasattr(inst, 'pipeline'))
         self.assertFalse(hasattr(inst, 'bus'))
 
+    def test_connect(self):
+        class DummyGObject:
+            def __init__(self, hid):
+                self._hid = hid
+                self._calls = []
+
+            def connect(self, signal, callback):
+                self._calls.append((signal, callback))
+                return self._hid
+
+        class Subclass(gsthelpers.Pipeline):
+            def __init__(self):
+                self.handlers = []
+
+        inst = Subclass()
+        self.assertEqual(inst.handlers, [])
+        hid = random_id()
+        obj = DummyGObject(hid)
+        signal = random_id()
+        def callback():
+            pass
+        self.assertIsNone(inst.connect(obj, signal, callback))
+        self.assertEqual(inst.handlers, [(obj, hid)])
+        self.assertEqual(obj._calls, [(signal, callback)])
+
     def test_destroy(self):
         class DummyPipeline:
             def __init__(self):
@@ -260,11 +285,11 @@ class TestPipeline(TestCase):
                 self._calls += 1
 
         class Subclass(gsthelpers.Pipeline):
-            def __init__(self, pipeline, bus):
+            def __init__(self, pipeline, bus, success=None):
                 self.pipeline = pipeline
                 self.bus = bus
-                self.success = None
                 self.handlers = []
+                self.success = success
 
         # First try when 'pipeline' and 'bus' attributes exist:
         pipeline = DummyPipeline()
@@ -277,6 +302,8 @@ class TestPipeline(TestCase):
         self.assertFalse(hasattr(inst, 'bus'))
         self.assertEqual(pipeline._calls, [Gst.State.NULL])
         self.assertEqual(bus._calls, 1)
+        self.assertIs(inst.success, False)
+        self.assertEqual(inst.handlers, [])
 
         # Make sure it's well behaved after attributes have been deleted:
         self.assertIsNone(inst.destroy())
@@ -284,6 +311,51 @@ class TestPipeline(TestCase):
         self.assertFalse(hasattr(inst, 'bus'))
         self.assertEqual(pipeline._calls, [Gst.State.NULL])
         self.assertEqual(bus._calls, 1)
+        self.assertIs(inst.success, False)
+        self.assertEqual(inst.handlers, [])
+
+        # Test when 'success' != None
+        pipeline = DummyPipeline()
+        bus = DummyBus()
+        marker = random_id()
+        inst = Subclass(pipeline, bus, success=marker)
+        self.assertIs(inst.pipeline, pipeline)
+        self.assertIs(inst.bus, bus)
+        self.assertIsNone(inst.destroy())
+        self.assertFalse(hasattr(inst, 'pipeline'))
+        self.assertFalse(hasattr(inst, 'bus'))
+        self.assertEqual(pipeline._calls, [Gst.State.NULL])
+        self.assertEqual(bus._calls, 1)
+        self.assertIs(inst.success, marker)
+        self.assertEqual(inst.handlers, [])
+
+        # Test Pipeline.handlers list:
+        class DummyGObject:
+            def __init__(self):
+                self._calls = []
+
+            def handler_disconnect(self, hid):
+                self._calls.append(hid)
+
+        pipeline = DummyPipeline()
+        bus = DummyBus()
+        inst = Subclass(pipeline, bus)
+        pairs = tuple(
+            (DummyGObject(), random_id()) for i in range(7)
+        )
+        for item in pairs:
+            inst.handlers.append(item)
+        self.assertIs(inst.pipeline, pipeline)
+        self.assertIs(inst.bus, bus)
+        self.assertIsNone(inst.destroy())
+        self.assertFalse(hasattr(inst, 'pipeline'))
+        self.assertFalse(hasattr(inst, 'bus'))
+        self.assertEqual(pipeline._calls, [Gst.State.NULL])
+        self.assertEqual(bus._calls, 1)
+        self.assertIs(inst.success, False)
+        self.assertEqual(inst.handlers, [])
+        for (obj, hid) in pairs:
+            self.assertEqual(obj._calls, [hid])
 
     def test_do_complete(self):
         class Subclass(gsthelpers.Pipeline):
