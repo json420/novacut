@@ -167,7 +167,7 @@ class TestInput(TestCase):
         s = random_slice()
         framerate = Fraction(30000, 1001)
         inst = Subclass(s, s.start, framerate)
-        buf = timefuncs.video_pts_and_duration(s.start, s.start + 1, framerate)
+        buf = timefuncs.video_pts_and_duration(s.start, framerate)
         self.assertIs(inst.check_frame(buf), True)
         self.assertEqual(inst.frame, s.start)
         inst.frame += 1

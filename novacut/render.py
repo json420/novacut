@@ -271,7 +271,7 @@ class Output(Pipeline):
             self.sent_eos = True
             appsrc.emit('end-of-stream')
             return True
-        ts = video_pts_and_duration(self.frame, self.frame + 1, self.framerate)
+        ts = video_pts_and_duration(self.frame, self.framerate)
         buf.pts = ts.pts
         buf.duration = ts.duration
         appsrc.emit('push-buffer', buf)

@@ -36,8 +36,9 @@ the first 10 frames of a video with a framerate of 24/1:
 
 >>> from fractions import Fraction
 >>> from novacut.timefuncs import video_pts_and_duration
->>> for i in range(10):
-...     ts = video_pts_and_duration(i, i + 1, Fraction(24, 1))
+>>> framerate = Fraction(24, 1)
+>>> for frame in range(10):
+...     ts = video_pts_and_duration(frame, framerate)
 ...     print(ts.duration, ts.pts)
 ...
 41666666 0
@@ -58,15 +59,6 @@ frame (starting from zero).
 
 The same is true when considering multi-frame slices of video.  For example,
 a 10 frame slice starting at frame-index 12:
-
->>> video_pts_and_duration(12, 12 + 10, Fraction(24, 1))
-Timestamp(pts=500000000, duration=416666666)
-
-Has a different duration (in nanoseconds) than a 10 frame slice starting at
-frame-index 13:
-
->>> video_pts_and_duration(13, 13 + 10, Fraction(24, 1))
-Timestamp(pts=541666666, duration=416666667)
 
 But how many frames does GStreamer give you if you add just one extra nanosecond
 to that first slice?  It (correctly) gives you 11 frames, despite the last one
@@ -109,7 +101,6 @@ def frame_to_nanosecond(frame, framerate):
     1001000000
 
     """
-    assert isinstance(framerate, Fraction)
     return frame * SECOND * framerate.denominator // framerate.numerator
 
 
@@ -122,7 +113,6 @@ def nanosecond_to_frame(nanosecond, framerate):
 
     This is designed to round-trip values with `frame_to_nanosecond()`.
     """
-    assert isinstance(framerate, Fraction)
     return int(round(
         nanosecond * framerate.numerator / framerate.denominator / SECOND
     ))
@@ -177,33 +167,27 @@ def sample_to_frame(sample, samplerate, framerate):
     return sample * framerate.numerator // (samplerate * framerate.denominator)
 
 
-def video_pts_and_duration(start, stop, framerate):
+def video_pts_and_duration(frame, framerate):
     """
-    Get the presentation timestamp and duration for a video slice.
+    Get the presentation timestamp and duration for a video frame.
 
-    It can be for a single frame:
+    For example:
 
-    >>> video_pts_and_duration(1, 2, Fraction(24, 1))
+    >>> video_pts_and_duration(1, Fraction(24, 1))
     Timestamp(pts=41666666, duration=41666667)
-
-    Or for a multi-frame slice:
-
-    >>> video_pts_and_duration(1, 101, Fraction(24, 1))
-    Timestamp(pts=41666666, duration=4166666667)
 
     This function returns a `Timestamp` namedtuple with *pts* and *duration*
     attributes. For example:
 
-    >>> ts = video_pts_and_duration(1, 101, Fraction(24, 1))
+    >>> ts = video_pts_and_duration(1, Fraction(24, 1))
     >>> ts.pts
     41666666
     >>> ts.duration
-    4166666667
+    41666667
 
     """
-    assert 0 <= start < stop
-    pts = frame_to_nanosecond(start, framerate)
-    duration = frame_to_nanosecond(stop, framerate) - pts
+    pts = frame_to_nanosecond(frame, framerate)
+    duration = frame_to_nanosecond(frame + 1, framerate) - pts
     return Timestamp(pts, duration)
 
 
