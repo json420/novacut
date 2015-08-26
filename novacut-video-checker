@@ -42,22 +42,12 @@ import novacut
 from novacut.validate import Validator
 
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='\t'.join([
-        '%(levelname)s',
-        '%(message)s',
-    ]),
-)
-log = logging.getLogger()
-
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--version', action='version', version=novacut.__version__)
 parser.add_argument('filename', help='Path of video file to validate')
-#parser.add_argument('--frames', type=int, metavar='N',
-#    help='Exit with error unless file contains N frames of video',
-#)
+parser.add_argument('--debug', action='store_true', default=False,
+    help='Turn on debug-level logging'
+)
 parser.add_argument('--full', action='store_true', default=False,
     help='Check full video (instead of stopping at first error)'
 )
@@ -65,6 +55,16 @@ parser.add_argument('--strict', action='store_true', default=False,
     help='Do strict per-frame checking'
 )
 args = parser.parse_args()
+
+
+logging.basicConfig(
+    level=(logging.DEBUG if args.debug else logging.INFO),
+    format='\t'.join([
+        '%(levelname)s',
+        '%(message)s',
+    ]),
+)
+log = logging.getLogger()
 
 
 filename = path.abspath(args.filename)
@@ -85,6 +85,6 @@ mainloop.run()
 info = json.dumps(validator.info, sort_keys=True, indent=4)
 print(info)
 if validator.success is not True:
-    log.error('Not a conforming video!')
+    log.warning('NOT a conforming video!')
     sys.exit(4)
 

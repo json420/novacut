@@ -64,11 +64,7 @@ def format_ts_mismatch(ts, expected_ts):
         ' '.join(row[i].rjust(widths[i]) for i in range(3))
         for row in rows
     ]
-    return '\n'.join('    ' + l for l in lines)
-
-
-def get_expected_ts(frame, framerate):
-    return video_pts_and_duration(frame, frame + 1, framerate)
+    return '\n'.join('  ' + l for l in lines)
 
 
 class Validator(Pipeline):
@@ -100,13 +96,15 @@ class Validator(Pipeline):
 
     def mark_invalid(self):
         if self.full is False and self.info['valid'] is True:
-            log.info('Stopping check at first error')
+            log.warning(
+                'Stopping video check at first error, use --full to check all'
+            )
             self.complete(False)
         self.info['valid'] = False
 
     def check_frame(self, ts):
         frame = nanosecond_to_frame(ts.pts, self.framerate)
-        if frame != self.frame:
+        if self.frame != frame:
             log.error('Expected frame %s, got %s (pts=%s, duration=%s)',
                 self.frame, frame, ts.pts, ts.duration
             )
@@ -139,13 +137,17 @@ class Validator(Pipeline):
             self.info['valid'] = False
 
     def run(self):
+        if self.strict is not True:
+            log.warning(
+                'Checking video in NON-strict mode, consider using --strict'
+            )
         self.set_state(Gst.State.PAUSED, sync=True)
         (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
         if not success:
             log.error('Could not query duration')
             self.complete(False)
             return
-        log.info('duration: %d ns', ns)
+        log.info('Duration in nanoseconds: %d ns', ns)
         self.info['duration'] = ns
         self.set_state(Gst.State.PLAYING)
 
@@ -172,14 +174,14 @@ class Validator(Pipeline):
         self.info['width'] = width
         self.info['height'] = height
 
-        log.info('framerate: %d/%d', num, denom)
-        log.info('resolution: %dx%d', width, height)
+        log.info('Framerate: %d/%d', num, denom)
+        log.info('Resolution: %dx%d', width, height)
         return True
 
     def on_pad_added(self, dec, pad):
         caps = pad.get_current_caps()
         string = caps.to_string()
-        log.info('on_pad_added(): %s', string)
+        log.debug('on_pad_added(): %s', string)
         if string.startswith('video/'):
             if self._info_from_caps(caps) is True:
                 pad.link(self.q.get_static_pad('sink'))
@@ -189,12 +191,16 @@ class Validator(Pipeline):
         self.frame += 1
 
     def on_eos(self, bus, msg):
-        log.info('eos')
+        log.debug('Got EOS from message bus')
         self.info['frames'] = self.frame
         self.check_duration()
-        if info['valid'] is True:
-            log.info('Success, this is a conforming video!')
+        valid = self.info.get('valid')
+        if valid is not True:
+            log.warning('This is NOT a conforming video!')
+        elif self.strict is True:
+            log.info('Success, video is conformant under STRICT checking!')
         else:
-            log.warning('This is not a conforming video!')
-        self.complete(info['valid'])
+            log.info('Success, video is conformant under NON-strict checking!')
+            log.info('[Use the --strict option to enable strict checking.]')
+        self.complete(valid)
 
