@@ -106,11 +106,8 @@ class Validator(Pipeline):
                 self.frame, frame, ts.pts, ts.duration
             )
             self.mark_invalid()
-        if not self.strict:
+        if self.strict is False:
             return
-        if self.frame == 0 and ts.pts != 0:
-            log.warning('non-zero PTS at frame 0: %r', ts)
-            self.mark_invalid()
         expected_ts = video_pts_and_duration(frame, frame + 1, self.framerate)
         if ts != expected_ts:
             log.warning('Timestamp mismatch at frame %d:\n%s',

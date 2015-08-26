@@ -140,11 +140,44 @@ class TestValidator(TestCase):
             inst = Subclass(frame, framerate, strict)
             self.assertIsNone(inst.check_frame(ts))
             self.assertEqual(inst._mark_invalid_calls, 0)
-            
-        
 
+        # pts or duration is off by one nanosecond, strict=False:
+        bad = (
+            Timestamp(ts.pts - 1, ts.duration),
+            Timestamp(ts.pts + 1, ts.duration),
+            Timestamp(ts.pts, ts.duration - 1),
+            Timestamp(ts.pts, ts.duration + 1),
+        )
+        for bad_ts in bad:
+            inst = Subclass(frame, framerate, False)
+            self.assertIsNone(inst.check_frame(bad_ts))
+            self.assertEqual(inst._mark_invalid_calls, 0)
 
-        
-    
-    
+        # pts or duration is off by one nanosecond, strict=True:
+        for badts in bad:
+            inst = Subclass(frame, framerate, True)
+            self.assertIsNone(inst.check_frame(bad_ts))
+            self.assertEqual(inst._mark_invalid_calls, 1)
+
+        # pts doesn't round to nearest frame, strict=False:
+        error = int(ts.duration * 0.51)
+        bad = (
+            Timestamp(ts.pts + error, ts.duration),
+            Timestamp(ts.pts - error, ts.duration),
+        )
+        for bad_ts in bad:
+            inst = Subclass(frame, framerate, False)
+            self.assertIsNone(inst.check_frame(bad_ts))
+            self.assertEqual(inst._mark_invalid_calls, 1)
+
+        # pts doesn't round to nearest frame, strict=True:
+        error = int(ts.duration * 0.51)
+        bad = (
+            Timestamp(ts.pts + error, ts.duration),
+            Timestamp(ts.pts - error, ts.duration),
+        )
+        for bad_ts in bad:
+            inst = Subclass(frame, framerate, True)
+            self.assertIsNone(inst.check_frame(bad_ts))
+            self.assertEqual(inst._mark_invalid_calls, 2)
 
