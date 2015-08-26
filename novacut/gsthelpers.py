@@ -235,7 +235,7 @@ class Pipeline:
             del self.pipeline
 
     def do_complete(self, success):
-        log.info('%s.complete(%r)', self.__class__.__name__, success)
+        log.debug('%s.complete(%r)', self.__class__.__name__, success)
         if self.success is not None:
             log.error('%s.complete() already called, ignoring',
                 self.__class__.__name__

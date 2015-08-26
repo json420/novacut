@@ -28,7 +28,12 @@ import logging
 
 from gi.repository import Gst
 
-from .timefuncs import Timestamp, frame_to_nanosecond, video_pts_and_duration
+from .timefuncs import (
+    Timestamp,
+    frame_to_nanosecond,
+    nanosecond_to_frame,
+    video_pts_and_duration,
+)
 from .gsthelpers import Pipeline, make_element, add_elements
 
 
@@ -59,51 +64,90 @@ def format_ts_mismatch(ts, expected_ts):
         ' '.join(row[i].rjust(widths[i]) for i in range(3))
         for row in rows
     ]
-    return '\n'.join('    ' + l for l in lines)
-
-
-def get_expected_ts(frame, framerate):
-    return video_pts_and_duration(frame, frame + 1, framerate)
+    return '\n'.join('  ' + l for l in lines)
 
 
 class Validator(Pipeline):
-    def __init__(self, callback, filename, full_check=False):
+    def __init__(self, callback, filename, full, strict):
         super().__init__(callback)
-        self.bus.connect('message::eos', self.on_eos)
+        assert isinstance(full, bool)
+        assert isinstance(strict, bool)
+        self.full = full
+        self.strict = strict
         self.frame = 0
         self.framerate = None
         self.info = {'valid': True}
-        self.full_check = full_check
 
         # Create elements:
-        src = make_element('filesrc', {'location': filename})
-        dec = make_element('decodebin')
+        self.src = make_element('filesrc', {'location': filename})
+        self.dec = make_element('decodebin')
         self.q = make_element('queue')
-        sink = make_element('fakesink', {'signal-handoffs': True})
+        self.sink = make_element('fakesink', {'signal-handoffs': True})
 
         # Add elements to pipeline and link:
-        add_elements(self.pipeline, src, dec, self.q, sink)
-        src.link(dec)
-        self.q.link(sink)
+        add_elements(self.pipeline, self.src, self.dec, self.q, self.sink)
+        self.src.link(self.dec)
+        self.q.link(self.sink)
 
-        # Connect element signal handlers:
-        dec.connect('pad-added', self.on_pad_added)
-        sink.connect('handoff', self.on_handoff)
+        # Connect signal handlers with Pipeline.connect():
+        self.connect(self.bus, 'message::eos', self.on_eos)
+        self.connect(self.dec, 'pad-added', self.on_pad_added)
+        self.connect(self.sink, 'handoff', self.on_handoff)
 
     def mark_invalid(self):
-        self.info['valid'] = False
-        if not self.full_check:
-            log.info('Stopping check at first inconsistency')
+        if self.full is False and self.info['valid'] is True:
+            log.warning(
+                'Stopping video check at first error, use --full to check all'
+            )
             self.complete(False)
+        self.info['valid'] = False
+
+    def check_frame(self, ts):
+        frame = nanosecond_to_frame(ts.pts, self.framerate)
+        if self.frame != frame:
+            log.error('Expected frame %s, got %s (pts=%s, duration=%s)',
+                self.frame, frame, ts.pts, ts.duration
+            )
+            self.mark_invalid()
+        if self.strict is False:
+            return
+        expected_ts = video_pts_and_duration(frame, frame + 1, self.framerate)
+        if ts != expected_ts:
+            log.warning('Timestamp mismatch at frame %d:\n%s',
+                self.frame, format_ts_mismatch(ts, expected_ts)
+            )
+            self.mark_invalid()
+
+    def check_duration(self):
+        frames = self.info['frames']
+        duration = self.info['duration']
+        expected_frames = nanosecond_to_frame(duration, self.framerate)
+        expected_duration = frame_to_nanosecond(frames, self.framerate)
+        if expected_frames != frames:
+            log.error('Expected %s total frames, got %s',
+                expected_frames, frames
+            )
+            self.info['valid'] = False
+        if self.strict is False:
+            return
+        if expected_duration != duration:
+            log.warning('Expected duration of %s nanoseconds, got %s',
+                expected_duration, duration
+            )
+            self.info['valid'] = False
 
     def run(self):
+        if self.strict is not True:
+            log.warning(
+                'Checking video in NON-strict mode, consider using --strict'
+            )
         self.set_state(Gst.State.PAUSED, sync=True)
         (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
         if not success:
             log.error('Could not query duration')
             self.complete(False)
             return
-        log.info('duration: %d ns', ns)
+        log.info('Duration in nanoseconds: %d ns', ns)
         self.info['duration'] = ns
         self.set_state(Gst.State.PLAYING)
 
@@ -130,45 +174,33 @@ class Validator(Pipeline):
         self.info['width'] = width
         self.info['height'] = height
 
-        log.info('framerate: %d/%d', num, denom)
-        log.info('resolution: %dx%d', width, height)
+        log.info('Framerate: %d/%d', num, denom)
+        log.info('Resolution: %dx%d', width, height)
         return True
 
     def on_pad_added(self, dec, pad):
         caps = pad.get_current_caps()
         string = caps.to_string()
-        log.info('on_pad_added(): %s', string)
+        log.debug('on_pad_added(): %s', string)
         if string.startswith('video/'):
             if self._info_from_caps(caps) is True:
                 pad.link(self.q.get_static_pad('sink'))
 
     def on_handoff(self, sink, buf, pad):
-        ts = Timestamp(buf.pts, buf.duration)
-        expected_ts = get_expected_ts(self.frame, self.framerate)
-        if self.frame == 0 and ts.pts != 0:
-            log.warning('non-zero PTS at frame 0: %r', ts)
-            self.mark_invalid()
-        elif ts != expected_ts:
-            log.warning('Timestamp mismatch at frame %d:\n%s',
-                self.frame, format_ts_mismatch(ts, expected_ts)
-            )
-            self.mark_invalid()
+        self.check_frame(Timestamp(buf.pts, buf.duration))
         self.frame += 1
 
     def on_eos(self, bus, msg):
-        log.info('eos')
-        frames = self.frame
-        info = self.info
-        info['frames'] = self.frame
-        expected_duration = frame_to_nanosecond(frames, self.framerate)
-        if info['duration'] != expected_duration:
-            log.warning('total duration: %d != %d',
-                info['duration'], expected_duration
-            )
-            info['valid'] = False
-        if info['valid'] is True:
-            log.info('Success, this is a conforming video!')
+        log.debug('Got EOS from message bus')
+        self.info['frames'] = self.frame
+        self.check_duration()
+        valid = self.info.get('valid')
+        if valid is not True:
+            log.warning('This is NOT a conforming video!')
+        elif self.strict is True:
+            log.info('Success, video is conformant under STRICT checking!')
         else:
-            log.warning('This is not a conforming video!')
-        self.complete(info['valid'])
+            log.info('Success, video is conformant under NON-strict checking!')
+            log.info('[Use the --strict option to enable strict checking.]')
+        self.complete(valid)
 
