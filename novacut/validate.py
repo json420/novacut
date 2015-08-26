@@ -28,7 +28,7 @@ import logging
 
 from gi.repository import Gst
 
-from .timefuncs import Timestamp, frame_to_nanosecond, video_pts_and_duration
+from .timefuncs import Timestamp, frame_to_nanosecond, video_pts_and_duration, nanosecond_to_frame
 from .gsthelpers import Pipeline, make_element, add_elements
 
 
@@ -94,10 +94,29 @@ class Validator(Pipeline):
         self.connect(self.sink, 'handoff', self.on_handoff)
 
     def mark_invalid(self):
-        self.info['valid'] = False
-        if not self.full:
+        if self.full is False and self.info['valid'] is True:
             log.info('Stopping check at first error')
             self.complete(False)
+        self.info['valid'] = False
+
+    def check_frame(self, ts):
+        frame = nanosecond_to_frame(ts.pts, self.framerate)
+        if frame != self.frame:
+            log.error('Expected frame %s, got frame %s (pts=%s, duration=%s)',
+                self.frame, frame, ts.pts, ts.duration
+            )
+            self.mark_invalid()
+        if not self.strict:
+            return
+        if self.frame == 0 and ts.pts != 0:
+            log.warning('non-zero PTS at frame 0: %r', ts)
+            self.mark_invalid()
+        expected_ts = video_pts_and_duration(frame, frame + 1, self.framerate)
+        if ts != expected_ts:
+            log.warning('Timestamp mismatch at frame %d:\n%s',
+                self.frame, format_ts_mismatch(ts, expected_ts)
+            )
+            self.mark_invalid()
 
     def run(self):
         self.set_state(Gst.State.PAUSED, sync=True)

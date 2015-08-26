@@ -25,11 +25,17 @@ Unit tests for the `novacut.validate` module.
 
 from unittest import TestCase
 import sys
+from random import SystemRandom
+from fractions import Fraction
 
 from gi.repository import Gst
 from dbase32 import random_id
 
+from ..timefuncs import Timestamp, frame_to_nanosecond, video_pts_and_duration
 from .. import validate
+
+
+random = SystemRandom()
 
 
 class TestValidator(TestCase):
@@ -78,4 +84,34 @@ class TestValidator(TestCase):
                 self.assertFalse(hasattr(inst, 'bus'))
                 self.assertEqual(sys.getrefcount(inst), 2)
 
+    def test_check_frame(self):
+        class Subclass(validate.Validator):
+            def __init__(self, frame, framerate, strict):
+                assert isinstance(frame, int) and frame >= 0
+                assert isinstance(framerate, Fraction)
+                assert isinstance(strict, bool)
+                self.frame = frame
+                self.framerate = framerate
+                self.strict = strict
+                self._mark_invalid_calls = 0
+
+            def mark_invalid(self):
+                self._mark_invalid_calls += 1
+
+        frame = random.randrange(123456)
+        framerate = Fraction(24000, 1001)
+
+        # Exactly matching ts.pts, ts.buf:
+        ts = video_pts_and_duration(frame, frame + 1, framerate)
+        for strict in (True, False):
+            inst = Subclass(frame, framerate, strict)
+            self.assertIsNone(inst.check_frame(ts))
+            self.assertEqual(inst._mark_invalid_calls, 0)
+            
+        
+
+
+        
+    
+    
 
