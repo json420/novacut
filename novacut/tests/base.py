@@ -28,35 +28,16 @@ from os import path
 import shutil
 import tempfile
 
-from microfiber import random_id
+from dbase32 import random_id
 from filestore import DIGEST_BYTES
-
-
-def resolve(_id):
-    """
-    A dummy Dmedia-like resolver.
-    
-    For example:
-    
-    >>> resolve('VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N')
-    'file:///home/.dmedia/files/VQ/IXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
-
-    """
-    return 'file://' + path.join('/home', '.dmedia', 'files', _id[:2], _id[2:])
-
-
-sample1 = 'VQIXPULW3G77W4XLGROMEDGFAH2XJBN4SAVFUGOZRFSIVU7N'
-sample2 = 'W62OZLFQUSKE4K6SLJWJ4EHFDUTRLD7JKQXUQMDJSSUG6TAQ'
-
 
 
 def random_file_id():
     return random_id(DIGEST_BYTES)
 
 
-
 class TempDir(object):
-    def __init__(self, prefix='unit-tests.'):
+    def __init__(self, prefix='novacut-tests.'):
         self.dir = tempfile.mkdtemp(prefix=prefix)
         
     def __del__(self):
@@ -100,13 +81,3 @@ class TempDir(object):
         assert path.isfile(dst) and not path.islink(dst)
         return dst
 
-
-class TempHome(TempDir):
-    def __init__(self):
-        super().__init__()
-        self.orig = os.environ['HOME']
-        os.environ['HOME'] = self.dir
-
-    def __del__(self):
-        os.environ['HOME'] = self.orig
-        super().__del__()
