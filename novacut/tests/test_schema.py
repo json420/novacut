@@ -1,5 +1,5 @@
 # novacut: the collaborative video editor
-# Copyright (C) 2011 Novacut Inc
+# Copyright (C) 2011-2015 Novacut Inc
 #
 # This file is part of `novacut`.
 #
@@ -28,10 +28,14 @@ import time
 from copy import deepcopy
 
 from dbase32 import random_id
+import filestore
 
 from novacut.misc import random_slice
 from novacut import schema
-from .base import random_file_id
+
+
+def random_file_id():
+    return random_id(filestore.DIGEST_BYTES)
 
 
 class TestFunctions(TestCase):
