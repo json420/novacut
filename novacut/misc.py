@@ -1,5 +1,5 @@
 # novacut: the distributed video editor
-# Copyright (C) 2012 Novacut Inc
+# Copyright (C) 2011-2015 Novacut Inc
 #
 # This file is part of `novacut`.
 #

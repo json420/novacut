@@ -1,5 +1,5 @@
 # novacut: the collaborative video editor
-# Copyright (C) 2012 Novacut Inc
+# Copyright (C) 2011-2015 Novacut Inc
 #
 # This file is part of `novacut`.
 #
@@ -25,7 +25,7 @@ Unit tests for the `novacut.misc` module.
 
 from unittest import TestCase
 
-from novacut import misc
+from .. import misc
 
 
 class TestFunctions(TestCase):
@@ -45,4 +45,24 @@ class TestFunctions(TestCase):
             self.assertLessEqual(s.stop, count)
             # Just so the above is clearer:
             assert 0 <= s.start < s.stop <= count
+
+    def test_random_start_stop(self):
+        for i in range(100):
+            (start, stop) = misc.random_start_stop(1)
+            self.assertEqual(start, 0)
+            self.assertEqual(stop, 1)
+        for count in range(1, 1000):
+            (start, stop) = misc.random_start_stop(count)
+            self.assertGreaterEqual(start, 0)
+            self.assertLess(start, stop)
+            self.assertLessEqual(stop, count)
+            # Just so the above is clearer:
+            self.assertTrue(0 <= start < stop <= count)
+        for i in range(1000):
+            (start, stop) = misc.random_start_stop()
+            self.assertGreaterEqual(start, 0)
+            self.assertLess(start, stop)
+            self.assertLessEqual(stop, 123456)
+            # Just so the above is clearer:
+            self.assertTrue(0 <= start < stop <= 123456)
 
