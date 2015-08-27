@@ -40,7 +40,6 @@ from novacut.tests.run import run_tests
 
 
 TREE = path.dirname(path.abspath(__file__))
-UI = path.join(TREE, 'ui')
 
 
 def run_under_same_interpreter(opname, script, args):
@@ -118,7 +117,7 @@ setup(
     ],
     data_files=[
         ('share/couchdb/apps/novacut',
-            [path.join(UI, name) for name in os.listdir(UI)]
+            [path.join('ui', name) for name in os.listdir('ui')]
         ),
         ('share/applications',
             ['data/novacut.desktop']
