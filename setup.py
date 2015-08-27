@@ -31,13 +31,11 @@ if sys.version_info < (3, 4):
 
 import os
 from os import path
-import stat
 from distutils.core import setup
 from distutils.cmd import Command
-from unittest import TestLoader, TextTestRunner
-from doctest import DocTestSuite
 
 import novacut
+from novacut.tests.run import run_tests
 
 
 tree = path.dirname(path.abspath(__file__))
@@ -45,81 +43,20 @@ packagedir = path.join(tree, 'novacut')
 ui = path.join(tree, 'ui')
 
 
-def pynames_iter(pkdir, pkname=None):
-    """
-    Recursively yield dotted names for *.py files in directory *pydir*.
-    """
-    if not path.isfile(path.join(pkdir, '__init__.py')):
-        return
-    if pkname is None:
-        pkname = path.basename(pkdir)
-    yield pkname
-    dirs = []
-    for name in sorted(os.listdir(pkdir)):
-        if name == '__init__.py':
-            continue
-        if name.startswith('.') or name.endswith('~'):
-            continue
-        fullname = path.join(pkdir, name)
-        st = os.lstat(fullname)
-        if stat.S_ISREG(st.st_mode) and name.endswith('.py'):
-            parts = name.split('.')
-            if len(parts) == 2:
-                yield '.'.join([pkname, parts[0]])
-        elif stat.S_ISDIR(st.st_mode):
-            dirs.append((fullname, name))
-    for (fullname, name) in dirs:
-        for n in pynames_iter(fullname, '.'.join([pkname, name])):
-            yield n
-
-
 class Test(Command):
     description = 'run unit tests and doc tests'
 
-    user_options = [
-        ('no-doctest', None, 'do not run doc-tests'),
-        ('no-unittest', None, 'do not run unit-tests'),
-        ('names=', None, 'comma-sperated list of modules to test'),
-    ]
-
-    def _pynames_iter(self):
-        for pyname in pynames_iter(packagedir):
-            if not self.names:
-                yield pyname
-            else:
-                for name in self.names:
-                    if name in pyname:
-                        yield pyname
-                        break
-
-    def run(self):
-        pynames = list(self._pynames_iter())
-
-        # Add unit-tests:
-        if self.no_unittest:
-            suite = TestSuite()
-        else:
-            loader = TestLoader()
-            suite = loader.loadTestsFromNames(pynames)
-
-        # Add doc-tests:
-        if not self.no_doctest:
-            for mod in pynames:
-                suite.addTest(DocTestSuite(mod))
-
-        # Run the tests:
-        runner = TextTestRunner(verbosity=2)
-        result = runner.run(suite)
-        if not result.wasSuccessful():
-            raise SystemExit(1)
+    user_options = []
 
     def initialize_options(self):
-        self.no_doctest = 0
-        self.no_unittest = 0
-        self.names = ''
+        pass
 
     def finalize_options(self):
-        self.names = self.names.split(',')
+        pass
+
+    def run(self):
+        if not run_tests():
+            sys.exit(2)
 
 
 setup(
@@ -163,3 +100,4 @@ setup(
     ],
     cmdclass={'test': Test},
 )
+
