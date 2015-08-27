@@ -24,14 +24,17 @@ Unit tests for the `novacut.schema` module.
 """
 
 from unittest import TestCase
+import os
 import time
 from copy import deepcopy
+import json
 
-from dbase32 import random_id
+from dbase32 import db32enc, random_id
 import filestore
+from skein import skein512
 
-from novacut.misc import random_slice
-from novacut import schema
+from ..misc import random_slice
+from .. import schema
 
 
 def random_file_id():
@@ -40,10 +43,20 @@ def random_file_id():
 
 class TestFunctions(TestCase):
     def test_normalized_dumps(self):
-        self.skipTest('FIXME')
+        doc = dict(
+            (random_id(), random_id()) for i in range(100)
+        )
+        self.assertEqual(schema.normalized_dumps(doc),
+            json.dumps(doc, sort_keys=True, separators=(',',':')).encode()
+        )
 
     def test_hash_node(self):
-        self.skipTest('FIXME')
+        data = os.urandom(100)
+        digest = skein512(data,
+            digest_bits=240,
+            pers=b'20120117 jderose@novacut.com novacut/node',
+        ).digest()
+        self.assertEqual(schema.hash_node(data), db32enc(digest))
 
     def test_check_novacut(self):
         good = {
