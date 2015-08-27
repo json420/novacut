@@ -25,19 +25,14 @@ Unit tests for the `novacut` package.
 """
 
 from unittest import TestCase
-import os
-from os import path
-import logging
 
-from .base import TempHome
-
-import novacut
+from .. import __version__
 
 
 class TestConstants(TestCase):
     def test_version(self):
-        self.assertIsInstance(novacut.__version__, str)
-        (year, month, rev) = novacut.__version__.split('.')
+        self.assertIsInstance(__version__, str)
+        (year, month, rev) = __version__.split('.')
         y = int(year)
         self.assertTrue(y >= 13)
         self.assertEqual(str(y), year)

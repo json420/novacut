@@ -31,6 +31,7 @@ if sys.version_info < (3, 4):
 
 import os
 from os import path
+import subprocess
 from distutils.core import setup
 from distutils.cmd import Command
 
@@ -38,18 +39,53 @@ import novacut
 from novacut.tests.run import run_tests
 
 
-tree = path.dirname(path.abspath(__file__))
-packagedir = path.join(tree, 'novacut')
-ui = path.join(tree, 'ui')
+TREE = path.dirname(path.abspath(__file__))
+UI = path.join(TREE, 'ui')
+
+
+def run_under_same_interpreter(opname, script, args):
+    print('\n** running: {}...'.format(script), file=sys.stderr)
+    if not os.access(script, os.R_OK | os.X_OK):
+        print('ERROR: cannot read and execute: {!r}'.format(script),
+            file=sys.stderr
+        )
+        print('Consider running `setup.py test --skip-{}`'.format(opname),
+            file=sys.stderr
+        )
+        sys.exit(3)
+    cmd = [sys.executable, script] + args
+    print('check_call:', cmd, file=sys.stderr)
+    subprocess.check_call(cmd)
+    print('** PASSED: {}\n'.format(script), file=sys.stderr)
+
+
+def run_pyflakes3():
+    script = '/usr/bin/pyflakes3'
+    names = [
+        'novacut',
+        'setup.py',
+        'novacut-gtk',
+        'novacut-cli',
+        'novacut-v0-v1-upgrade',
+        'novacut-reset',
+        'novacut-video-checker',
+        'novacut-service',
+        'novacut-thumbnailer',
+        'novacut-renderer',
+    ]
+    args = [path.join(TREE, name) for name in names]
+    run_under_same_interpreter('flakes', script, args)
 
 
 class Test(Command):
     description = 'run unit tests and doc tests'
 
-    user_options = []
+    user_options = [
+        ('skip-flakes', None, 'do not run pyflakes static checks'),
+    ]
 
     def initialize_options(self):
-        pass
+        self.skip_flakes = 0
 
     def finalize_options(self):
         pass
@@ -57,6 +93,8 @@ class Test(Command):
     def run(self):
         if not run_tests():
             sys.exit(2)
+        if not self.skip_flakes:
+            run_pyflakes3()
 
 
 setup(
@@ -80,7 +118,7 @@ setup(
     ],
     data_files=[
         ('share/couchdb/apps/novacut',
-            [path.join('ui', name) for name in os.listdir('ui')]
+            [path.join(UI, name) for name in os.listdir(UI)]
         ),
         ('share/applications',
             ['data/novacut.desktop']
