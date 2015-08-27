@@ -1,5 +1,5 @@
 # novacut: the collaborative video editor
-# Copyright (C) 2011 Novacut Inc
+# Copyright (C) 2011-2015 Novacut Inc
 #
 # This file is part of `novacut`.
 #
@@ -128,13 +128,14 @@ is enormously useful for two reasons:
 
 import time
 import json
-from base64 import b32encode, b64encode
+from base64 import b64encode
 from copy import deepcopy
 from collections import namedtuple
 import re
 
 from skein import skein512
-from microfiber import random_id, RANDOM_B32LEN, Conflict
+from dbase32 import db32enc, random_id, RANDOM_B32LEN
+from microfiber import Conflict
 from dmedia.schema import (
     _check,
     _at_least,
@@ -199,18 +200,17 @@ def hash_node(data):
     ... }
     ...
     >>> hash_node(normalized_dumps(node))
-    'JCQ3YMFDNOBY4V5LB6IFTRYMJT5BLPFQUINEZNKU7W6DKC7S'
-
+    'C5JURF86GH4RVOWE4XB8MKRFCMW4EI8JNBG7SGDNYPX6D5YL'
 
     Note that even a small change in the edit will result in a different hash:
 
     >>> node['start']['frame'] = 201
     >>> hash_node(normalized_dumps(node))
-    'SPD2YAMBM3YP3I2L32BKMXQ5JAU2PD6XUQHCEC4LPERAS54J'
+    'LI6TR3F4FURIUBTEUT4DFQJWC3NTI6XQNJA575VEI7K3LWVC'
 
     """
     skein = skein512(data, digest_bits=DIGEST_BITS, pers=PERS_NODE)
-    return b32encode(skein.digest()).decode('utf-8')
+    return db32enc(skein.digest())
 
 
 def check_novacut(doc):

@@ -1,5 +1,5 @@
 # novacut: the collaborative video editor
-# Copyright (C) 2011 Novacut Inc
+# Copyright (C) 2011-2015 Novacut Inc
 #
 # This file is part of `novacut`.
 #
@@ -25,19 +25,14 @@ Unit tests for the `novacut` package.
 """
 
 from unittest import TestCase
-import os
-from os import path
-import logging
 
-from .base import TempHome
-
-import novacut
+from .. import __version__
 
 
 class TestConstants(TestCase):
     def test_version(self):
-        self.assertIsInstance(novacut.__version__, str)
-        (year, month, rev) = novacut.__version__.split('.')
+        self.assertIsInstance(__version__, str)
+        (year, month, rev) = __version__.split('.')
         y = int(year)
         self.assertTrue(y >= 13)
         self.assertEqual(str(y), year)
@@ -48,14 +43,3 @@ class TestConstants(TestCase):
         self.assertTrue(r >= 0)
         self.assertEqual(str(r), rev)
 
-
-class TestFunctions(TestCase):
-    def test_configure_logging(self):
-        tmp = TempHome()
-        cache = tmp.join('.cache', 'novacut')
-        self.assertFalse(path.isdir(cache))
-        log = novacut.configure_logging()
-        self.assertIsInstance(log, logging.RootLogger)
-        self.assertTrue(path.isdir(cache))
-        self.assertEqual(os.listdir(cache), ['setup.py.log'])
-        self.assertTrue(path.isfile(path.join(cache, 'setup.py.log')))

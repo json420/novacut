@@ -24,7 +24,6 @@ Unit tests for the `novacut.renderer` module.
 """
 
 from unittest import TestCase
-from os import path
 from fractions import Fraction
 from random import SystemRandom
 from queue import Queue
