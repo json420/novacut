@@ -27,7 +27,13 @@ import logging
 
 from gi.repository import Gst
 
-from .gsthelpers import Pipeline, make_element, get_framerate, add_elements, link_elements
+from .gsthelpers import (
+    Pipeline,
+    make_element,
+    add_elements,
+    make_caps,
+    get_framerate,
+)
 
 
 log = logging.getLogger(__name__)
@@ -52,7 +58,12 @@ class Thumbnailer(Pipeline):
             self.src, self.dec, self.convert, self.scale, self.enc, self.sink
         )
         self.src.link(self.dec)
-        link_elements(self.convert, self.scale, self.enc, self.sink)
+        self.convert.link(self.scale)
+        caps = make_caps('video/x-raw',
+            {'pixel-aspect-ratio': '1/1', 'height': 108}
+        )
+        self.scale.link_filtered(self.enc, caps)
+        self.enc.link(self.sink)
 
         # Connect signal handlers using Pipeline.connect():
         self.connect(self.bus, 'message::eos', self.on_eos)
