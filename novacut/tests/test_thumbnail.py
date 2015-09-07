@@ -26,10 +26,12 @@ Unit tests for the `novacut.validate` module.
 from unittest import TestCase
 import sys
 from random import SystemRandom
+from fractions import Fraction
 
 from gi.repository import Gst
 from dbase32 import random_id
 
+from ..timefuncs import frame_to_nanosecond
 from .. import thumbnail
 
 
@@ -42,11 +44,11 @@ class TestThumbnailer(TestCase):
             pass
 
         filename = '/tmp/' + random_id() + '.mov'
-        frames = [random.randrange(0, 5000) for i in range(15)]
+        indexes = [random.randrange(0, 5000) for i in range(15)]
         attachments = {}
-        inst = thumbnail.Thumbnailer(callback, filename, frames, attachments)
+        inst = thumbnail.Thumbnailer(callback, filename, indexes, attachments)
         self.assertIs(inst.attachments, attachments)
-        self.assertEqual(inst.frames, sorted(set(frames)))
+        self.assertEqual(inst.indexes, sorted(set(indexes)))
         self.assertIsNone(inst.framerate)
         self.assertIs(inst.changed, False)
 
@@ -98,4 +100,97 @@ class TestThumbnailer(TestCase):
         self.assertFalse(hasattr(inst, 'pipeline'))
         self.assertFalse(hasattr(inst, 'bus'))
         self.assertEqual(sys.getrefcount(inst), 2)
+
+    def test_seek_to_frame(self):
+        class DummyPipeline:
+            def __init__(self):
+                self._calls = []
+
+            def seek_simple(self, frmt, flags, ns):
+                self._calls.append((frmt, flags, ns))
+
+        class Subclass(thumbnail.Thumbnailer):
+            def __init__(self, pipeline, framerate):
+                self.pipeline = pipeline
+                self.framerate = framerate
+
+        pipeline = DummyPipeline()
+        framerate = Fraction(30000, 1001)
+        inst = Subclass(pipeline, framerate)
+        frmt = Gst.Format.TIME
+        flags = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
+        self.assertIsNone(inst.seek_to_frame(0))
+        self.assertEqual(inst.target, 0)
+        self.assertEqual(pipeline._calls, [
+            (frmt, flags, 0),
+        ])
+        self.assertIsNone(inst.seek_to_frame(1))
+        self.assertEqual(inst.target, 1)
+        self.assertEqual(pipeline._calls, [
+            (frmt, flags, 0),
+            (frmt, flags, 33366666),
+        ])
+        self.assertIsNone(inst.seek_to_frame(2))
+        self.assertEqual(inst.target, 2)
+        self.assertEqual(pipeline._calls, [
+            (frmt, flags, 0),
+            (frmt, flags, 33366666),
+            (frmt, flags, 66733333),
+        ])
+
+        for i in range(500):
+            pipeline = DummyPipeline()
+            inst = Subclass(pipeline, framerate)
+            frame = random.randrange(1234567)
+            self.assertIsNone(inst.seek_to_frame(frame))
+            self.assertIs(inst.target, frame)
+            self.assertEqual(pipeline._calls,
+                [(frmt, flags, frame_to_nanosecond(frame, framerate))]
+            )
+
+    def test_next(self):
+        class Subclass(thumbnail.Thumbnailer):
+            def __init__(self, indexes, attachments):
+                self.indexes = indexes
+                self.attachments = attachments
+                self._calls = []
+
+            def seek_to_frame(self, frame):
+                self._calls.append(('seek_to_frame', frame))
+
+            def complete(self, success):
+                self._calls.append(('complete', success))
+
+
+        indexes = [17, 18, 19]
+        attachments = {'18': 'foobar'}
+        inst = Subclass(indexes, attachments)
+
+        # Frame 17:
+        self.assertIsNone(inst.next())
+        self.assertEqual(inst.indexes, [18, 19])
+        self.assertEqual(inst.attachments, {'18': 'foobar'})
+        self.assertEqual(inst._calls, [
+            ('seek_to_frame', 17),
+        ])
+
+        # Frame 18 should be skipped as it's already in attachments:
+        self.assertIsNone(inst.next())
+        self.assertEqual(inst.indexes, [])
+        self.assertEqual(inst.attachments, {'18': 'foobar'})
+        self.assertEqual(inst._calls, [
+            ('seek_to_frame', 17),
+            ('seek_to_frame', 19),
+        ])
+
+        # Pipeline.complete() should be called once indexes is empty:
+        self.assertIsNone(inst.next())
+        self.assertEqual(inst.indexes, [])
+        self.assertEqual(inst.attachments, {'18': 'foobar'})
+        self.assertEqual(inst._calls, [
+            ('seek_to_frame', 17),
+            ('seek_to_frame', 19),
+            ('complete', True),
+        ])
+
 

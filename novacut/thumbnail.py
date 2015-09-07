@@ -26,7 +26,7 @@ Create frame-accurate JPEG thumbnail images.
 import logging
 from base64 import b64encode
 
-from gi.repository import Gst
+from gi.repository import GLib, Gst
 
 from .timefuncs import nanosecond_to_frame, frame_to_nanosecond
 from .gsthelpers import (
@@ -42,12 +42,13 @@ log = logging.getLogger(__name__)
 
 
 class Thumbnailer(Pipeline):
-    def __init__(self, callback, filename, frames, attachments):
+    def __init__(self, callback, filename, indexes, attachments):
         super().__init__(callback)
-        self.frames = sorted(set(frames))
+        self.indexes = sorted(set(indexes))
         self.attachments = attachments
         self.framerate = None
         self.changed = False
+        self.target = None
 
         # Create elements
         self.src = make_element('filesrc', {'location': filename})
@@ -76,16 +77,27 @@ class Thumbnailer(Pipeline):
 
     def run(self):
         self.set_state(Gst.State.PAUSED, sync=True)
-        self.seek_to_frame(494)
+        self.next()
         self.set_state(Gst.State.PLAYING)
 
     def seek_to_frame(self, frame):
         log.info('seeking to frame %d', frame)
+        self.target = frame
         self.pipeline.seek_simple(
             Gst.Format.TIME,
             Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
             frame_to_nanosecond(frame, self.framerate)
         )
+
+    def next(self):
+        while self.indexes:
+            frame = self.indexes.pop(0)
+            if str(frame) in self.attachments:
+                log.info('next: already have frame %d', frame)
+            else:
+                self.seek_to_frame(frame)
+                return
+        self.complete(True)
 
     def on_pad_added(self, dec, pad):
         caps = pad.get_current_caps()
@@ -108,6 +120,8 @@ class Thumbnailer(Pipeline):
                 'data': b64encode(data).decode(),
             }
             log.info('Created thumbnail for frame %d', frame)
+        if frame >= self.target + 5:
+            GLib.idle_add(self.next)
 
     def on_eos(self, bus, msg):
         log.debug('Got EOS from message bus')
