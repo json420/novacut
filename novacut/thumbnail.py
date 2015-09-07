@@ -24,9 +24,11 @@ Create frame-accurate JPEG thumbnail images.
 """
 
 import logging
+from base64 import b64encode
 
 from gi.repository import Gst
 
+from .timefuncs import nanosecond_to_frame, frame_to_nanosecond
 from .gsthelpers import (
     Pipeline,
     make_element,
@@ -40,16 +42,18 @@ log = logging.getLogger(__name__)
 
 
 class Thumbnailer(Pipeline):
-    def __init__(self, callback, filename, frames):
+    def __init__(self, callback, filename, frames, attachments):
         super().__init__(callback)
         self.frames = sorted(set(frames))
+        self.attachments = attachments
         self.framerate = None
+        self.changed = False
 
         # Create elements
         self.src = make_element('filesrc', {'location': filename})
         self.dec = make_element('decodebin')
         self.convert = make_element('videoconvert')
-        self.scale = make_element('videoscale', {'method': 3})
+        self.scale = make_element('videoscale', {'method': 2})
         self.enc = make_element('jpegenc', {'idct-method': 2})
         self.sink = make_element('fakesink', {'signal-handoffs': True})
 
@@ -60,7 +64,7 @@ class Thumbnailer(Pipeline):
         self.src.link(self.dec)
         self.convert.link(self.scale)
         caps = make_caps('video/x-raw',
-            {'pixel-aspect-ratio': '1/1', 'height': 108}
+            {'pixel-aspect-ratio': '1/1', 'height': 108, 'format': 'I420'}
         )
         self.scale.link_filtered(self.enc, caps)
         self.enc.link(self.sink)
@@ -72,7 +76,16 @@ class Thumbnailer(Pipeline):
 
     def run(self):
         self.set_state(Gst.State.PAUSED, sync=True)
+        self.seek_to_frame(494)
         self.set_state(Gst.State.PLAYING)
+
+    def seek_to_frame(self, frame):
+        log.info('seeking to frame %d', frame)
+        self.pipeline.seek_simple(
+            Gst.Format.TIME,
+            Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+            frame_to_nanosecond(frame, self.framerate)
+        )
 
     def on_pad_added(self, dec, pad):
         caps = pad.get_current_caps()
@@ -83,19 +96,20 @@ class Thumbnailer(Pipeline):
             pad.link(self.convert.get_static_pad('sink'))
 
     def on_handoff(self, element, buf, pad):
-        pass
+        frame = nanosecond_to_frame(buf.pts, self.framerate)
+        key = str(frame)
+        if key in self.attachments:
+            log.info('Already have frame %d', frame)
+        else:
+            self.changed = True
+            data = buf.extract_dup(0, buf.get_size())
+            self.attachments[key] = {
+                'content_type': 'image/jpeg',
+                'data': b64encode(data).decode(),
+            }
+            log.info('Created thumbnail for frame %d', frame)
 
     def on_eos(self, bus, msg):
         log.debug('Got EOS from message bus')
-        self.info['frames'] = self.frame
-        self.check_duration()
-        valid = self.info.get('valid')
-        if valid is not True:
-            log.warning('This is NOT a conforming video!')
-        elif self.strict is True:
-            log.info('Success, video is conformant under STRICT checking!')
-        else:
-            log.info('Success, video is conformant under NON-strict checking!')
-            log.info('[Use the --strict option to enable strict checking.]')
-        self.complete(valid)
+        self.complete(True)
 

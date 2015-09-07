@@ -43,9 +43,12 @@ class TestThumbnailer(TestCase):
 
         filename = '/tmp/' + random_id() + '.mov'
         frames = [random.randrange(0, 5000) for i in range(15)]
-        inst = thumbnail.Thumbnailer(callback, filename, frames)
+        attachments = {}
+        inst = thumbnail.Thumbnailer(callback, filename, frames, attachments)
+        self.assertIs(inst.attachments, attachments)
         self.assertEqual(inst.frames, sorted(set(frames)))
         self.assertIsNone(inst.framerate)
+        self.assertIs(inst.changed, False)
 
         # filesrc:
         self.assertIsInstance(inst.src, Gst.Element)
@@ -63,7 +66,7 @@ class TestThumbnailer(TestCase):
         # videoscale:
         self.assertIsInstance(inst.scale, Gst.Element)
         self.assertEqual(inst.scale.get_factory().get_name(), 'videoscale')
-        self.assertEqual(inst.scale.get_property('method'), 3)
+        self.assertEqual(inst.scale.get_property('method'), 2)
 
         # jpegenc:
         self.assertIsInstance(inst.enc, Gst.Element)
