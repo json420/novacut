@@ -1,56 +1,50 @@
 #!/usr/bin/python3
 
-# dmedia: distributed media library
-# Copyright (C) 2011 Novacut Inc
+# novacut: the distributed video editor
+# Copyright (C) 2011-2015 Novacut Inc
 #
-# This file is part of `dmedia`.
+# This file is part of `novacut`.
 #
-# `dmedia` is free software: you can redistribute it and/or modify it under
+# `novacut` is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Affero General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
 #
-# `dmedia` is distributed in the hope that it will be useful, but WITHOUT ANY
-# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more
-# details.
+# `novacut` is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for
+# more details.
 #
-# You should have received a copy of the GNU Affero General Public License along
-# with `dmedia`.  If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU Affero General Public License
+# along with `novacut`.  If not, see <http://www.gnu.org/licenses/>.
 #
 # Authors:
 #   Jason Gerard DeRose <jderose@novacut.com>
 
 """
-A quick and dirty GStreamer thumbnailer.
+Script to thumbnail by Dmedia File ID using `novacut.thumbnail.Thumbnailer`.
 """
 
 import sys
 import json
-from base64 import b64encode
 import argparse
-from fractions import Fraction
 import logging
 
-from gi.repository import GLib, Gst
+from gi.repository import GLib
 import dbus
 from microfiber import Database, NotFound
 
-from novacut.gsthelpers import make_element
-from novacut.timefuncs import frame_to_nanosecond, nanosecond_to_frame
+from novacut.thumbnail import Thumbnailer
 
-COUNT = 15
 logging.basicConfig(
     level=logging.DEBUG,
     format='\t'.join([
         '%(levelname)s',
-        '%(processName)s',
         '%(threadName)s',
         '%(message)s',
     ]),
 )
-log = logging.getLogger()
-Gst.init(None)
+log = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('file_id')
@@ -64,141 +58,39 @@ Dmedia = dbus.SessionBus().get_object('org.freedesktop.Dmedia', '/')
 if status != 0:
     log.error('not local: %s', _id)
     sys.exit(0)
-print(filename)
+log.info('Thumbnailing %r', filename)
 
 # Thumbnail DB:
 env = json.loads(sys.stdin.read())
 db = Database('thumbnails-1', env)
 db.ensure()
 
+# Thumbnail doc for this file_id:
+try:
+    doc = db.get(_id)
+except NotFound:
+    doc = {
+        '_id': _id,
+        '_attachments': {},
+    }
 
-class Thumbnailer:
-    def __init__(self, _id, filename, frames):
-        self.frames = sorted(set(frames))
-        self.framerate = None
-        self.start = 0
-        self.stop = 0
-        self.changed = False
-        try:
-            self.doc = db.get(_id)
-        except NotFound:
-            self.doc = {
-                '_id': _id,
-                '_attachments': {},
-            }
-        self.attachments = self.doc['_attachments']
-        self.mainloop = GLib.MainLoop()
-        self.pipeline = Gst.Pipeline()
+# MainLoop:
+mainloop = GLib.MainLoop()
 
-        # Create bus and connect several handlers
-        self.bus = self.pipeline.get_bus()
-        self.bus.add_signal_watch()
-        self.bus.connect('message::eos', self.on_eos)
-        self.bus.connect('message::error', self.on_error)
+def callback(thumbnailer, success):
+    log.info('success=%r', success)
+    mainloop.quit()
 
-        # Create elements
-        self.src = make_element('filesrc', {'location': filename})
-        self.dec = make_element('decodebin')
-        self.dec.set_property('caps', Gst.caps_from_string('video/x-raw'))
-        self.scale = make_element('videoscale')
-        self.enc = make_element('jpegenc', {'idct-method': 2})
-        self.sink = make_element('fakesink', {'signal-handoffs': True})
-
-        # Signals
-        self.dec.connect('pad-added', self.on_pad_added)
-        self.dec.connect('no-more-pads', self.on_no_more_pads)
-        self.sink.connect('handoff', self.on_handoff)
-
-        # Add elements to pipeline
-        self.pipeline.add(self.src)
-        self.pipeline.add(self.dec)
-        self.pipeline.add(self.scale)
-        self.pipeline.add(self.enc)
-        self.pipeline.add(self.sink)
-
-        # Link elements
-        self.src.link(self.dec)
-        self.scale.link_filtered(self.enc,
-            Gst.caps_from_string('video/x-raw, width=192, height=108')
-        )
-        self.enc.link(self.sink)
-
-    def seek_to_frame(self, frame):
-        log.info('seeking to frame %d', frame)
-        self.start = frame
-        self.stop = frame + COUNT
-        self.pipeline.seek_simple(
-            Gst.Format.TIME,
-            Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
-            frame_to_nanosecond(frame, self.framerate)
-        )
-
-    def next(self):
-        while self.frames:
-            frame = self.frames.pop(0)
-            if str(frame) in self.attachments:
-                log.info('next: already have frame %d', frame)
-            else:
-                self.seek_to_frame(frame)
-                return
-        self.kill()
-
-    def on_pad_added(self, element, pad):
-        caps = pad.get_current_caps()
-        string = caps.to_string()
-        log.info('on_pad_added %s', string)
-        if string.startswith('video/'):
-            (num, denom) = caps.get_structure(0).get_fraction('framerate')[1:3]
-            self.framerate = Fraction(num, denom)
-            log.info('framerate: %r', self.framerate)
-            pad.link(self.scale.get_static_pad('sink'))
-
-    def on_no_more_pads(self, element):
-        log.info('on_no_more_pads')
-        GLib.idle_add(self.next)
-
-    def on_handoff(self, element, buf, pad):
-        frame = nanosecond_to_frame(buf.pts, self.framerate)
-        ns = frame_to_nanosecond(frame, self.framerate)
-        if buf.pts != ns:
-            log.warning('handoff: frame %d buf.pts %d != %d', frame, buf.pts, ns)
-        key = str(frame)
-        if key in self.attachments:
-            log.info('handoff: already have frame %d', frame)
-        else:
-            log.info('handoff: thumbnailed frame %d', frame)
-            self.changed = True
-            data = buf.extract_dup(0, buf.get_size())
-            self.attachments[key] = {
-                'content_type': 'image/jpeg',
-                'data': b64encode(data).decode(),
-            }
-        if frame == (self.stop - 1):
-            log.info('done with frames[%d:%d]', self.start, self.stop)
-            GLib.idle_add(self.next)
-
-    def run(self):
-        self.pipeline.set_state(Gst.State.PLAYING)
-        self.mainloop.run()
-
-    def kill(self):
-        log.info('kill')
-        self.pipeline.set_state(Gst.State.NULL)
-        self.mainloop.quit()
-
-    def on_eos(self, bus, msg):
-        log.info('eos')
-        self.kill()
-
-    def on_error(self, bus, msg):
-        log.error(msg.parse_error())
-        self.kill()
-
-
-thumbnailer = Thumbnailer(args.file_id, filename, args.frame)
+thumbnailer = Thumbnailer(callback, filename, args.frame, doc['_attachments'])
 thumbnailer.run()
+mainloop.run()
+if thumbnailer.success is not True:
+    log.error('Fatal error in Thumbnailer')
+    sys.exit(1)
+
 if thumbnailer.changed:
     log.info('saving thumbnail changes for %s', args.file_id)
-    db.save(thumbnailer.doc)
+    db.save(doc)
 else:
     log.warning('no thumbnail changes for %s', args.file_id)
+
