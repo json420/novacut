@@ -42,6 +42,7 @@ log = logging.getLogger(__name__)
 def _row(label, ts):
     return (label, str(ts.pts), str(ts.duration))
 
+
 def _ts_diff(ts, expected_ts):
     return Timestamp(
         ts.pts - expected_ts.pts,
@@ -49,7 +50,7 @@ def _ts_diff(ts, expected_ts):
     )
 
 
-def format_ts_mismatch(ts, expected_ts):
+def _format_ts_mismatch(ts, expected_ts):
     rows = (
         ('', 'PTS', 'DURATION'),
         _row('GOT:', ts),
@@ -106,7 +107,7 @@ class Validator(Decoder):
         expected_ts = video_pts_and_duration(frame, self.framerate)
         if ts != expected_ts:
             log.warning('Timestamp mismatch at frame %d:\n%s',
-                self.frame, format_ts_mismatch(ts, expected_ts)
+                self.frame, _format_ts_mismatch(ts, expected_ts)
             )
             self.mark_invalid()
 
