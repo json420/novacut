@@ -30,29 +30,25 @@ from gi.repository import GLib, Gst
 
 from .timefuncs import nanosecond_to_frame, frame_to_nanosecond
 from .gsthelpers import (
-    Pipeline,
+    Decoder,
     make_element,
     add_elements,
     make_caps,
-    get_framerate,
 )
 
 
 log = logging.getLogger(__name__)
 
 
-class Thumbnailer(Pipeline):
+class Thumbnailer(Decoder):
     def __init__(self, callback, filename, indexes, attachments):
-        super().__init__(callback)
+        super().__init__(callback, filename, video=True)
         self.indexes = sorted(set(indexes))
         self.attachments = attachments
-        self.framerate = None
         self.changed = False
         self.target = None
 
         # Create elements
-        self.src = make_element('filesrc', {'location': filename})
-        self.dec = make_element('decodebin')
         self.convert = make_element('videoconvert')
         self.scale = make_element('videoscale', {'method': 2})
         self.enc = make_element('jpegenc', {'idct-method': 2})
@@ -60,9 +56,9 @@ class Thumbnailer(Pipeline):
 
         # Add elements to pipeline and link:
         add_elements(self.pipeline,
-            self.src, self.dec, self.convert, self.scale, self.enc, self.sink
+            self.convert, self.scale, self.enc, self.sink
         )
-        self.src.link(self.dec)
+        self.video_q.link(self.convert)
         self.convert.link(self.scale)
         caps = make_caps('video/x-raw',
             {'pixel-aspect-ratio': '1/1', 'height': 108, 'format': 'I420'}
@@ -71,7 +67,6 @@ class Thumbnailer(Pipeline):
         self.enc.link(self.sink)
 
         # Connect signal handlers using Pipeline.connect():
-        self.connect(self.dec, 'pad-added', self.on_pad_added)
         self.connect(self.sink, 'handoff', self.on_handoff)
 
     def run(self):
@@ -97,14 +92,6 @@ class Thumbnailer(Pipeline):
                 self.seek_to_frame(frame)
                 return
         self.complete(True)
-
-    def on_pad_added(self, dec, pad):
-        caps = pad.get_current_caps()
-        string = caps.to_string()
-        log.debug('on_pad_added(): %s', string)
-        if string.startswith('video/'):
-            self.framerate = get_framerate(caps.get_structure(0))
-            pad.link(self.convert.get_static_pad('sink'))
 
     def on_handoff(self, element, buf, pad):
         frame = nanosecond_to_frame(buf.pts, self.framerate)
