@@ -325,16 +325,19 @@ class Decoder(Pipeline):
         self.rate = get_int(structure, 'rate')
 
     def on_pad_added(self, dec, pad):
-        caps = pad.get_current_caps()
-        string = caps.to_string()
-        structure = caps.get_structure(0)
-        log.debug('%s.on_pad_added(): %s', self.__class__.__name__, string)
-        if string.startswith('video/x-raw'):
-            self.extract_video_info(structure)
-            if self.video_q is not None:
-                pad.link(self.video_q.get_static_pad('sink'))
-        elif string.startswith('audio/x-raw'):
-            self.extract_audio_info(structure)
-            if self.audio_q is not None:
-                pad.link(self.audio_q.get_static_pad('sink'))
+        try:
+            caps = pad.get_current_caps()
+            string = caps.to_string()
+            log.debug('%s.on_pad_added(): %s', self.__class__.__name__, string)
+            if string.startswith('video/x-raw'):
+                if self.video_q is not None:
+                    self.extract_video_info(caps.get_structure(0))
+                    pad.link(self.video_q.get_static_pad('sink'))
+            elif string.startswith('audio/x-raw'):
+                if self.audio_q is not None:
+                    self.extract_audio_info(caps.get_structure(0))
+                    pad.link(self.audio_q.get_static_pad('sink'))
+        except:
+            log.exception('%s.on_pad_added():', self.__class__.__name__)
+            self.complete(False)
 
