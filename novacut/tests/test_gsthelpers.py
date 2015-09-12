@@ -701,3 +701,156 @@ class TestDecoder(TestCase):
         self.assertEqual(s._calls, [('get_int', 'rate')])
         self.assertIsNone(inst.rate)
 
+    def test_on_pad_added(self):
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self, video_q, audio_q):
+                self.video_q = video_q
+                self.audio_q = audio_q
+                self._calls = []
+
+            def complete(self, success):
+                self._calls.append(('complete', success))
+
+            def extract_video_info(self, structure):
+                self._calls.append(('extract_video_info', structure))
+
+            def extract_audio_info(self, structure):
+                self._calls.append(('extract_audio_info', structure))
+
+        class MockPad:
+            def __init__(self, caps):
+                self._caps = caps
+                self._calls = []
+
+            def get_current_caps(self):
+                self._calls.append('get_current_caps')
+                if isinstance(self._caps, Exception):
+                    raise self._caps
+                return self._caps
+
+            def link(self, pad):
+                self._calls.append(('link', pad))
+
+        class MockCaps:
+            def __init__(self, string):
+                self._string = string
+                self._s = random_id()
+                self._calls = []
+
+            def to_string(self):
+                self._calls.append('to_string')
+                return self._string
+
+            def get_structure(self, index):
+                self._calls.append(('get_structure', index))
+                return self._s
+
+        ####################################################
+        # First test when both video_q and audio_q are None:
+
+        # video/x-raw:
+        inst = Subclass(None, None)
+        caps = MockCaps('video/x-raw, foo=bar, stuff=junk')
+        pad = MockPad(caps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(caps._calls, ['to_string'])
+        self.assertEqual(inst._calls, [])
+
+        # audio/x-raw:
+        inst = Subclass(None, None)
+        caps = MockCaps('audio/x-raw, foo=bar, stuff=junk')
+        pad = MockPad(caps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(caps._calls, ['to_string'])
+        self.assertEqual(inst._calls, [])
+
+        # caps string that should be ignored:
+        inst = Subclass(None, None)
+        caps = MockCaps('audio/x-nah, foo=bar, stuff=junk')
+        pad = MockPad(caps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(caps._calls, ['to_string'])
+        self.assertEqual(inst._calls, [])
+
+        # Make sure Pipeline.complete(False) is called on unhandled exception:
+        inst = Subclass(None, None)
+        marker = random_id()
+        exc = ValueError(marker)
+        pad = MockPad(exc)
+        with self.assertRaises(ValueError) as cm:
+            inst.on_pad_added('element', pad)
+        self.assertIs(cm.exception, exc)
+        self.assertEqual(str(cm.exception), marker)
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(inst._calls, [('complete', False)])
+
+        ##################################################################
+        # Do it all over again, this time with mocked video_q and audio_q:
+        class MockQueue:
+            def __init__(self):
+                self._pad = random_id()
+                self._calls = []
+
+            def get_static_pad(self, name):
+                self._calls.append(name)
+                return self._pad
+
+        vq = MockQueue()
+        aq = MockQueue()
+        inst = Subclass(vq, aq)
+
+        # video/x-raw:
+        vcaps = MockCaps('video/x-raw, foo=bar, stuff=junk')
+        pad = MockPad(vcaps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps', ('link', vq._pad)])
+        self.assertEqual(vcaps._calls, ['to_string', ('get_structure', 0)])
+        self.assertEqual(vq._calls, ['sink'])
+        self.assertEqual(aq._calls, [])
+        self.assertEqual(inst._calls, [('extract_video_info', vcaps._s)])
+
+        # audio/x-raw:
+        acaps = MockCaps('audio/x-raw, foo=bar, stuff=junk')
+        pad = MockPad(acaps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps', ('link', aq._pad)])
+        self.assertEqual(vcaps._calls, ['to_string', ('get_structure', 0)])
+        self.assertEqual(acaps._calls, ['to_string', ('get_structure', 0)])
+        self.assertEqual(vq._calls, ['sink'])
+        self.assertEqual(aq._calls, ['sink'])
+        self.assertEqual(inst._calls,
+            [('extract_video_info', vcaps._s), ('extract_audio_info', acaps._s)]
+        )
+
+        # caps string that should be ignored:
+        vq = MockQueue()
+        aq = MockQueue()
+        inst = Subclass(vq, aq)
+        caps = MockCaps('video/x-nah, foo=bar, stuff=junk')
+        pad = MockPad(caps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(caps._calls, ['to_string'])
+        self.assertEqual(vq._calls, [])
+        self.assertEqual(aq._calls, [])
+        self.assertEqual(inst._calls, [])
+
+        # Make sure Pipeline.complete(False) is called on unhandled exception:
+        vq = MockQueue()
+        aq = MockQueue()
+        inst = Subclass(vq, aq)
+        marker = random_id()
+        exc = ValueError(marker)
+        pad = MockPad(exc)
+        with self.assertRaises(ValueError) as cm:
+            inst.on_pad_added('element', pad)
+        self.assertIs(cm.exception, exc)
+        self.assertEqual(str(cm.exception), marker)
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(vq._calls, [])
+        self.assertEqual(aq._calls, [])
+        self.assertEqual(inst._calls, [('complete', False)])
+

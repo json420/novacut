@@ -324,7 +324,7 @@ class Decoder(Pipeline):
     def extract_audio_info(self, structure):
         self.rate = get_int(structure, 'rate')
 
-    def on_pad_added(self, dec, pad):
+    def on_pad_added(self, element, pad):
         try:
             caps = pad.get_current_caps()
             string = caps.to_string()
@@ -340,4 +340,5 @@ class Decoder(Pipeline):
         except:
             log.exception('%s.on_pad_added():', self.__class__.__name__)
             self.complete(False)
+            raise
 
