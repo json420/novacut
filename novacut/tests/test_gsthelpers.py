@@ -31,10 +31,23 @@ import sys
 from gi.repository import Gst
 from dbase32 import random_id
 
+from ..timefuncs import frame_to_nanosecond
 from .. import gsthelpers
 
 
 random = SystemRandom()
+
+
+class TestConstants(TestCase):
+    def test_FLAGS_ACCURATE(self):
+        self.assertEqual(gsthelpers.FLAGS_ACCURATE,
+            Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
+        )
+
+    def test_FLAGS_KEY_UNIT(self):
+        self.assertEqual(gsthelpers.FLAGS_KEY_UNIT,
+            Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
+        )
 
 
 class TestElementFactoryError(TestCase):
@@ -568,6 +581,76 @@ class TestDecoder(TestCase):
         self.assertIsNone(inst.destroy())
         self.assertEqual(inst.handlers, [])
         self.assertEqual(sys.getrefcount(inst), 2)
+
+    def test_seek(self):
+        class DummyPipeline:
+            def __init__(self):
+                self._calls = []
+
+            def seek_simple(self, frmt, flags, ns):
+                self._calls.append((frmt, flags, ns))
+
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self, pipeline):
+                self.pipeline = pipeline
+
+        pipeline = DummyPipeline()
+        inst = Subclass(pipeline)
+        ns = random.randrange(0, 1234567890)
+        self.assertIsNone(inst.seek(ns))
+        self.assertEqual(pipeline._calls, [
+            (Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE, ns),
+        ])
+
+        pipeline = DummyPipeline()
+        inst = Subclass(pipeline)
+        ns = random.randrange(0, 1234567890)
+        self.assertIsNone(inst.seek(ns, key_unit=True))
+        self.assertEqual(pipeline._calls, [
+            (Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, ns),
+        ])
+
+    def test_seek_to_frame(self):
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self, framerate):
+                self.framerate = framerate
+                self._calls = []
+
+            def seek(self, ns, key_unit):
+                self._calls.append((ns, key_unit))
+
+        framerate = Fraction(30000, 1001)
+
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(0))
+        self.assertEqual(inst._calls, [(0, False)])
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(0, key_unit=True))
+        self.assertEqual(inst._calls, [(0, True)])
+
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(1))
+        self.assertEqual(inst._calls, [(33366666, False)])
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(1, key_unit=True))
+        self.assertEqual(inst._calls, [(33366666, True)])
+
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(2))
+        self.assertEqual(inst._calls, [(66733333, False)])
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(2, key_unit=True))
+        self.assertEqual(inst._calls, [(66733333, True)])
+
+        for i in range(500):
+            frame = random.randrange(1234567)
+            ns = frame_to_nanosecond(frame, framerate)
+            inst = Subclass(framerate)
+            self.assertIsNone(inst.seek_to_frame(frame))
+            self.assertEqual(inst._calls, [(ns, False)])
+            inst = Subclass(framerate)
+            self.assertIsNone(inst.seek_to_frame(frame, key_unit=True))
+            self.assertEqual(inst._calls, [(ns, True)])
 
     def test_extract_video_info(self):
         class Subclass(gsthelpers.Decoder):

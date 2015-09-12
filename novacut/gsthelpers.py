@@ -31,10 +31,15 @@ import logging
 
 from gi.repository import Gst, GLib
 
+from .timefuncs import frame_to_nanosecond
+
 
 log = logging.getLogger(__name__)
 Gst.init()
 
+
+FLAGS_ACCURATE = Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
+FLAGS_KEY_UNIT = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
 
 # Provide very clear TypeError messages:
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
@@ -308,6 +313,13 @@ class Decoder(Pipeline):
 
         # Connect signal handlers using Pipeline.connect():
         self.connect(self.dec, 'pad-added', self.on_pad_added)
+
+    def seek(self, ns, key_unit=False):
+        flags = (FLAGS_KEY_UNIT if key_unit is True else FLAGS_ACCURATE)
+        self.pipeline.seek_simple(Gst.Format.TIME, flags, ns)
+
+    def seek_to_frame(self, frame, key_unit=False):
+        self.seek(frame_to_nanosecond(frame, self.framerate), key_unit)
 
     def extract_video_info(self, structure):
         self.framerate = get_fraction(structure, 'framerate')
