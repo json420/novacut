@@ -196,10 +196,6 @@ def get_fraction(structure, name):
     return Fraction(num, denom)
 
 
-def get_framerate(structure):
-    return get_fraction(structure, 'framerate')
-
-
 def add_elements(parent, *elements):
     for el in elements:
         parent.add(el)

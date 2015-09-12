@@ -243,30 +243,6 @@ class TestFunctions(TestCase):
         )
         self.assertEqual(s._calls, [name])
 
-    def test_get_framerate(self):
-        class MockStructure:
-            def __init__(self, ret):
-                self._ret = ret
-
-            def get_fraction(self, key):
-                assert not hasattr(self, '_key')
-                self._key = key
-                return self._ret
-
-        s = MockStructure((True, 24000, 1001))
-        f = gsthelpers.get_framerate(s)
-        self.assertIsInstance(f, Fraction)
-        self.assertEqual(f, Fraction(24000, 1001))
-        self.assertEqual(s._key, 'framerate')
-
-        s = MockStructure((False, 24000, 1001))
-        with self.assertRaises(Exception) as cm:
-            gsthelpers.get_framerate(s)
-        self.assertEqual(str(cm.exception),
-            "could not get fraction 'framerate' from caps structure"
-        )
-        self.assertEqual(s._key, 'framerate')
-
 
 class Callback:
     def __init__(self):
