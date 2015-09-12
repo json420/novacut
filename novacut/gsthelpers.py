@@ -216,6 +216,7 @@ class Pipeline:
         self.bus = self.pipeline.get_bus()
         self.bus.add_signal_watch()
         self.connect(self.bus, 'message::error', self.on_error)
+        self.connect(self.bus, 'message::eos', self.on_eos)
 
     def connect(self, obj, signal, callback):
         hid = obj.connect(signal, callback)
@@ -268,4 +269,11 @@ class Pipeline:
             self.__class__.__name__, msg.parse_error()
         )
         self.complete(False)
+
+    def on_eos(self, bus, msg):
+        log.error('subclass %s did not override Pipeline.on_eos()',
+            self.__class__.__name__
+        )
+        self.complete(False)
+
 

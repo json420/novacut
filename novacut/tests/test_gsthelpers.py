@@ -25,6 +25,7 @@ Unit tests for the `novacut.gsthelpers` module.
 
 from unittest import TestCase
 from fractions import Fraction
+import sys
 
 from gi.repository import Gst
 from dbase32 import random_id
@@ -240,9 +241,13 @@ class TestPipeline(TestCase):
         self.assertIsNone(inst.success)
         self.assertIsInstance(inst.pipeline, Gst.Pipeline)
         self.assertIsInstance(inst.bus, Gst.Bus)
+        self.assertEqual(len(inst.handlers), 2)
+        self.assertIs(inst.handlers[0][0], inst.bus)
+        self.assertIs(inst.handlers[1][0], inst.bus)
         self.assertIsNone(inst.destroy())
         self.assertFalse(hasattr(inst, 'pipeline'))
         self.assertFalse(hasattr(inst, 'bus'))
+        self.assertEqual(sys.getrefcount(inst), 2)
 
     def test_connect(self):
         class DummyGObject:
@@ -428,5 +433,17 @@ class TestPipeline(TestCase):
         msg = DummyMessage(random_id())
         self.assertIsNone(inst.on_error('bus', msg))
         self.assertEqual(msg._calls, 1)
+        self.assertEqual(inst._complete_calls, [False])
+
+    def test_on_eos(self):
+        class Subclass(gsthelpers.Pipeline):
+            def __init__(self):
+                self._complete_calls = []
+
+            def complete(self, success):
+                self._complete_calls.append(success)
+
+        inst = Subclass() 
+        self.assertIsNone(inst.on_eos('bus', 'msg'))
         self.assertEqual(inst._complete_calls, [False])
 

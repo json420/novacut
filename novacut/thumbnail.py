@@ -71,7 +71,6 @@ class Thumbnailer(Pipeline):
         self.enc.link(self.sink)
 
         # Connect signal handlers using Pipeline.connect():
-        self.connect(self.bus, 'message::eos', self.on_eos)
         self.connect(self.dec, 'pad-added', self.on_pad_added)
         self.connect(self.sink, 'handoff', self.on_handoff)
 

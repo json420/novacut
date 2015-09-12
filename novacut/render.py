@@ -128,7 +128,6 @@ class Input(Pipeline):
         add_and_link_elements(self.pipeline, self.convert, self.scale, self.sink)
 
         # Connect signal handlers using Pipeline.connect():
-        self.connect(self.bus, 'message::eos', self.on_eos)
         self.connect(self.dec, 'pad-added', self.on_pad_added)
         self.connect(self.sink, 'new-sample', self.on_new_sample)
 
@@ -228,7 +227,6 @@ class Output(Pipeline):
         )
 
         # Connect signal handlers using Pipeline.connect():
-        self.connect(self.bus, 'message::eos', self.on_eos)
         self.connect(self.src, 'need-data', self.on_need_data)
 
     def run(self):
