@@ -178,11 +178,26 @@ def make_caps(mime, desc):
     return Gst.caps_from_string(make_caps_string(mime, desc))
 
 
-def get_framerate(s):
-    (success, num, denom) = s.get_fraction('framerate')
+def get_int(structure, name):
+    (success, value) = structure.get_int(name)
     if not success:
-        raise Exception("could not get 'framerate' from video caps structure")
+        raise Exception(
+            'could not get int {!r} from caps structure'.format(name)
+        )
+    return value
+
+
+def get_fraction(structure, name):
+    (success, num, denom) = structure.get_fraction(name)
+    if not success:
+        raise Exception(
+            'could not get fraction {!r} from caps structure'.format(name)
+        )
     return Fraction(num, denom)
+
+
+def get_framerate(structure):
+    return get_fraction(structure, 'framerate')
 
 
 def add_elements(parent, *elements):
@@ -276,4 +291,45 @@ class Pipeline:
         )
         self.complete(False)
 
+
+class Decoder(Pipeline):
+    def __init__(self, callback, filename, video=False, audio=False):
+        super().__init__(callback)
+        self.framerate = None
+        self.rate = None
+
+        # Create elements:
+        self.src = make_element('filesrc', {'location': filename})
+        self.dec = make_element('decodebin')
+        self.video_q = (make_element('queue') if video is True else None)
+        self.audio_q = (make_element('queue') if audio is True else None)
+
+        # Add elements to pipeline and link:
+        add_and_link_elements(self.pipeline, self.src, self.dec)
+        for q in (self.video_q, self.audio_q):
+            if q is not None:
+                self.pipeline.add(q)
+
+        # Connect signal handlers using Pipeline.connect():
+        self.connect(self.dec, 'pad-added', self.on_pad_added)
+
+    def extract_video_info(self, structure):
+        self.framerate = get_fraction(structure, 'framerate')
+
+    def extract_audio_info(self, structure):
+        self.rate = get_int(structure, 'rate')
+
+    def on_pad_added(self, dec, pad):
+        caps = pad.get_current_caps()
+        string = caps.to_string()
+        structure = caps.get_structure(0)
+        log.debug('%s.on_pad_added(): %s', self.__class__.__name__, string)
+        if string.startswith('video/x-raw'):
+            self.extract_video_info(structure)
+            if self.video_q is not None:
+                pad.link(self.video_q.get_static_pad('sink'))
+        elif string.startswith('audio/x-raw'):
+            self.extract_audio_info(structure)
+            if self.audio_q is not None:
+                pad.link(self.audio_q.get_static_pad('sink'))
 
