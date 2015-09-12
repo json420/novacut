@@ -23,7 +23,6 @@
 Check video for timestamp conformance.
 """
 
-from fractions import Fraction
 import logging
 
 from gi.repository import Gst
@@ -34,7 +33,7 @@ from .timefuncs import (
     nanosecond_to_frame,
     video_pts_and_duration,
 )
-from .gsthelpers import Pipeline, make_element, add_elements
+from .gsthelpers import Decoder, make_element, get_int
 
 
 log = logging.getLogger(__name__)
@@ -67,30 +66,24 @@ def format_ts_mismatch(ts, expected_ts):
     return '\n'.join('  ' + l for l in lines)
 
 
-class Validator(Pipeline):
+class Validator(Decoder):
     def __init__(self, callback, filename, full, strict):
-        super().__init__(callback)
+        super().__init__(callback, filename, video=True)
         assert isinstance(full, bool)
         assert isinstance(strict, bool)
         self.full = full
         self.strict = strict
         self.frame = 0
-        self.framerate = None
         self.info = {'valid': True}
 
         # Create elements:
-        self.src = make_element('filesrc', {'location': filename})
-        self.dec = make_element('decodebin')
-        self.q = make_element('queue')
         self.sink = make_element('fakesink', {'signal-handoffs': True})
 
         # Add elements to pipeline and link:
-        add_elements(self.pipeline, self.src, self.dec, self.q, self.sink)
-        self.src.link(self.dec)
-        self.q.link(self.sink)
+        self.pipeline.add(self.sink)
+        self.video_q.link(self.sink)
 
         # Connect signal handlers with Pipeline.connect():
-        self.connect(self.dec, 'pad-added', self.on_pad_added)
         self.connect(self.sink, 'handoff', self.on_handoff)
 
     def mark_invalid(self):
@@ -150,40 +143,14 @@ class Validator(Pipeline):
         self.info['duration'] = ns
         self.set_state(Gst.State.PLAYING)
 
-    def _info_from_caps(self, caps):
-        s = caps.get_structure(0)
-
-        (success, num, denom) = s.get_fraction('framerate')
-        if not success:
-            log.error('could not get framerate from video stream')
-            return False
-
-        (sucess, width) = s.get_int('width')
-        if not success:
-            log.error('could not get width from video stream')
-            return False
-
-        (sucess, height) = s.get_int('height')
-        if not success:
-            log.error('could not get height from video stream')
-            return False
-
-        self.framerate = Fraction(num, denom)
-        self.info['framerate'] = {'num': num, 'denom': denom}
-        self.info['width'] = width
-        self.info['height'] = height
-
-        log.info('Framerate: %d/%d', num, denom)
-        log.info('Resolution: %dx%d', width, height)
-        return True
-
-    def on_pad_added(self, dec, pad):
-        caps = pad.get_current_caps()
-        string = caps.to_string()
-        log.debug('on_pad_added(): %s', string)
-        if string.startswith('video/'):
-            if self._info_from_caps(caps) is True:
-                pad.link(self.q.get_static_pad('sink'))
+    def extract_video_info(self, structure):
+        super().extract_video_info(structure)
+        self.info['framerate'] = {
+            'num': self.framerate.numerator,
+            'denom': self.framerate.denominator,
+        }
+        self.info['width'] = get_int(structure, 'width')
+        self.info['height'] = get_int(structure, 'height')
 
     def on_handoff(self, sink, buf, pad):
         self.check_frame(Timestamp(buf.pts, buf.duration))
