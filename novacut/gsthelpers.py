@@ -37,11 +37,8 @@ from .timefuncs import frame_to_nanosecond
 log = logging.getLogger(__name__)
 Gst.init()
 
-
 FLAGS_ACCURATE = Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
 FLAGS_KEY_UNIT = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
-
-# Provide very clear TypeError messages:
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 
 
@@ -287,7 +284,7 @@ class Pipeline:
         self.complete(False)
 
     def on_eos(self, bus, msg):
-        log.error('subclass %s did not override Pipeline.on_eos()',
+        log.warning('subclass %s did not override Pipeline.on_eos()',
             self.__class__.__name__
         )
         self.complete(False)

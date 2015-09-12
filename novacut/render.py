@@ -26,11 +26,7 @@ import logging
 
 from gi.repository import Gst
 
-from .timefuncs import (
-    frame_to_nanosecond,
-    nanosecond_to_frame,
-    video_pts_and_duration,
-)
+from .timefuncs import nanosecond_to_frame, video_pts_and_duration
 from .gsthelpers import (
     Pipeline,
     Decoder,
@@ -132,11 +128,7 @@ class Input(Decoder):
     def run(self):
         log.info('Input slice %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
         self.set_state(Gst.State.PAUSED, sync=True)
-        self.pipeline.seek_simple(
-            Gst.Format.TIME,
-            Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE,
-            frame_to_nanosecond(self.s.start, self.framerate)
-        )
+        self.seek_to_frame(self.s.start)
         self.set_state(Gst.State.PLAYING)
 
     def check_frame(self, buf):

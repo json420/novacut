@@ -28,7 +28,7 @@ from base64 import b64encode
 
 from gi.repository import GLib, Gst
 
-from .timefuncs import nanosecond_to_frame, frame_to_nanosecond
+from .timefuncs import nanosecond_to_frame
 from .gsthelpers import (
     Decoder,
     make_element,
@@ -77,11 +77,7 @@ class Thumbnailer(Decoder):
     def seek_to_frame(self, frame):
         log.info('seeking to frame %d', frame)
         self.target = frame
-        self.pipeline.seek_simple(
-            Gst.Format.TIME,
-            Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
-            frame_to_nanosecond(frame, self.framerate)
-        )
+        super().seek_to_frame(frame, key_unit=True)
 
     def next(self):
         while self.indexes:
