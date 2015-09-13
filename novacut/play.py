@@ -33,7 +33,8 @@ from .timefuncs import nanosecond_to_frame, video_pts_and_duration
 from .gsthelpers import Decoder, Pipeline, make_element, add_and_link_elements
 
 log = logging.getLogger(__name__)
-QUEUE_SIZE = 8
+QUEUE_SIZE = 16
+DEQUEUE_SIZE = 11
 PREROLL_COUNT = 2
 
 
@@ -122,8 +123,9 @@ class VideoSink(Pipeline):
 
         self.src = make_element('appsrc', {'caps': caps, 'format': 3})
         self.q = make_element('queue')
-        self.sink = make_element('xvimagesink', {'double-buffer': True})
-        #self.sink = make_element('autovideosink')
+        self.sink = make_element('xvimagesink',
+            {'double-buffer': True, 'show-preroll-frame': False}
+        )
 
         # Add elements to pipeline and link:
         add_and_link_elements(self.pipeline, self.src, self.q, self.sink)
@@ -134,7 +136,7 @@ class VideoSink(Pipeline):
         self.connect(self.src, 'need-data', self.on_need_data)
 
     def run(self):
-        GLib.timeout_add(75, self.wait_for_queue_to_fill)
+        GLib.timeout_add(50, self.wait_for_queue_to_fill)
 
     def wait_for_queue_to_fill(self):
         log.info('wating for queue...')
@@ -161,7 +163,7 @@ class VideoSink(Pipeline):
                 break
             except Empty:
                 pass
-        for i in range(QUEUE_SIZE - 1):
+        for i in range(DEQUEUE_SIZE):
             try:
                 yield q.get(block=False)
             except Empty:
