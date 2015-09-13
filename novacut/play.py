@@ -33,6 +33,8 @@ from .timefuncs import nanosecond_to_frame, video_pts_and_duration
 from .gsthelpers import Decoder, Pipeline, make_element, add_and_link_elements
 
 log = logging.getLogger(__name__)
+QUEUE_SIZE = 8
+PREROLL_COUNT = 2
 
 
 class SliceDecoder(Decoder):
@@ -42,10 +44,11 @@ class SliceDecoder(Decoder):
         assert 0 <= s.start < s.stop
         self.s = s
         self.frame = s.start
+        self.isprerolled = False
 
         # Create elements
         self.sink = make_element('appsink',
-            {'emit-signals': True, 'max-buffers': 4}
+            {'emit-signals': True, 'max-buffers': 2}
         )
 
         # Add elements to pipeline and link:
@@ -55,10 +58,15 @@ class SliceDecoder(Decoder):
         # Connect signal handlers using Pipeline.connect():
         self.connect(self.sink, 'new-sample', self.on_new_sample)
 
-    def run(self):
-        log.info('%s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+    def preroll(self):
+        #log.debug('preroll %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
         self.set_state(Gst.State.PAUSED, sync=True)
-        self.seek_to_frame(self.s.start)
+        self.seek_by_frame(self.s.start, self.s.stop)
+        self.isprerolled = True
+
+    def run(self):
+        assert self.isprerolled is True
+        #log.info('%s[%s:%s]', self.s.src, self.s.start, self.s.stop)
         self.set_state(Gst.State.PLAYING)
 
     def check_frame(self, buf):
@@ -126,7 +134,7 @@ class VideoSink(Pipeline):
         self.connect(self.src, 'need-data', self.on_need_data)
 
     def run(self):
-        GLib.timeout_add(100, self.wait_for_queue_to_fill)
+        GLib.timeout_add(75, self.wait_for_queue_to_fill)
 
     def wait_for_queue_to_fill(self):
         log.info('wating for queue...')
@@ -153,11 +161,12 @@ class VideoSink(Pipeline):
                 break
             except Empty:
                 pass
-        for i in range(7):
+        for i in range(QUEUE_SIZE - 1):
             try:
                 yield q.get(block=False)
             except Empty:
                 break
+        log.info('got %d frames from queue', i + 2)
 
     def on_need_data(self, appsrc, amount):
         if self.sent_eos:
@@ -187,23 +196,57 @@ class Player:
                 'callback: not callable: {!r}'.format(callback)
             )
         self.callback = callback
-        self.slices = slices
+        self.slices = list(slices)
         self.success = None
         self.total_frames = sum(s.stop - s.start for s in slices)
-        self.buffer_queue = queue.Queue(32)
+        self.buffer_queue = queue.Queue(QUEUE_SIZE)
+        self.prerolled = []
         self.input = None
         self.output = VideoSink(self.on_output_complete, self.buffer_queue, xid)
+
+    def next_preroll(self):
+        if not self.slices:
+            return False
+        s = self.slices.pop(0)
+        dec = SliceDecoder(self.on_input_complete, self.buffer_queue, s)
+        dec.preroll()
+        self.prerolled.append(dec)
+        return True
+
+    def init_preroll(self):
+        for i in range(PREROLL_COUNT):
+            if not self.next_preroll():
+                break
+
+    def next(self):
+        if self.success is not None:
+            log.error('Ignoring call to Player.next()')
+            return
+        if not self.prerolled:
+            self.buffer_queue.put(None)
+        else:
+            if self.input is not None:
+                self.input.destroy()
+                self.input = None
+            self.input = self.prerolled.pop(0)
+            self.input.run()
+            self.next_preroll()
 
     def run(self):
         log.info('**** Plaing %s slices, %s frames...',
             len(self.slices), self.total_frames
         )
-        self.output.run()
-        self.slices_iter = iter(self.slices)
+        self.init_preroll()
         self.next()
+        self.output.run()
 
     def destroy(self):
-        log.info('Renderer.destroy()')
+        if self.success is not True:
+            self.success = False
+        log.info('.destroy()')
+        while self.prerolled:
+            dec = self.prerolled.pop(0)
+            dec.destroy()
         if self.input is not None:
             self.input.destroy()
             self.input = None
@@ -224,30 +267,9 @@ class Player:
             )
         self.callback(self, self.success)
 
-    def next_slice(self):
-        try:
-            return next(self.slices_iter)
-        except StopIteration:
-            return None
-
-    def next(self):
-        if self.success is not None:
-            log.error('Ignoring call to Renderer.next()')
-            return
-        assert self.input is None
-        s = self.next_slice()
-        if s is None:
-            self.buffer_queue.put(None)
-        else:
-            self.input = SliceDecoder(
-                self.on_input_complete, self.buffer_queue, s
-            )
-            self.input.run()
-
     def on_input_complete(self, inst, success):
         assert inst is self.input
         if success is True:
-            self.input = None
             self.next()
         else:
             self.complete(False)

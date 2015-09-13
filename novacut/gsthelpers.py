@@ -368,12 +368,29 @@ class Decoder(Pipeline):
     def nanosecond_to_frame(self, nanosecond):
         return nanosecond_to_frame(nanosecond, self.framerate)
 
-    def seek(self, ns, key_unit=False):
+    def seek_simple(self, ns, key_unit=False):
         flags = (FLAGS_KEY_UNIT if key_unit is True else FLAGS_ACCURATE)
         self.pipeline.seek_simple(Gst.Format.TIME, flags, ns)
 
-    def seek_to_frame(self, frame, key_unit=False):
-        self.seek(frame_to_nanosecond(frame, self.framerate), key_unit)
+    def seek(self, start_ns, stop_ns, key_unit=False):
+        flags = (FLAGS_KEY_UNIT if key_unit is True else FLAGS_ACCURATE)
+        self.pipeline.seek(
+            1.0,
+            Gst.Format.TIME,        
+            flags,
+            Gst.SeekType.SET,
+            start_ns,
+            Gst.SeekType.SET,
+            stop_ns
+        )
+
+    def seek_by_frame(self, start, stop=None, key_unit=False):
+        start_ns = self.frame_to_nanosecond(start)
+        if stop is None:
+            self.seek_simple(start_ns, key_unit)
+        else:
+            stop_ns = self.frame_to_nanosecond(stop)
+            self.seek(start_ns, stop_ns, key_unit)
 
     def extract_video_info(self, structure):
         self.framerate = get_fraction(structure, 'framerate')

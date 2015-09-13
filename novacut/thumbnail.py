@@ -74,10 +74,10 @@ class Thumbnailer(Decoder):
         self.next()
         self.set_state(Gst.State.PLAYING)
 
-    def seek_to_frame(self, frame):
+    def seek_by_frame(self, frame):
         log.info('seeking to frame %d', frame)
         self.target = frame
-        super().seek_to_frame(frame, key_unit=True)
+        super().seek_by_frame(frame, key_unit=True)
 
     def next(self):
         while self.indexes:
@@ -85,7 +85,7 @@ class Thumbnailer(Decoder):
             if str(frame) in self.attachments:
                 log.info('next: already have frame %d', frame)
             else:
-                self.seek_to_frame(frame)
+                self.seek_by_frame(frame)
                 return
         self.complete(True)
 

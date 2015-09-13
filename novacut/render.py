@@ -128,7 +128,7 @@ class Input(Decoder):
     def run(self):
         log.info('Input slice %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
         self.set_state(Gst.State.PAUSED, sync=True)
-        self.seek_to_frame(self.s.start)
+        self.seek_by_frame(self.s.start)
         self.set_state(Gst.State.PLAYING)
 
     def check_frame(self, buf):
