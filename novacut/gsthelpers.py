@@ -217,6 +217,28 @@ def add_and_link_elements(parent, *elements):
 
 
 class Pipeline:
+    """
+    Captures common `Gst.Pipeline` patterns.
+
+    Unless you explicitly destroy a `Pipeline` instances prior to dereferencing
+    it, there will be a memory leak per instance.
+
+    So make sure to call `Pipeline.destroy()` prior to overwriting or deleting
+    your last reference to a previous `Pipeline` instance.  For example:
+
+    >>> class Manager:
+    ...     def __init__(self):
+    ...         self.pipeline = None
+    ... 
+    ...     def run_next(self, pipeline):
+    ...         if self.pipeline is not None:
+    ...             self.pipeline.destroy()
+    ...         self.pipeline = pipeline
+    ...         self.pipeline.run()  # Or whatever...
+    ...
+
+    """
+
     def __init__(self, callback):
         if not callable(callback):
             raise TypeError(
@@ -232,15 +254,43 @@ class Pipeline:
         self.connect(self.bus, 'message::eos', self.on_eos)
 
     def connect(self, obj, signal, callback):
+        """
+        Connect a GObject signal handler.
+
+        `Pipeline` and its subclasses typically connect to GObject signals in a
+        way that creates circular references.
+
+        However, Python's Cyclic Garbage Collector *cannot* break these
+        reference cycles, so this method appends a ``(obj,handler_id)`` tuple
+        to the `Pipeline.handlers` list after ``obj.connect()`` is called.
+
+        `Pipeline.destroy()` will call ``obj.handler_disconnect(handler_id)``
+        for each pair in this list.
+        """
         hid = obj.connect(signal, callback)
         self.handlers.append((obj, hid))
 
     def destroy(self):
+        """
+        Free all resources associated with this instance.
+
+        This method:
+
+            1.  Disconnects all signal handlers that were connected using
+                `Pipeline.connect()`
+
+            2.  Removes the signal watch from the Gst.Bus instance
+
+            3.  Sets the Gst.Pipeline instance to Gst.State.NULL
+
+        This method should only be called from the main thread.  It can be
+        safely called multiple times (subsequent calls have no effect).
+        """
+        if self.success is None:
+            self.success = False
         while self.handlers:
             (obj, hid) = self.handlers.pop()
             obj.handler_disconnect(hid)
-        if self.success is None:
-            self.success = False
         if hasattr(self, 'bus'):
             self.bus.remove_signal_watch()
             del self.bus
@@ -261,13 +311,11 @@ class Pipeline:
 
     def complete(self, success):
         """
-        Calls Pipeline.do_complete() via GLib.idle_add().
+        Mark this `Pipeline` as completed with a status of *success*.
 
-        It seems you probably can't call Gst.Bus.remove_signal_watch() from
-        within a callback for a signal it fired, otherwise you get a deadlock.
-
-        But we don't want the complexity of having to run the mainloop for most
-        unit tests, so this method can be overridden in special test subclasses.
+        You can safely call `Pipeline.complete()` from any thread because
+        `GLib.idle_add()` is used to execute `Pipeline.do_complete()` in the
+        main thread.
         """
         GLib.idle_add(self.do_complete, success)
 
@@ -284,6 +332,9 @@ class Pipeline:
         self.complete(False)
 
     def on_eos(self, bus, msg):
+        """
+        Default EOS handler that subclasses should usually override.
+        """
         log.warning('subclass %s did not override Pipeline.on_eos()',
             self.__class__.__name__
         )
