@@ -29,9 +29,9 @@ don't want to accumulate too much magic wrapper sauce!
 from fractions import Fraction
 import logging
 
-from gi.repository import Gst, GLib
+from gi.repository import GLib, Gst
 
-from .timefuncs import frame_to_nanosecond
+from .timefuncs import frame_to_nanosecond, nanosecond_to_frame
 
 
 log = logging.getLogger(__name__)
@@ -361,6 +361,12 @@ class Decoder(Pipeline):
 
         # Connect signal handlers using Pipeline.connect():
         self.connect(self.dec, 'pad-added', self.on_pad_added)
+
+    def frame_to_nanosecond(self, frame):
+        return frame_to_nanosecond(frame, self.framerate)
+
+    def nanosecond_to_frame(self, nanosecond):
+        return nanosecond_to_frame(nanosecond, self.framerate)
 
     def seek(self, ns, key_unit=False):
         flags = (FLAGS_KEY_UNIT if key_unit is True else FLAGS_ACCURATE)

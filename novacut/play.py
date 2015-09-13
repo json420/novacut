@@ -45,7 +45,7 @@ class SliceDecoder(Decoder):
 
         # Create elements
         self.sink = make_element('appsink',
-            {'emit-signals': True, 'max-buffers': 8}
+            {'emit-signals': True, 'max-buffers': 4}
         )
 
         # Add elements to pipeline and link:
@@ -53,16 +53,12 @@ class SliceDecoder(Decoder):
         self.video_q.link(self.sink)
 
         # Connect signal handlers using Pipeline.connect():
-        #self.connect(self.sink, 'new-preroll', self.on_new_preroll)
         self.connect(self.sink, 'new-sample', self.on_new_sample)
 
-    def preroll(self):
-        log.info('slice %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+    def run(self):
+        log.info('%s[%s:%s]', self.s.src, self.s.start, self.s.stop)
         self.set_state(Gst.State.PAUSED, sync=True)
         self.seek_to_frame(self.s.start)
-
-    def run(self):
-        self.preroll()
         self.set_state(Gst.State.PLAYING)
 
     def check_frame(self, buf):
@@ -90,7 +86,7 @@ class SliceDecoder(Decoder):
         self.frame += 1
         while self.success is None:
             try:
-                self.buffer_queue.put(buf, timeout=0.5)
+                self.buffer_queue.put(buf, timeout=0.25)
                 break
             except queue.Full:
                 pass
@@ -153,7 +149,7 @@ class VideoSink(Pipeline):
         Empty = queue.Empty
         while self.success is None:
             try:
-                yield q.get(timeout=1)
+                yield q.get(timeout=0.25)
                 break
             except Empty:
                 pass
