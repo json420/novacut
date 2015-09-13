@@ -124,6 +124,11 @@ class TestInput(TestCase):
         self.assertIsInstance(inst.dec, Gst.Element)
         self.assertEqual(inst.dec.get_factory().get_name(), 'decodebin')
 
+        # video and audio queues:
+        self.assertIsInstance(inst.video_q, Gst.Element)
+        self.assertEqual(inst.video_q.get_factory().get_name(), 'queue')
+        self.assertIsNone(inst.audio_q)
+
         # videoconvert:
         self.assertIsInstance(inst.convert, Gst.Element)
         self.assertEqual(inst.convert.get_factory().get_name(), 'videoconvert')
@@ -143,7 +148,7 @@ class TestInput(TestCase):
         self.assertEqual(inst.sink.get_property('max-buffers'), 1)
 
         # Make sure all elements have been added to Pipeline:
-        for child in [inst.src, inst.dec, inst.convert, inst.scale, inst.sink]:
+        for child in [inst.src, inst.dec, inst.video_q, inst.convert, inst.scale, inst.sink]:
             self.assertIs(child.get_parent(), inst.pipeline)
 
         # Make sure gsthelpers.Pipeline.__init__() was called:

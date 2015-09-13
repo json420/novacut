@@ -26,16 +26,12 @@ import logging
 
 from gi.repository import Gst
 
-from .timefuncs import (
-    frame_to_nanosecond,
-    nanosecond_to_frame,
-    video_pts_and_duration,
-)
+from .timefuncs import nanosecond_to_frame, video_pts_and_duration
 from .gsthelpers import (
     Pipeline,
+    Decoder,
     make_element,
     make_element_from_desc,
-    get_framerate,
     make_caps,
     add_and_link_elements,
 )
@@ -105,18 +101,15 @@ def _fraction(obj):
         )
 
 
-class Input(Pipeline):
+class Input(Decoder):
     def __init__(self, callback, buffer_queue, s, input_caps):
-        super().__init__(callback)
+        super().__init__(callback, s.filename, video=True)
         self.buffer_queue = buffer_queue
         assert 0 <= s.start < s.stop
         self.s = s
         self.frame = s.start
-        self.framerate = None
 
         # Create elements
-        self.src = make_element('filesrc', {'location': s.filename})
-        self.dec = make_element('decodebin')
         self.convert = make_element('videoconvert')
         self.scale = make_element('videoscale', {'method': 3})
         self.sink = make_element('appsink',
@@ -124,30 +117,19 @@ class Input(Pipeline):
         )
 
         # Add elements to pipeline and link:
-        add_and_link_elements(self.pipeline, self.src, self.dec)
-        add_and_link_elements(self.pipeline, self.convert, self.scale, self.sink)
+        add_and_link_elements(self.pipeline,
+            self.convert, self.scale, self.sink
+        )
+        self.video_q.link(self.convert)
 
         # Connect signal handlers using Pipeline.connect():
-        self.connect(self.bus, 'message::eos', self.on_eos)
-        self.connect(self.dec, 'pad-added', self.on_pad_added)
         self.connect(self.sink, 'new-sample', self.on_new_sample)
 
     def run(self):
         log.info('Input slice %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
         self.set_state(Gst.State.PAUSED, sync=True)
-        self.pipeline.seek_simple(
-            Gst.Format.TIME,
-            Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE,
-            frame_to_nanosecond(self.s.start, self.framerate)
-        )
+        self.seek_to_frame(self.s.start)
         self.set_state(Gst.State.PLAYING)
-
-    def on_pad_added(self, dec, pad):
-        caps = pad.get_current_caps()
-        string = caps.to_string()
-        if string.startswith('video/'):
-            self.framerate = get_framerate(caps.get_structure(0))
-            pad.link(self.convert.get_static_pad('sink'))
 
     def check_frame(self, buf):
         frame = nanosecond_to_frame(buf.pts, self.framerate)
@@ -228,7 +210,6 @@ class Output(Pipeline):
         )
 
         # Connect signal handlers using Pipeline.connect():
-        self.connect(self.bus, 'message::eos', self.on_eos)
         self.connect(self.src, 'need-data', self.on_need_data)
 
     def run(self):

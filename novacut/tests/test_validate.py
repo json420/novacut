@@ -59,12 +59,13 @@ class TestValidator(TestCase):
                 self.assertEqual(inst.src.get_property('location'), filename)
                 self.assertIsInstance(inst.dec, Gst.Element)
                 self.assertEqual(inst.dec.get_factory().get_name(), 'decodebin')
-                self.assertIsInstance(inst.q, Gst.Element)
-                self.assertEqual(inst.q.get_factory().get_name(), 'queue')
+                self.assertIsInstance(inst.video_q, Gst.Element)
+                self.assertEqual(inst.video_q.get_factory().get_name(), 'queue')
+                self.assertIsNone(inst.audio_q)
                 self.assertIsInstance(inst.sink, Gst.Element)
                 self.assertEqual(inst.sink.get_factory().get_name(), 'fakesink')
                 self.assertIs(inst.sink.get_property('signal-handoffs'), True)
-                for child in [inst.src, inst.dec, inst.q, inst.sink]:
+                for child in [inst.src, inst.dec, inst.video_q, inst.sink]:
                     self.assertIs(child.get_parent(), inst.pipeline)
 
                 # Check that Pipeline.connect() was used:

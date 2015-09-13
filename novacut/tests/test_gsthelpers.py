@@ -25,11 +25,29 @@ Unit tests for the `novacut.gsthelpers` module.
 
 from unittest import TestCase
 from fractions import Fraction
+from random import SystemRandom
+import sys
 
 from gi.repository import Gst
 from dbase32 import random_id
 
+from ..timefuncs import frame_to_nanosecond
 from .. import gsthelpers
+
+
+random = SystemRandom()
+
+
+class TestConstants(TestCase):
+    def test_FLAGS_ACCURATE(self):
+        self.assertEqual(gsthelpers.FLAGS_ACCURATE,
+            Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
+        )
+
+    def test_FLAGS_KEY_UNIT(self):
+        self.assertEqual(gsthelpers.FLAGS_KEY_UNIT,
+            Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
+        )
 
 
 class TestElementFactoryError(TestCase):
@@ -189,29 +207,54 @@ class TestFunctions(TestCase):
             'video/x-raw, framerate=(fraction)30000/1001, height=(int)1920, width=(int)1080'
         )
 
-    def test_get_framerate(self):
+    def test_get_int(self):
         class MockStructure:
             def __init__(self, ret):
                 self._ret = ret
+                self._calls = []
 
-            def get_fraction(self, key):
-                assert not hasattr(self, '_key')
-                self._key = key
+            def get_int(self, name):
+                self._calls.append(name)
                 return self._ret
 
-        s = MockStructure((True, 24000, 1001))
-        f = gsthelpers.get_framerate(s)
-        self.assertIsInstance(f, Fraction)
-        self.assertEqual(f, Fraction(24000, 1001))
-        self.assertEqual(s._key, 'framerate')
+        value = random.randrange(0, 1234567890)
+        s = MockStructure((True, value))
+        name = random_id()
+        self.assertIs(gsthelpers.get_int(s, name), value)
+        self.assertEqual(s._calls, [name])
 
-        s = MockStructure((False, 24000, 1001))
+        s = MockStructure((False, value))
         with self.assertRaises(Exception) as cm:
-            gsthelpers.get_framerate(s)
+            gsthelpers.get_int(s, name)
         self.assertEqual(str(cm.exception),
-            "could not get 'framerate' from video caps structure"
+            'could not get int {!r} from caps structure'.format(name)
         )
-        self.assertEqual(s._key, 'framerate')
+        self.assertEqual(s._calls, [name])
+
+    def test_get_fraction(self):
+        class MockStructure:
+            def __init__(self, ret):
+                self._ret = ret
+                self._calls = []
+
+            def get_fraction(self, name):
+                self._calls.append(name)
+                return self._ret
+
+        num = random.randrange(1, 1234567890)
+        denom = random.randrange(1, 1234567890)
+        s = MockStructure((True, num, denom))
+        name = random_id()
+        self.assertEqual(gsthelpers.get_fraction(s, name), Fraction(num, denom))
+        self.assertEqual(s._calls, [name])
+
+        s = MockStructure((False, num, denom))
+        with self.assertRaises(Exception) as cm:
+            gsthelpers.get_fraction(s, name)
+        self.assertEqual(str(cm.exception),
+            'could not get fraction {!r} from caps structure'.format(name)
+        )
+        self.assertEqual(s._calls, [name])
 
 
 class Callback:
@@ -240,9 +283,13 @@ class TestPipeline(TestCase):
         self.assertIsNone(inst.success)
         self.assertIsInstance(inst.pipeline, Gst.Pipeline)
         self.assertIsInstance(inst.bus, Gst.Bus)
+        self.assertEqual(len(inst.handlers), 2)
+        self.assertIs(inst.handlers[0][0], inst.bus)
+        self.assertIs(inst.handlers[1][0], inst.bus)
         self.assertIsNone(inst.destroy())
         self.assertFalse(hasattr(inst, 'pipeline'))
         self.assertFalse(hasattr(inst, 'bus'))
+        self.assertEqual(sys.getrefcount(inst), 2)
 
     def test_connect(self):
         class DummyGObject:
@@ -429,4 +476,381 @@ class TestPipeline(TestCase):
         self.assertIsNone(inst.on_error('bus', msg))
         self.assertEqual(msg._calls, 1)
         self.assertEqual(inst._complete_calls, [False])
+
+    def test_on_eos(self):
+        class Subclass(gsthelpers.Pipeline):
+            def __init__(self):
+                self._complete_calls = []
+
+            def complete(self, success):
+                self._complete_calls.append(success)
+
+        inst = Subclass() 
+        self.assertIsNone(inst.on_eos('bus', 'msg'))
+        self.assertEqual(inst._complete_calls, [False])
+
+
+class MockStructure:
+    def __init__(self, ret):
+        assert isinstance(ret, dict)
+        self._ret = ret
+        self._calls = []
+
+    def __get(self, method, name):
+        self._calls.append((method, name))
+        # Note: if ever it's valid to extract a value more than once, we should
+        # not pop the value here:
+        return self._ret.pop(name)
+
+    def get_int(self, name):
+        return self.__get('get_int', name)
+
+    def get_fraction(self, name):
+        return self.__get('get_fraction', name)
+
+
+class TestDecoder(TestCase):
+    def test_init(self):
+        def callback(inst, success):
+            pass
+        filename = '/tmp/' + random_id() + '.mov'
+        inst = gsthelpers.Decoder(callback, filename)
+        self.assertIsNone(inst.framerate)
+        self.assertIsNone(inst.rate)
+        self.assertIsNone(inst.video_q)
+        self.assertIsNone(inst.audio_q)
+
+        # filesrc:
+        self.assertIsInstance(inst.src, Gst.Element)
+        self.assertEqual(inst.src.get_factory().get_name(), 'filesrc')
+        self.assertEqual(inst.src.get_property('location'), filename)
+
+        # decodebin:
+        self.assertIsInstance(inst.dec, Gst.Element)
+        self.assertEqual(inst.dec.get_factory().get_name(), 'decodebin')
+
+        # Make sure all elements have been added to Pipeline:
+        for child in [inst.src, inst.dec]:
+            self.assertIs(child.get_parent(), inst.pipeline)
+
+        # Check that Pipeline.connect() was used:
+        self.assertEqual(len(inst.handlers), 3)
+        self.assertIs(inst.handlers[0][0], inst.bus)
+        self.assertIs(inst.handlers[1][0], inst.bus)
+        self.assertIs(inst.handlers[2][0], inst.dec)
+
+        # Make sure gsthelpers.Pipeline.__init__() was called:
+        self.assertIs(inst.callback, callback)
+        self.assertIsInstance(inst.pipeline, Gst.Pipeline)
+        self.assertIsInstance(inst.bus, Gst.Bus)
+        self.assertEqual(sys.getrefcount(inst), 5)
+        self.assertIsNone(inst.destroy())
+        self.assertFalse(hasattr(inst, 'pipeline'))
+        self.assertFalse(hasattr(inst, 'bus'))
+        self.assertEqual(inst.handlers, [])
+        self.assertEqual(sys.getrefcount(inst), 2)
+
+        # video=True:
+        inst = gsthelpers.Decoder(callback, filename, video=True)
+        self.assertIsInstance(inst.video_q, Gst.Element)
+        self.assertEqual(inst.video_q.get_factory().get_name(), 'queue')
+        self.assertIs(inst.video_q.get_parent(), inst.pipeline)
+        self.assertIsNone(inst.audio_q)
+        self.assertIsNone(inst.destroy())
+        self.assertEqual(inst.handlers, [])
+        self.assertEqual(sys.getrefcount(inst), 2)
+
+        # audio=True:
+        inst = gsthelpers.Decoder(callback, filename, audio=True)
+        self.assertIsNone(inst.video_q)
+        self.assertIsInstance(inst.audio_q, Gst.Element)
+        self.assertEqual(inst.audio_q.get_factory().get_name(), 'queue')
+        self.assertIs(inst.audio_q.get_parent(), inst.pipeline)
+        self.assertIsNone(inst.destroy())
+        self.assertEqual(inst.handlers, [])
+        self.assertEqual(sys.getrefcount(inst), 2)
+
+        # video=True, audio=True:
+        inst = gsthelpers.Decoder(callback, filename, video=True, audio=True)
+        self.assertIsInstance(inst.video_q, Gst.Element)
+        self.assertEqual(inst.video_q.get_factory().get_name(), 'queue')
+        self.assertIs(inst.video_q.get_parent(), inst.pipeline)
+        self.assertIsInstance(inst.audio_q, Gst.Element)
+        self.assertEqual(inst.audio_q.get_factory().get_name(), 'queue')
+        self.assertIs(inst.audio_q.get_parent(), inst.pipeline)
+        self.assertIsNone(inst.destroy())
+        self.assertEqual(inst.handlers, [])
+        self.assertEqual(sys.getrefcount(inst), 2)
+
+    def test_seek(self):
+        class DummyPipeline:
+            def __init__(self):
+                self._calls = []
+
+            def seek_simple(self, frmt, flags, ns):
+                self._calls.append((frmt, flags, ns))
+
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self, pipeline):
+                self.pipeline = pipeline
+
+        pipeline = DummyPipeline()
+        inst = Subclass(pipeline)
+        ns = random.randrange(0, 1234567890)
+        self.assertIsNone(inst.seek(ns))
+        self.assertEqual(pipeline._calls, [
+            (Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE, ns),
+        ])
+
+        pipeline = DummyPipeline()
+        inst = Subclass(pipeline)
+        ns = random.randrange(0, 1234567890)
+        self.assertIsNone(inst.seek(ns, key_unit=True))
+        self.assertEqual(pipeline._calls, [
+            (Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, ns),
+        ])
+
+    def test_seek_to_frame(self):
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self, framerate):
+                self.framerate = framerate
+                self._calls = []
+
+            def seek(self, ns, key_unit):
+                self._calls.append((ns, key_unit))
+
+        framerate = Fraction(30000, 1001)
+
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(0))
+        self.assertEqual(inst._calls, [(0, False)])
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(0, key_unit=True))
+        self.assertEqual(inst._calls, [(0, True)])
+
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(1))
+        self.assertEqual(inst._calls, [(33366666, False)])
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(1, key_unit=True))
+        self.assertEqual(inst._calls, [(33366666, True)])
+
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(2))
+        self.assertEqual(inst._calls, [(66733333, False)])
+        inst = Subclass(framerate)
+        self.assertIsNone(inst.seek_to_frame(2, key_unit=True))
+        self.assertEqual(inst._calls, [(66733333, True)])
+
+        for i in range(500):
+            frame = random.randrange(1234567)
+            ns = frame_to_nanosecond(frame, framerate)
+            inst = Subclass(framerate)
+            self.assertIsNone(inst.seek_to_frame(frame))
+            self.assertEqual(inst._calls, [(ns, False)])
+            inst = Subclass(framerate)
+            self.assertIsNone(inst.seek_to_frame(frame, key_unit=True))
+            self.assertEqual(inst._calls, [(ns, True)])
+
+    def test_extract_video_info(self):
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self):
+                self.framerate = None
+
+        num = random.randrange(1, 1234567890)
+        denom = random.randrange(1, 1234567890)
+        s = MockStructure({'framerate': (True, num, denom)})
+        inst = Subclass()
+        self.assertIsNone(inst.extract_video_info(s))
+        self.assertEqual(inst.framerate, Fraction(num, denom))
+        self.assertEqual(s._ret, {})
+        self.assertEqual(s._calls, [('get_fraction', 'framerate')])
+
+        s = MockStructure({'framerate': (False, num, denom)})
+        inst = Subclass()
+        with self.assertRaises(Exception) as cm:
+            inst.extract_video_info(s) 
+        self.assertEqual(str(cm.exception),
+            "could not get fraction 'framerate' from caps structure"
+        )
+        self.assertEqual(s._ret, {})
+        self.assertEqual(s._calls, [('get_fraction', 'framerate')])
+        self.assertIsNone(inst.framerate)
+
+    def test_extract_audio_info(self):
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self):
+                self.rate = None
+
+        value = random.randrange(1, 1234567890)
+        s = MockStructure({'rate': (True, value)})
+        inst = Subclass()
+        self.assertIsNone(inst.extract_audio_info(s))
+        self.assertIs(inst.rate, value)
+        self.assertEqual(s._ret, {})
+        self.assertEqual(s._calls, [('get_int', 'rate')])
+
+        s = MockStructure({'rate': (False, value)})
+        inst = Subclass()
+        with self.assertRaises(Exception) as cm:
+            inst.extract_audio_info(s) 
+        self.assertEqual(str(cm.exception),
+            "could not get int 'rate' from caps structure"
+        )
+        self.assertEqual(s._ret, {})
+        self.assertEqual(s._calls, [('get_int', 'rate')])
+        self.assertIsNone(inst.rate)
+
+    def test_on_pad_added(self):
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self, video_q, audio_q):
+                self.video_q = video_q
+                self.audio_q = audio_q
+                self._calls = []
+
+            def complete(self, success):
+                self._calls.append(('complete', success))
+
+            def extract_video_info(self, structure):
+                self._calls.append(('extract_video_info', structure))
+
+            def extract_audio_info(self, structure):
+                self._calls.append(('extract_audio_info', structure))
+
+        class MockPad:
+            def __init__(self, caps):
+                self._caps = caps
+                self._calls = []
+
+            def get_current_caps(self):
+                self._calls.append('get_current_caps')
+                if isinstance(self._caps, Exception):
+                    raise self._caps
+                return self._caps
+
+            def link(self, pad):
+                self._calls.append(('link', pad))
+
+        class MockCaps:
+            def __init__(self, string):
+                self._string = string
+                self._s = random_id()
+                self._calls = []
+
+            def to_string(self):
+                self._calls.append('to_string')
+                return self._string
+
+            def get_structure(self, index):
+                self._calls.append(('get_structure', index))
+                return self._s
+
+        ####################################################
+        # First test when both video_q and audio_q are None:
+
+        # video/x-raw:
+        inst = Subclass(None, None)
+        caps = MockCaps('video/x-raw, foo=bar, stuff=junk')
+        pad = MockPad(caps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(caps._calls, ['to_string'])
+        self.assertEqual(inst._calls, [])
+
+        # audio/x-raw:
+        inst = Subclass(None, None)
+        caps = MockCaps('audio/x-raw, foo=bar, stuff=junk')
+        pad = MockPad(caps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(caps._calls, ['to_string'])
+        self.assertEqual(inst._calls, [])
+
+        # caps string that should be ignored:
+        inst = Subclass(None, None)
+        caps = MockCaps('audio/x-nah, foo=bar, stuff=junk')
+        pad = MockPad(caps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(caps._calls, ['to_string'])
+        self.assertEqual(inst._calls, [])
+
+        # Make sure Pipeline.complete(False) is called on unhandled exception:
+        inst = Subclass(None, None)
+        marker = random_id()
+        exc = ValueError(marker)
+        pad = MockPad(exc)
+        with self.assertRaises(ValueError) as cm:
+            inst.on_pad_added('element', pad)
+        self.assertIs(cm.exception, exc)
+        self.assertEqual(str(cm.exception), marker)
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(inst._calls, [('complete', False)])
+
+        ##################################################################
+        # Do it all over again, this time with mocked video_q and audio_q:
+        class MockQueue:
+            def __init__(self):
+                self._pad = random_id()
+                self._calls = []
+
+            def get_static_pad(self, name):
+                self._calls.append(name)
+                return self._pad
+
+        vq = MockQueue()
+        aq = MockQueue()
+        inst = Subclass(vq, aq)
+
+        # video/x-raw:
+        vcaps = MockCaps('video/x-raw, foo=bar, stuff=junk')
+        pad = MockPad(vcaps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps', ('link', vq._pad)])
+        self.assertEqual(vcaps._calls, ['to_string', ('get_structure', 0)])
+        self.assertEqual(vq._calls, ['sink'])
+        self.assertEqual(aq._calls, [])
+        self.assertEqual(inst._calls, [('extract_video_info', vcaps._s)])
+
+        # audio/x-raw:
+        acaps = MockCaps('audio/x-raw, foo=bar, stuff=junk')
+        pad = MockPad(acaps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps', ('link', aq._pad)])
+        self.assertEqual(vcaps._calls, ['to_string', ('get_structure', 0)])
+        self.assertEqual(acaps._calls, ['to_string', ('get_structure', 0)])
+        self.assertEqual(vq._calls, ['sink'])
+        self.assertEqual(aq._calls, ['sink'])
+        self.assertEqual(inst._calls,
+            [('extract_video_info', vcaps._s), ('extract_audio_info', acaps._s)]
+        )
+
+        # caps string that should be ignored:
+        vq = MockQueue()
+        aq = MockQueue()
+        inst = Subclass(vq, aq)
+        caps = MockCaps('video/x-nah, foo=bar, stuff=junk')
+        pad = MockPad(caps)
+        self.assertIsNone(inst.on_pad_added('element', pad))
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(caps._calls, ['to_string'])
+        self.assertEqual(vq._calls, [])
+        self.assertEqual(aq._calls, [])
+        self.assertEqual(inst._calls, [])
+
+        # Make sure Pipeline.complete(False) is called on unhandled exception:
+        vq = MockQueue()
+        aq = MockQueue()
+        inst = Subclass(vq, aq)
+        marker = random_id()
+        exc = ValueError(marker)
+        pad = MockPad(exc)
+        with self.assertRaises(ValueError) as cm:
+            inst.on_pad_added('element', pad)
+        self.assertIs(cm.exception, exc)
+        self.assertEqual(str(cm.exception), marker)
+        self.assertEqual(pad._calls, ['get_current_caps'])
+        self.assertEqual(vq._calls, [])
+        self.assertEqual(aq._calls, [])
+        self.assertEqual(inst._calls, [('complete', False)])
 

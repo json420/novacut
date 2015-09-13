@@ -31,12 +31,14 @@ import logging
 
 from gi.repository import Gst, GLib
 
+from .timefuncs import frame_to_nanosecond
+
 
 log = logging.getLogger(__name__)
 Gst.init()
 
-
-# Provide very clear TypeError messages:
+FLAGS_ACCURATE = Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
+FLAGS_KEY_UNIT = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 
 
@@ -178,10 +180,21 @@ def make_caps(mime, desc):
     return Gst.caps_from_string(make_caps_string(mime, desc))
 
 
-def get_framerate(s):
-    (success, num, denom) = s.get_fraction('framerate')
+def get_int(structure, name):
+    (success, value) = structure.get_int(name)
     if not success:
-        raise Exception("could not get 'framerate' from video caps structure")
+        raise Exception(
+            'could not get int {!r} from caps structure'.format(name)
+        )
+    return value
+
+
+def get_fraction(structure, name):
+    (success, num, denom) = structure.get_fraction(name)
+    if not success:
+        raise Exception(
+            'could not get fraction {!r} from caps structure'.format(name)
+        )
     return Fraction(num, denom)
 
 
@@ -204,6 +217,28 @@ def add_and_link_elements(parent, *elements):
 
 
 class Pipeline:
+    """
+    Captures common `Gst.Pipeline` patterns.
+
+    Unless you explicitly destroy a `Pipeline` instances prior to dereferencing
+    it, there will be a memory leak per instance.
+
+    So make sure to call `Pipeline.destroy()` prior to overwriting or deleting
+    your last reference to a previous `Pipeline` instance.  For example:
+
+    >>> class Manager:
+    ...     def __init__(self):
+    ...         self.pipeline = None
+    ... 
+    ...     def run_next(self, pipeline):
+    ...         if self.pipeline is not None:
+    ...             self.pipeline.destroy()
+    ...         self.pipeline = pipeline
+    ...         self.pipeline.run()  # Or whatever...
+    ...
+
+    """
+
     def __init__(self, callback):
         if not callable(callback):
             raise TypeError(
@@ -216,17 +251,46 @@ class Pipeline:
         self.bus = self.pipeline.get_bus()
         self.bus.add_signal_watch()
         self.connect(self.bus, 'message::error', self.on_error)
+        self.connect(self.bus, 'message::eos', self.on_eos)
 
     def connect(self, obj, signal, callback):
+        """
+        Connect a GObject signal handler.
+
+        `Pipeline` and its subclasses typically connect to GObject signals in a
+        way that creates circular references.
+
+        However, Python's Cyclic Garbage Collector *cannot* break these
+        reference cycles, so this method appends a ``(obj,handler_id)`` tuple
+        to the `Pipeline.handlers` list after ``obj.connect()`` is called.
+
+        `Pipeline.destroy()` will call ``obj.handler_disconnect(handler_id)``
+        for each pair in this list.
+        """
         hid = obj.connect(signal, callback)
         self.handlers.append((obj, hid))
 
     def destroy(self):
+        """
+        Free all resources associated with this instance.
+
+        This method:
+
+            1.  Disconnects all signal handlers that were connected using
+                `Pipeline.connect()`
+
+            2.  Removes the signal watch from the Gst.Bus instance
+
+            3.  Sets the Gst.Pipeline instance to Gst.State.NULL
+
+        This method should only be called from the main thread.  It can be
+        safely called multiple times (subsequent calls have no effect).
+        """
+        if self.success is None:
+            self.success = False
         while self.handlers:
             (obj, hid) = self.handlers.pop()
             obj.handler_disconnect(hid)
-        if self.success is None:
-            self.success = False
         if hasattr(self, 'bus'):
             self.bus.remove_signal_watch()
             del self.bus
@@ -247,13 +311,11 @@ class Pipeline:
 
     def complete(self, success):
         """
-        Calls Pipeline.do_complete() via GLib.idle_add().
+        Mark this `Pipeline` as completed with a status of *success*.
 
-        It seems you probably can't call Gst.Bus.remove_signal_watch() from
-        within a callback for a signal it fired, otherwise you get a deadlock.
-
-        But we don't want the complexity of having to run the mainloop for most
-        unit tests, so this method can be overridden in special test subclasses.
+        You can safely call `Pipeline.complete()` from any thread because
+        `GLib.idle_add()` is used to execute `Pipeline.do_complete()` in the
+        main thread.
         """
         GLib.idle_add(self.do_complete, success)
 
@@ -268,4 +330,66 @@ class Pipeline:
             self.__class__.__name__, msg.parse_error()
         )
         self.complete(False)
+
+    def on_eos(self, bus, msg):
+        """
+        Default EOS handler that subclasses should usually override.
+        """
+        log.warning('subclass %s did not override Pipeline.on_eos()',
+            self.__class__.__name__
+        )
+        self.complete(False)
+
+
+class Decoder(Pipeline):
+    def __init__(self, callback, filename, video=False, audio=False):
+        super().__init__(callback)
+        self.framerate = None
+        self.rate = None
+
+        # Create elements:
+        self.src = make_element('filesrc', {'location': filename})
+        self.dec = make_element('decodebin')
+        self.video_q = (make_element('queue') if video is True else None)
+        self.audio_q = (make_element('queue') if audio is True else None)
+
+        # Add elements to pipeline and link:
+        add_and_link_elements(self.pipeline, self.src, self.dec)
+        for q in (self.video_q, self.audio_q):
+            if q is not None:
+                self.pipeline.add(q)
+
+        # Connect signal handlers using Pipeline.connect():
+        self.connect(self.dec, 'pad-added', self.on_pad_added)
+
+    def seek(self, ns, key_unit=False):
+        flags = (FLAGS_KEY_UNIT if key_unit is True else FLAGS_ACCURATE)
+        self.pipeline.seek_simple(Gst.Format.TIME, flags, ns)
+
+    def seek_to_frame(self, frame, key_unit=False):
+        self.seek(frame_to_nanosecond(frame, self.framerate), key_unit)
+
+    def extract_video_info(self, structure):
+        self.framerate = get_fraction(structure, 'framerate')
+
+    def extract_audio_info(self, structure):
+        self.rate = get_int(structure, 'rate')
+
+    def on_pad_added(self, element, pad):
+        try:
+            caps = pad.get_current_caps()
+            string = caps.to_string()
+            log.debug('%s.on_pad_added(): %s', self.__class__.__name__, string)
+            if string.startswith('video/x-raw'):
+                if self.video_q is not None:
+                    self.extract_video_info(caps.get_structure(0))
+                    pad.link(self.video_q.get_static_pad('sink'))
+            elif string.startswith('audio/x-raw'):
+                if self.audio_q is not None:
+                    self.extract_audio_info(caps.get_structure(0))
+                    pad.link(self.audio_q.get_static_pad('sink'))
+        except:
+            log.exception('%s.on_pad_added():', self.__class__.__name__)
+            self.complete(False)
+            raise
 

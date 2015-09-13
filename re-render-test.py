@@ -28,12 +28,14 @@ Script to re-render all existing jobs in novacut-1 Database.
 import json
 import os
 from os import path
+import argparse
 import logging
 
 from gi.repository import GLib
 from dmedia.service import get_proxy
 from microfiber import Database
 
+from novacut.settings import get_default_settings
 from novacut.render import Renderer
 from novacut.validate import Validator
 from novacut.renderservice import get_slices
@@ -50,6 +52,13 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--default', action='store_true', default=False,
+    help='Use default render settings rather than OGG/Theora'
+)
+args = parser.parse_args()
+
+
 tree = path.dirname(path.abspath(__file__))
 tmp = path.join(tree, 'tmp')
 Dmedia = get_proxy()
@@ -58,6 +67,8 @@ db = Database('novacut-1', env)
 
 
 def get_settings():
+    if args.default:
+        return get_default_settings()
     return {
         'muxer': 'oggmux',
         'ext': 'ogg',

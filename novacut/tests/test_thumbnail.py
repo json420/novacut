@@ -61,6 +61,11 @@ class TestThumbnailer(TestCase):
         self.assertIsInstance(inst.dec, Gst.Element)
         self.assertEqual(inst.dec.get_factory().get_name(), 'decodebin')
 
+        # video and audio queues:
+        self.assertIsInstance(inst.video_q, Gst.Element)
+        self.assertEqual(inst.video_q.get_factory().get_name(), 'queue')
+        self.assertIsNone(inst.audio_q)
+
         # videoconvert:
         self.assertIsInstance(inst.convert, Gst.Element)
         self.assertEqual(inst.convert.get_factory().get_name(), 'videoconvert')
@@ -81,7 +86,16 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.sink.get_property('signal-handoffs'), True)
 
         # Make sure all elements have been added to pipeline:
-        for child in [inst.src, inst.dec, inst.convert, inst.scale, inst.enc, inst.sink]:
+        children = (
+            inst.src,
+            inst.dec,
+            inst.video_q,
+            inst.convert,
+            inst.scale,
+            inst.enc,
+            inst.sink,
+        )
+        for child in children:
             self.assertIs(child.get_parent(), inst.pipeline)
 
         # Check that Pipeline.connect() was used:
@@ -99,6 +113,7 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.destroy())
         self.assertFalse(hasattr(inst, 'pipeline'))
         self.assertFalse(hasattr(inst, 'bus'))
+        self.assertEqual(inst.handlers, [])
         self.assertEqual(sys.getrefcount(inst), 2)
 
     def test_seek_to_frame(self):
