@@ -28,6 +28,13 @@ from . import schema
 
 def get_default_settings():
     return {
+#        'muxer': {
+#            'name': 'qtmux',
+#            'props': {
+#                'movie-timescale': 30000,
+#                'trak-timescale': 30000, 
+#            },
+#        },
         'muxer': 'matroskamux',
         'ext': 'mkv',
         'video': {
