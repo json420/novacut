@@ -32,9 +32,9 @@ import sys
 from dbase32 import random_id
 from gi.repository import Gst
 
+from .helpers import random_filename, random_slice
 from .. import timefuncs
 from ..settings import get_default_settings
-from ..misc import random_start_stop
 from .. import render
 
 
@@ -83,22 +83,6 @@ class TestFunctions(TestCase):
             )
             for minval in (None, val, val - 1):
                 self.assertIs(_int(d, key, minval), val)
-
-
-def random_framerate():
-    num = random.randrange(1, 54321)
-    denom = random.randrange(1, 54321)
-    return (num, denom, Fraction(num, denom))
-
-
-def random_filename():
-    return '/tmp/' + random_id() + '.mov'
-
-
-def random_slice():
-    (start, stop) = random_start_stop()
-    filename = random_filename()
-    return render.Slice(random_id(), random_id(30), start, stop, filename)
 
 
 class TestInput(TestCase):
