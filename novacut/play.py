@@ -29,7 +29,7 @@ import logging
 
 from gi.repository import GLib, Gst
 
-from .timefuncs import nanosecond_to_frame, video_pts_and_duration
+from .timefuncs import video_pts_and_duration
 from .gsthelpers import Decoder, Pipeline, make_element, add_and_link_elements
 
 
@@ -49,7 +49,7 @@ class SliceDecoder(Decoder):
 
         # Create elements
         self.sink = make_element('appsink',
-            {'emit-signals': True, 'max-buffers': 10}
+            {'emit-signals': True, 'max-buffers': 1}
         )
 
         # Add elements to pipeline and link:
@@ -61,21 +61,16 @@ class SliceDecoder(Decoder):
 
     def preroll(self):
         self.set_state(Gst.State.PAUSED, sync=True)
-        self.seek_by_frame(self.s.start, self.s.stop)
-        self.isprerolled = True
+        if self.framerate is None:
+            log.info('%s.preroll(): no framerate', self.__class__.__name__)
+            self.complete(False)
+        else:
+            self.seek_by_frame(self.s.start, self.s.stop)
+            self.isprerolled = True
 
     def run(self):
         assert self.isprerolled is True
         self.set_state(Gst.State.PLAYING)
-
-    def check_frame(self, buf):
-        frame = nanosecond_to_frame(buf.pts, self.framerate)
-        if self.frame == frame:
-            return True
-        log.error('expected frame %s, got %s from slice %s: %s[%s:%s]',
-            self.frame, frame, self.s.id, self.s.src, self.s.start, self.s.stop
-        )
-        return False
 
     def on_new_sample(self, appsink):
         try:
@@ -85,7 +80,7 @@ class SliceDecoder(Decoder):
             self.frame += 1
             while self.success is None:
                 try:
-                    self.sample_queue.put(sample, timeout=0.25)
+                    self.sample_queue.put(sample, timeout=0.1)
                     if self.frame >= self.s.stop:
                         self.complete(True)
                     return Gst.FlowReturn.OK
@@ -98,7 +93,8 @@ class SliceDecoder(Decoder):
             raise
 
     def on_eos(self, bus, msg):
-        if self.success is None and self.frame < self.s.stop:
+        log.info('%s.on_eos()', self.__class__.__name__)
+        if self.success is None:
             self.complete(False)
 
 
@@ -132,7 +128,7 @@ class VideoSink(Pipeline):
 
     def wait_for_queue_to_fill(self):
         if self.sample_queue.full():
-            self.set_state(Gst.State.PLAYING)
+            GLib.timeout_add(5000, self.set_state, Gst.State.PLAYING)
             return False
         log.info('waiting for sample queue to fill...')
         return True
@@ -146,41 +142,31 @@ class VideoSink(Pipeline):
             self.bus.disable_sync_message_emission()
             msg.src.set_window_handle(self.xid)
 
-    def iter_samples(self):
-        get = self.sample_queue.get
+    def get_sample(self):
         while self.success is None:
             try:
-                yield get(timeout=0.03)
-                break
+                return self.sample_queue.get(timeout=0.05)
             except Empty:
                 self.misses += 1
                 log.warning('miss %d', self.misses)
-        if self.success is None:
-            return
-        for i in range(2):
-            try:
-                yield get(block=True)
-            except Empty:
-                break
-        log.info('got %d frames', i + 1)
 
     def on_need_data(self, appsrc, amount):
         try:
             if self.sent_eos:
                 log.info('sent_eos is True, ignoring need-data signal')
                 return
-            for sample in self.iter_samples():
-                if sample is None:
-                    log.info('received end-of-render sentinel')
-                    self.sent_eos = True
-                    appsrc.emit('end-of-stream')
-                    return
-                ts = video_pts_and_duration(self.frame, self.framerate)
-                self.frame += 1
-                buf = sample.get_buffer()
-                buf.pts = ts.pts
-                buf.duration = ts.duration
-                appsrc.emit('push-sample', sample)    
+            sample = self.get_sample()
+            if sample is None:
+                log.info('received end-of-render sentinel')
+                self.sent_eos = True
+                appsrc.emit('end-of-stream')
+                return
+            ts = video_pts_and_duration(self.frame, self.framerate)
+            self.frame += 1
+            buf = sample.get_buffer()
+            buf.pts = ts.pts
+            buf.duration = ts.duration
+            appsrc.emit('push-sample', sample)    
         except:
             log.exception('%s.on_need_data():', self.__class__.__name__)
             self.complete(False)
@@ -241,7 +227,7 @@ class Player:
     def destroy(self):
         if self.success is not True:
             self.success = False
-        log.info('.destroy()')
+        log.info('%s.destroy()', self.__class__.__name__)
         while self.prerolled:
             dec = self.prerolled.pop(0)
             dec.destroy()
@@ -253,20 +239,16 @@ class Player:
             self.output = None
 
     def complete(self, success):
-        log.info('Renderer.complete(%r)', success)
-        if self.success is not None:
-            log.error('Renderer.complete() already called, ignoring')
-            return
+        log.info('%s.complete()', self.__class__.__name__)
         self.success = (True if success is True else False)
         self.destroy()
         if self.success is True:
-            log.info('**** Rendered %s slices, %s frames!',
+            log.info('**** Played %s slices, %s frames!',
                 len(self.slices), self.total_frames
             )
         self.callback(self, self.success)
 
     def on_input_complete(self, inst, success):
-        assert inst is self.input
         if success is True:
             self.next()
         else:
