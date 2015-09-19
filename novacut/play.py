@@ -35,7 +35,8 @@ from .gsthelpers import Decoder, Pipeline, make_element, add_and_link_elements
 
 log = logging.getLogger(__name__)
 QUEUE_SIZE = 16
-PREROLL_COUNT = 2
+SPARE_DECODERS = 1
+VIDEO_CAPS = Gst.caps_from_string('video/x-raw')
 
 
 class SliceDecoder(Decoder):
@@ -46,6 +47,7 @@ class SliceDecoder(Decoder):
         self.s = s
         self.frame = s.start
         self.isprerolled = False
+        self.dec.set_property('caps', VIDEO_CAPS)
 
         # Create elements
         self.sink = make_element('appsink',
@@ -62,7 +64,7 @@ class SliceDecoder(Decoder):
     def preroll(self):
         self.set_state(Gst.State.PAUSED, sync=True)
         if self.framerate is None:
-            log.info('%s.preroll(): no framerate', self.__class__.__name__)
+            log.error('%s.preroll(): no framerate', self.__class__.__name__)
             self.complete(False)
         else:
             self.seek_by_frame(self.s.start, self.s.stop)
@@ -70,6 +72,8 @@ class SliceDecoder(Decoder):
 
     def run(self):
         assert self.isprerolled is True
+        log.info('start %d %s %d', self.sample_queue.qsize(),
+            self.s.id, self.s.stop - self.s.start)
         self.set_state(Gst.State.PLAYING)
 
     def on_new_sample(self, appsink):
@@ -106,7 +110,6 @@ class VideoSink(Pipeline):
         self.frame = 0
         self.sent_eos = False
         self.framerate = Fraction(30000, 1001)
-        self.misses = 0
 
         # Create elements:
         self.src = make_element('appsrc', {'format': 3})
@@ -128,7 +131,7 @@ class VideoSink(Pipeline):
 
     def wait_for_queue_to_fill(self):
         if self.sample_queue.full():
-            GLib.timeout_add(5000, self.set_state, Gst.State.PLAYING)
+            self.set_state(Gst.State.PLAYING)
             return False
         log.info('waiting for sample queue to fill...')
         return True
@@ -143,12 +146,20 @@ class VideoSink(Pipeline):
             msg.src.set_window_handle(self.xid)
 
     def get_sample(self):
+        sample = None
+        miss = False
         while self.success is None:
             try:
-                return self.sample_queue.get(timeout=0.05)
+                sample = self.sample_queue.get(block=False)
+                break
             except Empty:
-                self.misses += 1
-                log.warning('miss %d', self.misses)
+                if miss is False:
+                    miss = True
+                    log.error('miss at frame %d', self.frame)
+                    self.set_state(Gst.State.PAUSED)
+        if miss is True:
+            GLib.timeout_add(2000, self.set_state, Gst.State.PLAYING)
+        return sample
 
     def on_need_data(self, appsrc, amount):
         try:
@@ -161,6 +172,9 @@ class VideoSink(Pipeline):
                 self.sent_eos = True
                 appsrc.emit('end-of-stream')
                 return
+            log.info('need-data, frame=%d, queue=%d', self.frame,
+                self.q.get_property('current-level-buffers')
+            )
             ts = video_pts_and_duration(self.frame, self.framerate)
             self.frame += 1
             buf = sample.get_buffer()
@@ -170,7 +184,6 @@ class VideoSink(Pipeline):
         except:
             log.exception('%s.on_need_data():', self.__class__.__name__)
             self.complete(False)
-            raise
 
 
 class Player:
@@ -193,25 +206,19 @@ class Player:
             return False
         s = self.slices.pop(0)
         dec = SliceDecoder(self.on_input_complete, self.sample_queue, s)
-        dec.preroll()
         self.prerolled.append(dec)
+        dec.preroll()
         return True
 
     def init_preroll(self):
-        for i in range(PREROLL_COUNT):
+        for i in range(SPARE_DECODERS):
             if not self.next_preroll():
                 break
 
     def next(self):
-        if self.success is not None:
-            log.error('Ignoring call to Player.next()')
-            return
         if not self.prerolled:
             self.sample_queue.put(None)
         else:
-            if self.input is not None:
-                self.input.destroy()
-                self.input = None
             self.input = self.prerolled.pop(0)
             self.input.run()
             self.next_preroll()
