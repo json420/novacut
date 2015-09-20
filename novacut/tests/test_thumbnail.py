@@ -164,7 +164,7 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.s)
         self.assertIsNone(inst.frame)
         self.assertEqual(inst.thumbnails, [])
-        self.assertIs(inst.got_eos, False)
+        self.assertIs(inst.unhandled_eos, False)
 
         # filesrc:
         self.assertIsInstance(inst.src, Gst.Element)
@@ -271,49 +271,82 @@ class TestThumbnailer(TestCase):
             self.assertEqual(inst._calls, [(s.start, s.stop)])
 
     def test_next(self):
-        self.skipTest('FIXME')
         class Subclass(thumbnail.Thumbnailer):
-            def __init__(self, indexes, attachments):
+            __slots__ = (
+                'indexes',
+                'existing',
+                'file_stop',
+                'unhandled_eos',
+                'thumbnails',
+                '_calls',
+            )
+
+            def __init__(self, indexes, existing, file_stop):
                 self.indexes = indexes
-                self.attachments = attachments
+                self.existing = existing
+                self.file_stop = file_stop
+                self.unhandled_eos = True
+                self.thumbnails = []
                 self._calls = []
 
-            def seek_by_frame(self, frame):
-                self._calls.append(('seek_by_frame', frame))
+            def play_slice(self, s):
+                self._calls.append(('play_slice', s))
 
             def complete(self, success):
                 self._calls.append(('complete', success))
 
+        indexes = [2, 17, 18, 19]
+        existing = {18}
+        inst = Subclass(indexes, existing, 23)
 
-        indexes = [17, 18, 19]
-        attachments = {'18': 'foobar'}
-        inst = Subclass(indexes, attachments)
-
-        # Frame 17:
+        # Frame 2: should play slice [1:4]
+        self.assertIs(inst.unhandled_eos, True)
         self.assertIsNone(inst.next())
-        self.assertEqual(inst.indexes, [18, 19])
-        self.assertEqual(inst.attachments, {'18': 'foobar'})
+        self.assertIs(inst.unhandled_eos, False)
+        self.assertEqual(inst.indexes, [17, 18, 19])
+        self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            ('seek_by_frame', 17),
+            ('play_slice', (1, 4)),
         ])
 
-        # Frame 18 should be skipped as it's already in attachments:
+        # Frame 17: as 18 exists, should walk backward 10 frames
+        inst.unhandled_eos = True
+        self.assertIs(inst.unhandled_eos, True)
         self.assertIsNone(inst.next())
-        self.assertEqual(inst.indexes, [])
-        self.assertEqual(inst.attachments, {'18': 'foobar'})
+        self.assertIs(inst.unhandled_eos, False)
+        self.assertEqual(inst.indexes, [18, 19])
+        self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            ('seek_by_frame', 17),
-            ('seek_by_frame', 19),
+            ('play_slice', (1, 4)),
+            ('play_slice', (8, 18)),
+        ])
+
+        # Frame 18: exists, should be skipped
+        # Frame 19: as 18 exists, should walk forward up to file_stop
+        inst.unhandled_eos = True
+        self.assertIs(inst.unhandled_eos, True)
+        self.assertIsNone(inst.next())
+        self.assertIs(inst.unhandled_eos, False)
+        self.assertEqual(inst.indexes, [])
+        self.assertEqual(inst.existing, {18})
+        self.assertEqual(inst._calls, [
+            ('play_slice', (1, 4)),
+            ('play_slice', (8, 18)),
+            ('play_slice', (19, 23)),
         ])
 
         # Pipeline.complete() should be called once indexes is empty:
+        inst.unhandled_eos = True
+        self.assertIs(inst.unhandled_eos, True)
         self.assertIsNone(inst.next())
+        self.assertIs(inst.unhandled_eos, False)
         self.assertEqual(inst.indexes, [])
-        self.assertEqual(inst.attachments, {'18': 'foobar'})
+        self.assertEqual(inst.existing, {18})
+        self.assertEqual(inst.thumbnails, [])
         self.assertEqual(inst._calls, [
-            ('seek_by_frame', 17),
-            ('seek_by_frame', 19),
+            ('play_slice', (1, 4)),
+            ('play_slice', (8, 18)),
+            ('play_slice', (19, 23)),
             ('complete', True),
         ])
-
 

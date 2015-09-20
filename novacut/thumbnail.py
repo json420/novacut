@@ -150,7 +150,7 @@ class Thumbnailer(Decoder):
         self.s = None
         self.frame = None
         self.thumbnails = []
-        self.got_eos = False
+        self.unhandled_eos = False
 
         # Create elements
         self.convert = make_element('videoconvert')
@@ -183,7 +183,7 @@ class Thumbnailer(Decoder):
             self.set_state(Gst.State.PLAYING)
         except:
             log.exception('%s.run()', self.__class__.__name__)
-            self.do_complete(False)
+            self.complete(False)
 
     def play_slice(self, s):
         assert 0 <= s.start < s.stop <= self.file_stop
@@ -192,7 +192,7 @@ class Thumbnailer(Decoder):
         self.seek_by_frame(s.start, s.stop)
 
     def next(self):
-        self.got_eos = False
+        self.unhandled_eos = False
         while self.indexes:
             frame = self.indexes.pop(0)
             s = get_slice_for_thumbnail(self.existing, frame, self.file_stop)
@@ -204,8 +204,8 @@ class Thumbnailer(Decoder):
                 )
                 self.play_slice(s)
                 return
-        log.info('Generated %d thumbnails', len(self.thumbnails))
-        self.do_complete(True)
+        log.info('Created %d thumbnails', len(self.thumbnails))
+        self.complete(True)
 
     def check_frame(self, buf):
         frame = nanosecond_to_frame(buf.pts, self.framerate)
@@ -235,13 +235,13 @@ class Thumbnailer(Decoder):
 
     def check_eos(self):
         log.debug('%s.check_eos()', self.__class__.__name__)
-        if self.got_eos and self.success is not None:
-            log.error('check_eos(): `got_eos` flag not reset')
-            self.do_complete(False)
+        if self.unhandled_eos and self.success is not None:
+            log.error('check_eos(): `unhandled_eos` flag not reset')
+            self.complete(False)
 
     def on_eos(self, bus, msg):
         log.debug('%s.on_eos()', self.__class__.__name__)
-        self.got_eos = True
+        self.unhandled_eos = True
         if self.success is None:
             GLib.timeout_add(250, self.check_eos)
 
