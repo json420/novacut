@@ -196,8 +196,10 @@ class TestOutput(TestCase):
         # x264enc:
         self.assertIsInstance(inst.enc, Gst.Element)
         self.assertEqual(inst.enc.get_factory().get_name(), 'x264enc')
-        self.assertEqual(inst.enc.get_property('bitrate'), 8192)
-        self.assertEqual(inst.enc.get_property('psy-tune'), 5)
+        self.assertEqual(inst.enc.get_property('pass'), 5)
+        self.assertEqual(inst.enc.get_property('qp-max'), 25)
+        self.assertEqual(inst.enc.get_property('key-int-max'), 60)
+        self.assertEqual(inst.enc.get_property('b-adapt'), False)
 
         # matroskamux:
         self.assertIsInstance(inst.mux, Gst.Element)

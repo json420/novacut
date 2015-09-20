@@ -41,8 +41,10 @@ def get_default_settings():
             'encoder': {
                 'name': 'x264enc',
                 'props': {
-                    'bitrate': 8192,
-                    'psy-tune': 5,  # Tune for SSIM
+                    'pass': 5,  # Constant Quality
+                    'qp-max': 25,
+                    'key-int-max': 60,
+                    'b-adapt': False,
                 },
             },
             'caps': {
