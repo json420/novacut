@@ -141,7 +141,7 @@ class Input(Decoder):
         return False
 
     def do_done(self):
-        log.debug('%s.do_done()', self.__class__.__name___)
+        log.debug('%s.do_done()', self.__class__.__name__)
         self.clear_unhandled_eos()
         self.do_complete(True)
 
