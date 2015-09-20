@@ -39,6 +39,13 @@ random = SystemRandom()
 
 
 class TestConstants(TestCase):
+    def test_USE_HACKS(self):
+        self.assertIsInstance(gsthelpers.USE_HACKS, bool)
+        if Gst.version() < (1, 4):
+            self.assertIs(gsthelpers.USE_HACKS, True)
+        else:
+            self.assertIs(gsthelpers.USE_HACKS, False)
+
     def test_FLAGS_ACCURATE(self):
         self.assertEqual(gsthelpers.FLAGS_ACCURATE,
             Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE

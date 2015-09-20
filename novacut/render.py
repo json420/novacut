@@ -28,6 +28,7 @@ from gi.repository import GLib, Gst
 
 from .timefuncs import nanosecond_to_frame, video_pts_and_duration
 from .gsthelpers import (
+    USE_HACKS,
     Pipeline,
     Decoder,
     make_element,
@@ -40,24 +41,6 @@ from .gsthelpers import (
 log = logging.getLogger(__name__)
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 Slice = namedtuple('Slice', 'id src start stop filename')
-
-# FIXME: NEEDS_YUCKY_COPY?
-#
-# In GStreamer 1.2 (Trusty), appsink.emit('pull-sample') is, at least from the
-# Python GI perspective, returning the same buffer object *every* time.
-# Presumably it isn't actually reusing the same underlying memory region on the
-# C side, as that fundamentally breaks the GStreamer data model.
-#
-# But the symptom is this: if Output.push() sets buf.pts, buf.duration just
-# before Input.on_new_sample() reads buf.pts, buf.duration from (what should be)
-# the unique and unrelated buffer returned by
-# appsink.emit('pull-sample').get_buffer(), Input.on_new_sample() will fail
-# because it thinks it received the wrong frame... a frame with the exact same
-# timestamps just set by Output.push().
-#
-# The only work-around known currently is to copy the buffer, which of course
-# we normally would never want to do.  A very yucky copy indeed.
-NEEDS_YUCKY_COPY = (True if Gst.version() < (1, 4) else False)
 
 
 def _get(d, key, t):
@@ -156,7 +139,8 @@ class Input(Decoder):
             )
             return Gst.FlowReturn.EOS
         buf = appsink.emit('pull-sample').get_buffer()
-        if NEEDS_YUCKY_COPY:  # See "FIXME: NEEDS_YUCKY_COPY?" at top of module:
+        if USE_HACKS:
+            # FIXME: work-around needed for GStreamer 1.2
             buf = buf.copy()
         if self.check_frame(buf) is not True:
             self.complete(False)

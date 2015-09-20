@@ -31,6 +31,7 @@ from gi.repository import GLib, Gst
 
 from .timefuncs import nanosecond_to_frame
 from .gsthelpers import (
+    USE_HACKS,
     Decoder,
     make_element,
     add_elements,
@@ -40,7 +41,6 @@ from .gsthelpers import (
 
 log = logging.getLogger(__name__)
 StartStop = namedtuple('StartStop', 'start stop')
-NEEDS_HACKS = (True if Gst.version() < (1, 4) else False)
 
 
 class GenericThumbnailer(Decoder):
@@ -189,7 +189,7 @@ class Thumbnailer(Decoder):
         assert 0 <= s.start < s.stop <= self.file_stop
         self.s = s
         self.frame = s.start
-        self.unhandled_eos = not NEEDS_HACKS
+        self.unhandled_eos = not USE_HACKS
         self.seek_by_frame(s.start, s.stop)
 
     def next(self):
