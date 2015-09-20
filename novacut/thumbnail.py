@@ -31,6 +31,7 @@ from gi.repository import GLib, Gst
 
 from .timefuncs import nanosecond_to_frame
 from .gsthelpers import (
+    USE_HACKS,
     Decoder,
     make_element,
     add_elements,
@@ -87,7 +88,7 @@ class GenericThumbnailer(Decoder):
         self.complete(False)
 
 
-def walk_backward(existing, frame, steps=1):
+def walk_backward(existing, frame, steps=2):
     assert frame >= 0
     assert frame not in existing
     assert steps >= 1
@@ -98,7 +99,7 @@ def walk_backward(existing, frame, steps=1):
     return frame
 
 
-def walk_forward(existing, frame, file_stop, steps=1):
+def walk_forward(existing, frame, file_stop, steps=2):
     assert 0 <= frame < file_stop
     assert frame not in existing
     assert steps >= 1
@@ -115,17 +116,17 @@ def get_slice_for_thumbnail(existing, frame, file_stop):
         return None
     if frame == 0:
         start = frame
-        end = walk_forward(existing, frame, file_stop, steps=2)
+        end = walk_forward(existing, frame, file_stop, steps=4)
     elif frame == file_stop - 1:
-        start = walk_backward(existing, frame, steps=2)
+        start = walk_backward(existing, frame, steps=4)
         end = frame
     else:
         start = walk_backward(existing, frame)
         end = walk_forward(existing, frame, file_stop)
         if start < frame and end == frame:
-            start = walk_backward(existing, start, steps=8)
+            start = walk_backward(existing, start, steps=7)
         elif end > frame and start == frame:
-            end = walk_forward(existing, end, file_stop, steps=8)
+            end = walk_forward(existing, end, file_stop, steps=7)
     return StartStop(start, end + 1)
 
 
@@ -150,7 +151,6 @@ class Thumbnailer(Decoder):
         self.s = None
         self.frame = None
         self.thumbnails = []
-        self.unhandled_eos = False
 
         # Create elements
         self.convert = make_element('videoconvert')
@@ -189,10 +189,11 @@ class Thumbnailer(Decoder):
         assert 0 <= s.start < s.stop <= self.file_stop
         self.s = s
         self.frame = s.start
+        self.unhandled_eos = not USE_HACKS
         self.seek_by_frame(s.start, s.stop)
 
     def next(self):
-        self.unhandled_eos = False
+        self.clear_unhandled_eos()
         while self.indexes:
             frame = self.indexes.pop(0)
             s = get_slice_for_thumbnail(self.existing, frame, self.file_stop)
@@ -225,21 +226,22 @@ class Thumbnailer(Decoder):
             self.thumbnails.append((self.frame, data))
             self.frame += 1
             if self.frame >= self.s.stop:
-                log.info('done with slice [%d:%d]', self.s.start, self.s.stop)
+                log.info('slice complete: [%d:%d]', self.s.start, self.s.stop)
                 GLib.idle_add(self.next)
         except:
             log.exception('%s.on_handoff()', self.__class__.__name__)
             self.complete(False)
 
     def check_eos(self):
+        """
+        Override Decodebin.check_eos().
+        """
         log.debug('%s.check_eos()', self.__class__.__name__)
-        if self.unhandled_eos and self.success is not None:
-            log.error('check_eos(): `unhandled_eos` flag not reset')
-            self.complete(False)
-
-    def on_eos(self, bus, msg):
-        log.debug('%s.on_eos()', self.__class__.__name__)
-        self.unhandled_eos = True
+        self.remove_check_eos_id()
         if self.success is None:
-            GLib.timeout_add(250, self.check_eos)
+            if self.unhandled_eos is not False:
+                log.error('check_eos(): `unhandled_eos` flag not reset')
+                self.do_complete(False)
+            else:
+                self.next()
 

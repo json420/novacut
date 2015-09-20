@@ -39,6 +39,13 @@ random = SystemRandom()
 
 
 class TestConstants(TestCase):
+    def test_USE_HACKS(self):
+        self.assertIsInstance(gsthelpers.USE_HACKS, bool)
+        if Gst.version() < (1, 4):
+            self.assertIs(gsthelpers.USE_HACKS, True)
+        else:
+            self.assertIs(gsthelpers.USE_HACKS, False)
+
     def test_FLAGS_ACCURATE(self):
         self.assertEqual(gsthelpers.FLAGS_ACCURATE,
             Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
@@ -515,6 +522,8 @@ class TestDecoder(TestCase):
             pass
         filename = '/tmp/' + random_id() + '.mov'
         inst = gsthelpers.Decoder(callback, filename)
+        self.assertIs(inst.unhandled_eos, False)
+        self.assertIsNone(inst.check_eos_id)
         self.assertIsNone(inst.framerate)
         self.assertIsNone(inst.rate)
         self.assertIsNone(inst.video_q)
@@ -544,10 +553,15 @@ class TestDecoder(TestCase):
         self.assertIsInstance(inst.pipeline, Gst.Pipeline)
         self.assertIsInstance(inst.bus, Gst.Bus)
         self.assertEqual(sys.getrefcount(inst), 5)
+        self.assertIsNone(inst.check_eos_id)
+        self.assertIsNone(inst.on_eos('bus', 'msg'))
+        self.assertIsInstance(inst.check_eos_id, int)
+        self.assertEqual(sys.getrefcount(inst), 6)
         self.assertIsNone(inst.destroy())
         self.assertFalse(hasattr(inst, 'pipeline'))
         self.assertFalse(hasattr(inst, 'bus'))
         self.assertEqual(inst.handlers, [])
+        self.assertIsNone(inst.check_eos_id)
         self.assertEqual(sys.getrefcount(inst), 2)
 
         # video=True:

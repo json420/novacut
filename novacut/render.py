@@ -24,10 +24,11 @@ from collections import namedtuple
 import queue
 import logging
 
-from gi.repository import Gst
+from gi.repository import GLib, Gst
 
 from .timefuncs import nanosecond_to_frame, video_pts_and_duration
 from .gsthelpers import (
+    USE_HACKS,
     Pipeline,
     Decoder,
     make_element,
@@ -40,24 +41,6 @@ from .gsthelpers import (
 log = logging.getLogger(__name__)
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 Slice = namedtuple('Slice', 'id src start stop filename')
-
-# FIXME: NEEDS_YUCKY_COPY?
-#
-# In GStreamer 1.2 (Trusty), appsink.emit('pull-sample') is, at least from the
-# Python GI perspective, returning the same buffer object *every* time.
-# Presumably it isn't actually reusing the same underlying memory region on the
-# C side, as that fundamentally breaks the GStreamer data model.
-#
-# But the symptom is this: if Output.push() sets buf.pts, buf.duration just
-# before Input.on_new_sample() reads buf.pts, buf.duration from (what should be)
-# the unique and unrelated buffer returned by
-# appsink.emit('pull-sample').get_buffer(), Input.on_new_sample() will fail
-# because it thinks it received the wrong frame... a frame with the exact same
-# timestamps just set by Output.push().
-#
-# The only work-around known currently is to copy the buffer, which of course
-# we normally would never want to do.  A very yucky copy indeed.
-NEEDS_YUCKY_COPY = (True if Gst.version() < (1, 4) else False)
 
 
 def _get(d, key, t):
@@ -126,9 +109,11 @@ class Input(Decoder):
         self.connect(self.sink, 'new-sample', self.on_new_sample)
 
     def run(self):
-        log.info('Input slice %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+        log.info('starting %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+        self.unhandled_eos = True
         self.set_state(Gst.State.PAUSED, sync=True)
-        self.seek_by_frame(self.s.start, self.s.stop)
+        stop = (None if USE_HACKS else self.s.stop)
+        self.seek_by_frame(self.s.start, stop)
         self.set_state(Gst.State.PLAYING)
 
     def check_frame(self, buf):
@@ -140,6 +125,11 @@ class Input(Decoder):
         )
         return False
 
+    def done(self):
+        log.info('finished %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+        self.clear_unhandled_eos()
+        self.do_complete(True)
+
     def on_new_sample(self, appsink):
         if self.frame >= self.s.stop:
             log.warning('Ignoring extra frames past end of slice')
@@ -150,26 +140,22 @@ class Input(Decoder):
             )
             return Gst.FlowReturn.EOS
         buf = appsink.emit('pull-sample').get_buffer()
-        if NEEDS_YUCKY_COPY:  # See "FIXME: NEEDS_YUCKY_COPY?" at top of module:
+        if USE_HACKS:
+            # FIXME: work-around needed for GStreamer 1.2
             buf = buf.copy()
         if self.check_frame(buf) is not True:
             self.complete(False)
             return Gst.FlowReturn.CUSTOM_ERROR
+        self.frame += 1
         while self.success is None:
             try:
-                self.buffer_queue.put(buf, timeout=2)
+                self.buffer_queue.put(buf, timeout=0.1)
                 break
             except queue.Full:
                 pass
-        self.frame += 1
-        if self.frame == self.s.stop:
-            self.complete(True)
+        if self.frame >= self.s.stop:
+            GLib.idle_add(self.done)
         return Gst.FlowReturn.OK
-
-    def on_eos(self, bus, msg):
-        if self.frame < self.s.stop:
-            log.error('recieved EOS before end of slice, some frame were lost')
-            self.complete(False)
 
 
 def make_video_caps(desc):
@@ -223,7 +209,7 @@ class Output(Pipeline):
         buffers = []
         while self.success is None:
             try:
-                buf = q.get(timeout=2)
+                buf = q.get(timeout=0.1)
                 buffers.append(buf)
                 if len(buffers) >= 16 or buf is None:
                     break

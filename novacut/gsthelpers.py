@@ -37,6 +37,9 @@ from .timefuncs import frame_to_nanosecond, nanosecond_to_frame
 log = logging.getLogger(__name__)
 Gst.init()
 
+# This flag is used to turn on varios hacks needed for GStreamer 1.2:
+USE_HACKS = (True if Gst.version() < (1, 4) else False)
+
 FLAGS_ACCURATE = Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
 FLAGS_KEY_UNIT = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
@@ -299,7 +302,7 @@ class Pipeline:
             del self.pipeline
 
     def do_complete(self, success):
-        log.debug('%s.complete(%r)', self.__class__.__name__, success)
+        log.debug('%s.do_complete(%r)', self.__class__.__name__, success)
         if self.success is not None:
             log.error('%s.complete() already called, ignoring',
                 self.__class__.__name__
@@ -344,6 +347,8 @@ class Pipeline:
 class Decoder(Pipeline):
     def __init__(self, callback, filename, video=False, audio=False):
         super().__init__(callback)
+        self.unhandled_eos = False
+        self.check_eos_id = None
         self.framerate = None
         self.rate = None
 
@@ -421,4 +426,43 @@ class Decoder(Pipeline):
             log.exception('%s.on_pad_added():', self.__class__.__name__)
             self.complete(False)
             raise
+
+    def remove_check_eos_id(self):
+        if self.check_eos_id is not None:
+            log.debug('Removing check_eos() handler_id %r', self.check_eos_id)
+            GLib.source_remove(self.check_eos_id)
+            self.check_eos_id = None
+
+    def destroy(self):
+        super().destroy()
+        self.remove_check_eos_id()
+
+    def do_complete(self, success):
+        if self.unhandled_eos is not False:
+            log.error('%s.do_complete() called, but unhandled EOS exists',
+                self.__class__.__name__
+            )
+            success = False
+        super().do_complete(success)
+
+    def clear_unhandled_eos(self):
+        self.unhandled_eos = False
+        self.remove_check_eos_id()
+
+    def check_eos(self):
+        log.debug('%s.check_eos()', self.__class__.__name__)
+        self.remove_check_eos_id()
+        if self.success is None:
+            if self.unhandled_eos is not False:
+                log.error('check_eos(): `unhandled_eos` flag not reset')
+                self.do_complete(False)
+            else:
+                self.do_complete(True)
+
+    def on_eos(self, bus, msg):
+        log.debug('%s.on_eos()', self.__class__.__name__)
+        if self.success is None:
+            self.remove_check_eos_id()
+            self.check_eos_id = GLib.timeout_add(1000, self.check_eos)
+            log.debug('Added check_eos() handler_id %r', self.check_eos_id)
 
