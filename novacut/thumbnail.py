@@ -232,3 +232,16 @@ class Thumbnailer(Decoder):
             log.exception('%s.on_handoff()', self.__class__.__name__)
             self.complete(False)
 
+    def check_eos(self):
+        """
+        Override Decodebin.check_eos().
+        """
+        log.debug('%s.check_eos()', self.__class__.__name__)
+        self.remove_check_eos_id()
+        if self.success is None:
+            if self.unhandled_eos is not False:
+                log.error('check_eos(): `unhandled_eos` flag not reset')
+                self.do_complete(False)
+            else:
+                self.next()
+
