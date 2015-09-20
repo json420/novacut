@@ -26,17 +26,15 @@ Unit tests for the `novacut.validate` module.
 from unittest import TestCase
 import os
 import sys
-from random import SystemRandom
 from base64 import b64encode
 
 from gi.repository import Gst
 from dbase32 import random_id
 
+from .helpers import random, random_framerate
 from ..misc import random_start_stop
+from ..timefuncs import video_pts_and_duration
 from .. import thumbnail
-
-
-random = SystemRandom()
 
 
 class TestFunctions(TestCase):
@@ -349,4 +347,35 @@ class TestThumbnailer(TestCase):
             ('play_slice', (19, 23)),
             ('complete', True),
         ])
+
+    def test_check_frame(self):
+        class Subclass(thumbnail.Thumbnailer):
+            __slots__ = ('framerate', 'existing', 'frame')
+
+            def __init__(self, framerate, existing, frame):
+                self.framerate = framerate
+                self.existing = existing
+                self.frame = frame
+
+        framerate = random_framerate()
+        existing = set()
+        current = random.randrange(1, 123456)
+        inst = Subclass(framerate, existing, current)
+
+        # One frame less, one frame more than expected:
+        for frame in (current - 1, current + 1):
+            ts = video_pts_and_duration(frame, framerate)
+            with self.assertRaises(ValueError) as cm:
+                inst.check_frame(ts)
+            self.assertEqual(str(cm.exception),
+                'expected frame {}, got {}'.format(current, frame)
+            )
+            self.assertIs(inst.existing, existing)
+            self.assertEqual(inst.existing, set())
+
+        # Correct frame:
+        ts = video_pts_and_duration(current, framerate)
+        self.assertIsNone(inst.check_frame(ts))
+        self.assertIs(inst.existing, existing)
+        self.assertEqual(inst.existing, {current})
 

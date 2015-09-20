@@ -212,9 +212,7 @@ class Thumbnailer(Decoder):
         if self.frame == frame:
             self.existing.add(frame)
             return
-        log.error('expected frame %d in slice [%d:%d], got frame %d',
-            self.frame, self.s.start, self.s.stop, frame
-        )
+        log.error('expected frame %d, frame %d', self.frame, frame)
         raise ValueError(
             'expected frame {!r}, got {!r}'.format(self.frame, frame)
         )

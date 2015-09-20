@@ -38,7 +38,7 @@ random = SystemRandom()
 def random_framerate():
     num = random.randrange(1, 54321)
     denom = random.randrange(1, 54321)
-    return (num, denom, Fraction(num, denom))
+    return Fraction(num, denom)
 
 
 def random_filename():
