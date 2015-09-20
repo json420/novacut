@@ -150,7 +150,6 @@ class Thumbnailer(Decoder):
         self.s = None
         self.frame = None
         self.thumbnails = []
-        self.unhandled_eos = False
 
         # Create elements
         self.convert = make_element('videoconvert')

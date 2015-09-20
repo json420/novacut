@@ -344,6 +344,8 @@ class Pipeline:
 class Decoder(Pipeline):
     def __init__(self, callback, filename, video=False, audio=False):
         super().__init__(callback)
+        self.unhandled_eos = False
+        self.check_eos_id = None
         self.framerate = None
         self.rate = None
 
@@ -421,4 +423,30 @@ class Decoder(Pipeline):
             log.exception('%s.on_pad_added():', self.__class__.__name__)
             self.complete(False)
             raise
+
+    def remove_check_eos_id(self):
+        if self.check_eos_id is not None:
+            GLib.source_remove(self.check_eos_id)
+            self.check_eos_id = None
+
+    def destroy(self):
+        super().destroy()
+        self.remove_check_eos_id()
+
+    def clear_unhandled_eos(self):
+        self.remove_check_eos_id()
+        self.unhandled_eos = False
+
+    def check_eos(self):
+        log.debug('%s.check_eos()', self.__class__.__name__)
+        if self.unhandled_eos and self.success is not None:
+            log.error('check_eos(): `unhandled_eos` flag not reset')
+            self.complete(False)
+
+    def on_eos(self, bus, msg):
+        log.debug('%s.on_eos()', self.__class__.__name__)
+        self.unhandled_eos = True
+        if self.success is None:
+            self.remove_check_eos_id()
+            self.check_eos_id = GLib.timeout_add(250, self.check_eos)
 

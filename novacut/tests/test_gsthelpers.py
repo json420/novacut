@@ -515,6 +515,8 @@ class TestDecoder(TestCase):
             pass
         filename = '/tmp/' + random_id() + '.mov'
         inst = gsthelpers.Decoder(callback, filename)
+        self.assertIs(inst.unhandled_eos, False)
+        self.assertIsNone(inst.check_eos_id)
         self.assertIsNone(inst.framerate)
         self.assertIsNone(inst.rate)
         self.assertIsNone(inst.video_q)
