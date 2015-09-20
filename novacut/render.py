@@ -24,7 +24,7 @@ from collections import namedtuple
 import queue
 import logging
 
-from gi.repository import Gst
+from gi.repository import GLib, Gst
 
 from .timefuncs import nanosecond_to_frame, video_pts_and_duration
 from .gsthelpers import (
@@ -140,6 +140,11 @@ class Input(Decoder):
         )
         return False
 
+    def do_done(self):
+        log.debug('%s.do_done()', self.__class__.__name___)
+        self.clear_unhandled_eos()
+        self.do_complete(True)
+
     def on_new_sample(self, appsink):
         if self.frame >= self.s.stop:
             log.warning('Ignoring extra frames past end of slice')
@@ -163,13 +168,8 @@ class Input(Decoder):
                 pass
         self.frame += 1
         if self.frame == self.s.stop:
-            self.complete(True)
+            GLib.idle_add(self.do_done)
         return Gst.FlowReturn.OK
-
-    def on_eos(self, bus, msg):
-        if self.frame < self.s.stop:
-            log.error('recieved EOS before end of slice, some frame were lost')
-            self.complete(False)
 
 
 def make_video_caps(desc):

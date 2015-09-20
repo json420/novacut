@@ -191,7 +191,7 @@ class Thumbnailer(Decoder):
         self.seek_by_frame(s.start, s.stop)
 
     def next(self):
-        self.unhandled_eos = False
+        self.clear_unhandled_eos()
         while self.indexes:
             frame = self.indexes.pop(0)
             s = get_slice_for_thumbnail(self.existing, frame, self.file_stop)
@@ -229,16 +229,4 @@ class Thumbnailer(Decoder):
         except:
             log.exception('%s.on_handoff()', self.__class__.__name__)
             self.complete(False)
-
-    def check_eos(self):
-        log.debug('%s.check_eos()', self.__class__.__name__)
-        if self.unhandled_eos and self.success is not None:
-            log.error('check_eos(): `unhandled_eos` flag not reset')
-            self.complete(False)
-
-    def on_eos(self, bus, msg):
-        log.debug('%s.on_eos()', self.__class__.__name__)
-        self.unhandled_eos = True
-        if self.success is None:
-            GLib.timeout_add(250, self.check_eos)
 

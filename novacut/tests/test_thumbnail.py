@@ -274,7 +274,6 @@ class TestThumbnailer(TestCase):
                 'indexes',
                 'existing',
                 'file_stop',
-                'unhandled_eos',
                 'thumbnails',
                 '_calls',
             )
@@ -283,9 +282,11 @@ class TestThumbnailer(TestCase):
                 self.indexes = indexes
                 self.existing = existing
                 self.file_stop = file_stop
-                self.unhandled_eos = True
                 self.thumbnails = []
                 self._calls = []
+
+            def clear_unhandled_eos(self):
+                self._calls.append('clear_unhandled_eos')
 
             def play_slice(self, s):
                 self._calls.append(('play_slice', s))
@@ -298,53 +299,52 @@ class TestThumbnailer(TestCase):
         inst = Subclass(indexes, existing, 23)
 
         # Frame 2: should play slice [1:4]
-        self.assertIs(inst.unhandled_eos, True)
         self.assertIsNone(inst.next())
-        self.assertIs(inst.unhandled_eos, False)
         self.assertEqual(inst.indexes, [17, 18, 19])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
+            ('clear_unhandled_eos'),
             ('play_slice', (1, 4)),
         ])
 
         # Frame 17: as 18 exists, should walk backward 10 frames
-        inst.unhandled_eos = True
-        self.assertIs(inst.unhandled_eos, True)
         self.assertIsNone(inst.next())
-        self.assertIs(inst.unhandled_eos, False)
         self.assertEqual(inst.indexes, [18, 19])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
+            ('clear_unhandled_eos'),
             ('play_slice', (1, 4)),
+            ('clear_unhandled_eos'),
             ('play_slice', (8, 18)),
         ])
 
         # Frame 18: exists, should be skipped
         # Frame 19: as 18 exists, should walk forward up to file_stop
-        inst.unhandled_eos = True
-        self.assertIs(inst.unhandled_eos, True)
         self.assertIsNone(inst.next())
-        self.assertIs(inst.unhandled_eos, False)
         self.assertEqual(inst.indexes, [])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
+            ('clear_unhandled_eos'),
             ('play_slice', (1, 4)),
+            ('clear_unhandled_eos'),
             ('play_slice', (8, 18)),
+            ('clear_unhandled_eos'),
             ('play_slice', (19, 23)),
         ])
 
         # Pipeline.complete() should be called once indexes is empty:
-        inst.unhandled_eos = True
-        self.assertIs(inst.unhandled_eos, True)
         self.assertIsNone(inst.next())
-        self.assertIs(inst.unhandled_eos, False)
         self.assertEqual(inst.indexes, [])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst.thumbnails, [])
         self.assertEqual(inst._calls, [
+            ('clear_unhandled_eos'),
             ('play_slice', (1, 4)),
+            ('clear_unhandled_eos'),
             ('play_slice', (8, 18)),
+            ('clear_unhandled_eos'),
             ('play_slice', (19, 23)),
+            ('clear_unhandled_eos'),
             ('complete', True),
         ])
 

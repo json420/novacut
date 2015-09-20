@@ -433,6 +433,14 @@ class Decoder(Pipeline):
         super().destroy()
         self.remove_check_eos_id()
 
+    def do_complete(self, success):
+        if self.unhandled_eos is not False:
+            log.error('%s.do_complete() called, but unhandled EOS exists',
+                self.__class__.__name__
+            )
+            success = False
+        super().do_complete(success)
+
     def clear_unhandled_eos(self):
         self.remove_check_eos_id()
         self.unhandled_eos = False
@@ -445,8 +453,8 @@ class Decoder(Pipeline):
 
     def on_eos(self, bus, msg):
         log.debug('%s.on_eos()', self.__class__.__name__)
-        self.unhandled_eos = True
         if self.success is None:
             self.remove_check_eos_id()
-            self.check_eos_id = GLib.timeout_add(250, self.check_eos)
+            self.check_eos_id = GLib.timeout_add(500, self.check_eos)
+            self.unhandled_eos = True
 

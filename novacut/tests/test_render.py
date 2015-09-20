@@ -162,26 +162,6 @@ class TestInput(TestCase):
         self.assertIs(inst.check_frame(buf), False)
         self.assertEqual(inst.frame, s.start + 1)
 
-    def test_on_eos(self):
-        class Subclass(render.Input):
-            def __init__(self, s, frame):
-                self.s = s
-                self.frame = frame
-                self._complete_calls = []
-
-            def complete(self, success):
-                self._complete_calls.append(success)
-
-        s = random_slice()
-        for frame in (s.stop, s.stop + 1, s.stop + 2):
-            inst = Subclass(s, frame)
-            self.assertIsNone(inst.on_eos('bus', 'msg'))
-            self.assertEqual(inst._complete_calls, [])
-        for frame in (s.stop - 1, s.stop - 2, s.stop - 3):
-            inst = Subclass(s, frame)
-            self.assertIsNone(inst.on_eos('bus', 'msg'))
-            self.assertEqual(inst._complete_calls, [False])
-
 
 class TestOutput(TestCase):
     def test_init(self):
