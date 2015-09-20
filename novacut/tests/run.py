@@ -69,9 +69,6 @@ def run_tests(skip_gtk=False):
         pynames.remove('novacut.play')
         pynames.remove('novacut.tests.test_play')
     pynames = tuple(pynames)
-    for name in pynames:
-        print(name)
-    return True
 
     # Add unit-tests:
     loader = TestLoader()
