@@ -205,46 +205,34 @@ class Output(Pipeline):
     def on_eos(self, bus, msg):
         self.complete(True)
 
-    def get_buffers(self):
+    def get_buffer(self):
         q = self.buffer_queue
-        buffers = []
         while self.success is None:
             try:
-                buf = q.get(timeout=0.1)
-                buffers.append(buf)
-                if len(buffers) >= 16 or buf is None:
-                    break
+                return q.get(timeout=0.1)
             except queue.Empty:
                 pass
-        return buffers
+        raise Exception('Output.success is not None, wont wait for buffer')
 
     def on_need_data(self, appsrc, amount):
-        if self.sent_eos:
-            log.info('sent_eos is True, nothing to do in need-data callback')
-            return
-        buffers = self.get_buffers()
-        if self.success is not None:
-            log.warning(
-                'Output.complete() must have been called, ignoring %s buffers',
-                len(buffers)
-            )
-            return
-        while buffers:
-            self.push(appsrc, buffers.pop(0))
-
-    def push(self, appsrc, buf):
-        assert self.sent_eos is False
-        if buf is None:
-            log.info('Output: received end-of-render sentinel')
-            self.sent_eos = True
-            appsrc.emit('end-of-stream')
-            return True
-        ts = video_pts_and_duration(self.frame, self.framerate)
-        buf.pts = ts.pts
-        buf.duration = ts.duration
-        appsrc.emit('push-buffer', buf)
-        self.frame += 1
-        return False
+        try:
+            if self.sent_eos:
+                log.info('sent_eos is True, nothing to do in on_need_data()')
+                return
+            buf = self.get_buffer()
+            if buf is None:
+                log.info('Output: received end-of-render sentinel')
+                self.sent_eos = True
+                appsrc.emit('end-of-stream')
+            else:
+                ts = video_pts_and_duration(self.frame, self.framerate)
+                buf.pts = ts.pts
+                buf.duration = ts.duration
+                appsrc.emit('push-buffer', buf)
+                self.frame += 1
+        except:
+            log.exception('%s.on_need_data():', self.__class__.__name__)
+            self.complete(False)
 
 
 class Renderer:
