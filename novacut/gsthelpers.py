@@ -362,6 +362,12 @@ class Decoder(Pipeline):
         # Connect signal handlers using Pipeline.connect():
         self.connect(self.dec, 'pad-added', self.on_pad_added)
 
+    def get_duration(self):
+        (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
+        if success:
+            return ns
+        raise ValueError('could not query duration')
+
     def frame_to_nanosecond(self, frame):
         return frame_to_nanosecond(frame, self.framerate)
 

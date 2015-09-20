@@ -113,22 +113,44 @@ def get_slice_for_thumbnail(existing, frame, file_stop):
     assert 0 <= frame < file_stop
     if frame in existing:
         return None
-    start = walk_backward(existing, frame)
-    end = walk_forward(existing, frame, file_stop)
-    if start < frame and end == frame:
-        start = walk_backward(existing, start, steps=8)
-    elif end > frame and start == frame:
-        end = walk_forward(existing, end, file_stop, steps=8)
+    if frame == 0:
+        start = frame
+        end = walk_forward(existing, frame, file_stop, steps=2)
+    elif frame == file_stop - 1:
+        start = walk_backward(existing, frame, steps=2)
+        end = frame
+    else:
+        start = walk_backward(existing, frame)
+        end = walk_forward(existing, frame, file_stop)
+        if start < frame and end == frame:
+            start = walk_backward(existing, start, steps=8)
+        elif end > frame and start == frame:
+            end = walk_forward(existing, end, file_stop, steps=8)
     return StartStop(start, end + 1)
 
 
+def attachments_to_existing(attachments):
+    return set(int(key) for key in attachments)
+
+
+def update_attachments(attachments, thumbnails):
+    for (frame, data) in thumbnails:
+        attachments[str(frame)] = {
+            'content_type': 'image/jpeg',
+            'data': b64encode(data).decode(),
+        }
+
+
 class Thumbnailer(Decoder):
-    def __init__(self, callback, filename, indexes, attachments):
+    def __init__(self, callback, filename, indexes, existing):
         super().__init__(callback, filename, video=True)
         self.indexes = sorted(set(indexes))
-        self.attachments = attachments
-        self.changed = False
-        self.target = None
+        self.existing = existing
+        self.file_stop = None
+        self.s = None
+        self.frame = None
+        self.thumbnails = []
+        self.got_eos = False
 
         # Create elements
         self.convert = make_element('videoconvert')
@@ -152,42 +174,74 @@ class Thumbnailer(Decoder):
         self.connect(self.sink, 'handoff', self.on_handoff)
 
     def run(self):
-        self.set_state(Gst.State.PAUSED, sync=True)
-        self.next()
+        try:
+            self.set_state(Gst.State.PAUSED, sync=True)
+            ns = self.get_duration()
+            self.file_stop = nanosecond_to_frame(ns, self.framerate)
+            log.info('duration: %d frames, %d nanoseconds', self.file_stop, ns)
+            self.next()
+        except:
+            log.exception('%s.run()', self.__class__.__name__)
+            self.do_complete(False)
+
+    def play_slice(self, s):
+        assert 0 <= s.start < s.stop <= self.file_stop
+        self.s = s
+        self.frame = s.start
+        self.seek_by_frame(s.start, s.stop)
         self.set_state(Gst.State.PLAYING)
 
-    def seek_by_frame(self, frame):
-        log.info('seeking to frame %d', frame)
-        self.target = frame
-        super().seek_by_frame(frame, key_unit=True)
-
     def next(self):
+        self.got_eos = False
         while self.indexes:
             frame = self.indexes.pop(0)
-            if str(frame) in self.attachments:
+            s = get_slice_for_thumbnail(self.existing, frame, self.file_stop)
+            if s is None:
                 log.info('next: already have frame %d', frame)
             else:
-                self.seek_by_frame(frame)
+                log.info('next: frame %d from slice [%d:%d]',
+                    frame, s.start, s.stop
+                )
+                self.play_slice(s)
                 return
-        self.complete(True)
+        log.info('Generated %d thumbnails', len(self.thumbnails))
+        self.do_complete(True)
+
+    def check_frame(self, buf):
+        frame = nanosecond_to_frame(buf.pts, self.framerate)
+        if self.frame == frame:
+            self.existing.add(frame)
+            return
+        log.error('expected frame %d in slice [%d:%d], got frame %d',
+            self.frame, self.s.start, self.s.stop, frame
+        )
+        raise ValueError(
+            'expected frame {!r}, got {!r}'.format(self.frame, frame)
+        )
 
     def on_handoff(self, element, buf, pad):
-        frame = nanosecond_to_frame(buf.pts, self.framerate)
-        key = str(frame)
-        if key in self.attachments:
-            log.info('Already have frame %d', frame)
-        else:
-            self.changed = True
+        try:
+            self.check_frame(buf)
+            log.info('[%d:%d] @%d', self.s.start, self.s.stop, self.frame)
             data = buf.extract_dup(0, buf.get_size())
-            self.attachments[key] = {
-                'content_type': 'image/jpeg',
-                'data': b64encode(data).decode(),
-            }
-            log.info('Created thumbnail for frame %d', frame)
-        if frame >= self.target + 5:
-            GLib.idle_add(self.next)
+            self.thumbnails.append((self.frame, data))
+            self.frame += 1
+            if self.frame >= self.s.stop:
+                log.info('done with slice [%d:%d]', self.s.start, self.s.stop)
+                GLib.idle_add(self.next)
+        except:
+            log.exception('%s.on_handoff()', self.__class__.__name__)
+            self.complete(False)
+
+    def check_eos(self):
+        log.debug('%s.check_eos()', self.__class__.__name__)
+        if self.got_eos and self.success is not None:
+            log.error('check_eos(): `got_eos` flag not reset')
+            self.do_complete(False)
 
     def on_eos(self, bus, msg):
-        log.debug('Got EOS from message bus')
-        self.complete(True)
+        log.debug('%s.on_eos()', self.__class__.__name__)
+        self.got_eos = True
+        if self.success is None:
+            GLib.timeout_add(250, self.check_eos)
 
