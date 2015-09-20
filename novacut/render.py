@@ -132,31 +132,50 @@ class Input(Decoder):
         self.do_complete(True)
 
     def on_new_sample(self, appsink):
-        if self.frame >= self.s.stop:
-            log.warning('Ignoring extra frames past end of slice')
-            return Gst.FlowReturn.EOS
-        if self.success is not None:
-            log.warning(
-                'Ignoring frame received after Input.complete() was called'
-            )
-            return Gst.FlowReturn.EOS
-        buf = appsink.emit('pull-sample').get_buffer()
-        if USE_HACKS:
-            # FIXME: work-around needed for GStreamer 1.2
-            buf = buf.copy()
-        if self.check_frame(buf) is not True:
-            self.complete(False)
+        try:
+            if self.frame >= self.s.stop:
+                log.warning('Ignoring extra frames past end of slice')
+                return Gst.FlowReturn.EOS
+            buf = appsink.emit('pull-sample').get_buffer()
+            if USE_HACKS:
+                # FIXME: work-around needed for GStreamer 1.2
+                buf = buf.copy()
+            if self.check_frame(buf) is not True:
+                self.complete(False)
+                return Gst.FlowReturn.CUSTOM_ERROR
+            self.frame += 1
+            while self.success is None:
+                try:
+                    self.buffer_queue.put(buf, timeout=0.1)
+                    if self.frame >= self.s.stop:
+                        GLib.idle_add(self.done)
+                    return Gst.FlowReturn.OK
+                except queue.Full:
+                    pass
             return Gst.FlowReturn.CUSTOM_ERROR
-        self.frame += 1
-        while self.success is None:
-            try:
-                self.buffer_queue.put(buf, timeout=0.1)
-                break
-            except queue.Full:
-                pass
-        if self.frame >= self.s.stop:
-            GLib.idle_add(self.done)
-        return Gst.FlowReturn.OK
+        except:
+            log.exception('%s.on_new_sample():', self.__class__.__name__)
+            self.complete(False)
+            return Gst.FlowReturn.ERROR
+
+    def check_eos(self):
+        self.remove_check_eos()
+        if self.success is not None:
+            log.debug('check_eos(): complete() already called, nothing to do')
+        elif self.frame >= self.s.stop:
+            log.debug(
+                'check_eos(): assuming on_new_sample() will call complete()'
+            )
+        else:
+            log.warning('check_eos(): missing %d frames',
+                self.s.stop - self.frame
+            )
+            self.do_complete(False)
+
+    def on_eos(self, bus, msg):
+        if self.success is None and self.frame < self.s.stop:
+            log.warning('on_eos(): missing %d frames', self.s.stop - self.frame)
+            self.add_check_eos()
 
 
 def make_video_caps(desc):

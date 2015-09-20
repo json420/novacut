@@ -237,7 +237,7 @@ class Thumbnailer(Decoder):
         Override Decodebin.check_eos().
         """
         log.debug('%s.check_eos()', self.__class__.__name__)
-        self.remove_check_eos_id()
+        self.remove_check_eos()
         if self.success is None:
             if self.unhandled_eos is not False:
                 log.error('check_eos(): `unhandled_eos` flag not reset')
