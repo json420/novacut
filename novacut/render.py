@@ -110,12 +110,15 @@ class Input(Decoder):
         self.connect(self.sink, 'new-sample', self.on_new_sample)
 
     def run(self):
-        log.info('starting %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
-        self.unhandled_eos = True
-        self.set_state(Gst.State.PAUSED, sync=True)
-        stop = (None if USE_HACKS else self.s.stop)
-        self.seek_by_frame(self.s.start, stop)
-        self.set_state(Gst.State.PLAYING)
+        try:
+            log.info('%s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+            self.set_state(Gst.State.PAUSED, sync=True)
+            stop = (None if USE_HACKS else self.s.stop)
+            self.seek_by_frame(self.s.start, stop)
+            self.set_state(Gst.State.PLAYING)
+        except:
+            log.exception('%s.run():', self.__class__.__name__)
+            self.complete(False)
 
     def check_frame(self, buf):
         frame = nanosecond_to_frame(buf.pts, self.framerate)
@@ -127,8 +130,8 @@ class Input(Decoder):
         return False
 
     def done(self):
-        log.info('finished %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
-        self.clear_unhandled_eos()
+        log.info('done: %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+        self.remove_check_eos()
         self.do_complete(True)
 
     def on_new_sample(self, appsink):
