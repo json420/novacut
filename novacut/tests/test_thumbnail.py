@@ -246,7 +246,7 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, 0)
-        self.assertIs(inst.unhandled_eos, True)
+        self.assertIs(inst.unhandled_eos, not thumbnail.NEEDS_HACKS)
         self.assertEqual(inst._calls, [(0, 1)])
 
         file_stop = random.randrange(1234, 12345679)
@@ -255,7 +255,7 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, 0)
-        self.assertIs(inst.unhandled_eos, True)
+        self.assertIs(inst.unhandled_eos, not thumbnail.NEEDS_HACKS)
         self.assertEqual(inst._calls, [(0, 1)])
 
         inst = Subclass(file_stop)
@@ -263,7 +263,7 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, file_stop - 1)
-        self.assertIs(inst.unhandled_eos, True)
+        self.assertIs(inst.unhandled_eos, not thumbnail.NEEDS_HACKS)
         self.assertEqual(inst._calls, [(file_stop - 1, file_stop)])
 
         for i in range(100):
@@ -273,7 +273,7 @@ class TestThumbnailer(TestCase):
             self.assertIsNone(inst.play_slice(s))
             self.assertIs(inst.s, s)
             self.assertIs(inst.frame, s.start)
-            self.assertIs(inst.unhandled_eos, True)
+            self.assertIs(inst.unhandled_eos, not thumbnail.NEEDS_HACKS)
             self.assertEqual(inst._calls, [(s.start, s.stop)])
 
     def test_next(self):
