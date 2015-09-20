@@ -27,13 +27,12 @@ from unittest import TestCase
 import os
 import sys
 from random import SystemRandom
-from fractions import Fraction
 from base64 import b64encode
 
 from gi.repository import Gst
 from dbase32 import random_id
 
-from ..timefuncs import frame_to_nanosecond
+from ..misc import random_start_stop
 from .. import thumbnail
 
 
@@ -231,53 +230,45 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.handlers, [])
         self.assertEqual(sys.getrefcount(inst), 2)
 
-    def test_seek_by_frame(self):
-        self.skipTest('FIXME')
-        class DummyPipeline:
-            def __init__(self):
+    def test_play_slice(self):
+        class Subclass(thumbnail.Thumbnailer):
+            def __init__(self, file_stop):
+                assert file_stop > 0
+                self.file_stop = file_stop
                 self._calls = []
 
-            def seek_simple(self, frmt, flags, ns):
-                self._calls.append((frmt, flags, ns))
+            def seek_by_frame(self, start, stop):
+                self._calls.append((start, stop))
 
-        class Subclass(thumbnail.Thumbnailer):
-            def __init__(self, pipeline, framerate):
-                self.pipeline = pipeline
-                self.framerate = framerate
+        inst = Subclass(1)
+        s = thumbnail.StartStop(0, 1)
+        self.assertIsNone(inst.play_slice(s))
+        self.assertIs(inst.s, s)
+        self.assertEqual(inst.frame, 0)
+        self.assertEqual(inst._calls, [(0, 1)])
 
-        pipeline = DummyPipeline()
-        framerate = Fraction(30000, 1001)
-        inst = Subclass(pipeline, framerate)
-        frmt = Gst.Format.TIME
-        flags = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
-        self.assertIsNone(inst.seek_by_frame(0))
-        self.assertEqual(inst.target, 0)
-        self.assertEqual(pipeline._calls, [
-            (frmt, flags, 0),
-        ])
-        self.assertIsNone(inst.seek_by_frame(1))
-        self.assertEqual(inst.target, 1)
-        self.assertEqual(pipeline._calls, [
-            (frmt, flags, 0),
-            (frmt, flags, 33366666),
-        ])
-        self.assertIsNone(inst.seek_by_frame(2))
-        self.assertEqual(inst.target, 2)
-        self.assertEqual(pipeline._calls, [
-            (frmt, flags, 0),
-            (frmt, flags, 33366666),
-            (frmt, flags, 66733333),
-        ])
+        file_stop = random.randrange(1234, 12345679)
+        inst = Subclass(file_stop)
+        s = thumbnail.StartStop(0, 1)
+        self.assertIsNone(inst.play_slice(s))
+        self.assertIs(inst.s, s)
+        self.assertEqual(inst.frame, 0)
+        self.assertEqual(inst._calls, [(0, 1)])
 
-        for i in range(500):
-            pipeline = DummyPipeline()
-            inst = Subclass(pipeline, framerate)
-            frame = random.randrange(1234567)
-            self.assertIsNone(inst.seek_by_frame(frame))
-            self.assertIs(inst.target, frame)
-            self.assertEqual(pipeline._calls,
-                [(frmt, flags, frame_to_nanosecond(frame, framerate))]
-            )
+        inst = Subclass(file_stop)
+        s = thumbnail.StartStop(file_stop - 1, file_stop)
+        self.assertIsNone(inst.play_slice(s))
+        self.assertIs(inst.s, s)
+        self.assertEqual(inst.frame, file_stop - 1)
+        self.assertEqual(inst._calls, [(file_stop - 1, file_stop)])
+
+        for i in range(100):
+            inst = Subclass(file_stop)
+            s = random_start_stop(file_stop)
+            self.assertIsNone(inst.play_slice(s))
+            self.assertIs(inst.s, s)
+            self.assertIs(inst.frame, s.start)
+            self.assertEqual(inst._calls, [(s.start, s.stop)])
 
     def test_next(self):
         self.skipTest('FIXME')

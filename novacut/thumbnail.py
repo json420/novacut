@@ -180,6 +180,7 @@ class Thumbnailer(Decoder):
             self.file_stop = nanosecond_to_frame(ns, self.framerate)
             log.info('duration: %d frames, %d nanoseconds', self.file_stop, ns)
             self.next()
+            self.set_state(Gst.State.PLAYING)
         except:
             log.exception('%s.run()', self.__class__.__name__)
             self.do_complete(False)
@@ -189,7 +190,6 @@ class Thumbnailer(Decoder):
         self.s = s
         self.frame = s.start
         self.seek_by_frame(s.start, s.stop)
-        self.set_state(Gst.State.PLAYING)
 
     def next(self):
         self.got_eos = False
