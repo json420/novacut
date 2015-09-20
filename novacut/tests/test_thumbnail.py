@@ -38,6 +38,78 @@ from .. import thumbnail
 random = SystemRandom()
 
 
+class TestFunctions(TestCase):
+    def test_get_slice_for_thumbnail(self):
+        get_slice_for_thumbnail = thumbnail.get_slice_for_thumbnail
+
+        # frame in existing:
+        for frame in range(100):
+            self.assertIsNone(get_slice_for_thumbnail({frame}, frame, 200))
+
+        # frame=0, no existing, then existing at frame 10:
+        for eg in [set(), {10}]:
+            s = get_slice_for_thumbnail(eg, 0, 99)
+            self.assertIsInstance(s, thumbnail.StartStop)
+            self.assertEqual(s, (0, 10))
+            self.assertEqual(s.stop - s.start, 10)
+
+        # frame=0, existing at frame 9:
+        s = get_slice_for_thumbnail({9}, 0, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (0, 9))
+        self.assertEqual(s.stop - s.start, 9)
+
+        # frame=0, existing at frame 1:
+        s = get_slice_for_thumbnail({1}, 0, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (0, 1))
+        self.assertEqual(s.stop - s.start, 1)
+
+        # frame=98, no existing, then existing at frame 88:
+        for eg in [set(), {88}]:
+            s = get_slice_for_thumbnail(eg, 98, 99)
+            self.assertIsInstance(s, thumbnail.StartStop)
+            self.assertEqual(s, (89, 99))
+            self.assertEqual(s.stop - s.start, 10)
+
+        # frame=98, existing at frame 89:
+        s = get_slice_for_thumbnail({89}, 98, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (90, 99))
+        self.assertEqual(s.stop - s.start, 9)
+
+        # frame=98, existing at frame 97:
+        s = get_slice_for_thumbnail({97}, 98, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (98, 99))
+        self.assertEqual(s.stop - s.start, 1)
+
+        # frame=33, not constrained on either side:
+        for eg in [set(), {31, 35}]:
+            s = get_slice_for_thumbnail(eg, 33, 99)
+            self.assertIsInstance(s, thumbnail.StartStop)
+            self.assertEqual(s, (32, 35))
+            self.assertEqual(s.stop - s.start, 3)
+
+        # frame=33, constrained by {32, 34}:
+        s = get_slice_for_thumbnail({32, 34}, 33, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (33, 34))
+        self.assertEqual(s.stop - s.start, 1)
+
+        # frame=33, constrained by 32 behind, should walk forward 10 frames:
+        s = get_slice_for_thumbnail({32}, 33, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (33, 43))
+        self.assertEqual(s.stop - s.start, 10)
+
+        # frame=33, constrained by 34 ahead, should walk backward 10 frames:
+        s = get_slice_for_thumbnail({34}, 33, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (24, 34))
+        self.assertEqual(s.stop - s.start, 10)
+
+
 class TestThumbnailer(TestCase):
     def test_init(self):
         def callback(inst, success):

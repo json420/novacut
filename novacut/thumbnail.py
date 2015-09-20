@@ -25,6 +25,7 @@ Create frame-accurate JPEG thumbnail images.
 
 import logging
 from base64 import b64encode
+from collections import namedtuple
 
 from gi.repository import GLib, Gst
 
@@ -38,6 +39,87 @@ from .gsthelpers import (
 
 
 log = logging.getLogger(__name__)
+StartStop = namedtuple('StartStop', 'start stop')
+
+
+class GenericThumbnailer(Decoder):
+    def __init__(self, callback, filename, frame, **kw):
+        super().__init__(callback, filename, video=True)
+        self.frame = frame
+        self.data = None
+
+        # Create elements
+        self.convert = make_element('videoconvert')
+        self.scale = make_element('videoscale', {'method': 3})
+        self.enc = make_element('jpegenc', {'quality': 90, 'idct-method': 2})
+        self.sink = make_element('fakesink')
+
+        # Add elements to pipeline and link:
+        add_elements(self.pipeline,
+            self.convert, self.scale, self.enc, self.sink
+        )
+        self.video_q.link(self.convert)
+        self.convert.link(self.scale)
+        desc = {'pixel-aspect-ratio': '1/1', 'format': 'I420'}
+        for key in ('width', 'height'):
+            value = kw.get(key)
+            if value is not None:
+                desc[key] = value
+        caps = make_caps('video/x-raw', desc)
+        self.scale.link_filtered(self.enc, caps)
+        self.enc.link(self.sink)
+
+        # Connect signal handlers using Pipeline.connect():
+        self.connect(self.sink, 'preroll-handoff', self.on_preroll_handoff)
+
+    def run(self):
+        self.set_state(Gst.State.PAUSED, sync=True)
+        self.sink.set_property('signal-handoffs', True)
+        self.seek_by_frame(self.frame)
+
+    def on_preroll_handoff(self, element, buf, pad):
+        log.info('preroll-handoff')
+        self.data = buf.extract_dup(0, buf.get_size())
+        self.complete(True)
+
+    def on_eos(self, bus, msg):
+        log.debug('Got EOS from message bus')
+        self.complete(False)
+
+
+def walk_backward(existing, frame, steps=1):
+    assert frame >= 0
+    assert frame not in existing
+    assert steps >= 1
+    for i in range(steps):
+        frame -= 1
+        if frame < 0 or frame in existing:
+            return frame + 1
+    return frame
+
+
+def walk_forward(existing, frame, file_stop, steps=1):
+    assert 0 <= frame < file_stop
+    assert frame not in existing
+    assert steps >= 1
+    for i in range(steps):
+        frame += 1
+        if frame >= file_stop or frame in existing:
+            return frame - 1
+    return frame
+
+
+def get_slice_for_thumbnail(existing, frame, file_stop):
+    assert 0 <= frame < file_stop
+    if frame in existing:
+        return None
+    start = walk_backward(existing, frame)
+    end = walk_forward(existing, frame, file_stop)
+    if start < frame and end == frame:
+        start = walk_backward(existing, start, steps=8)
+    elif end > frame and start == frame:
+        end = walk_forward(existing, end, file_stop, steps=8)
+    return StartStop(start, end + 1)
 
 
 class Thumbnailer(Decoder):
