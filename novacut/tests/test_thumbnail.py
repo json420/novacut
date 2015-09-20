@@ -223,10 +223,15 @@ class TestThumbnailer(TestCase):
         self.assertIsInstance(inst.pipeline, Gst.Pipeline)
         self.assertIsInstance(inst.bus, Gst.Bus)
         self.assertEqual(sys.getrefcount(inst), 6)
+        self.assertIsNone(inst.check_eos_id)
+        self.assertIsNone(inst.on_eos('bus', 'msg'))
+        self.assertIsInstance(inst.check_eos_id, int)
+        self.assertEqual(sys.getrefcount(inst), 7)
         self.assertIsNone(inst.destroy())
         self.assertFalse(hasattr(inst, 'pipeline'))
         self.assertFalse(hasattr(inst, 'bus'))
         self.assertEqual(inst.handlers, [])
+        self.assertIsNone(inst.check_eos_id)
         self.assertEqual(sys.getrefcount(inst), 2)
 
     def test_play_slice(self):

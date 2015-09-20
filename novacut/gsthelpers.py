@@ -463,6 +463,6 @@ class Decoder(Pipeline):
         log.debug('%s.on_eos()', self.__class__.__name__)
         if self.success is None:
             self.remove_check_eos_id()
-            self.check_eos_id = GLib.timeout_add(2000, self.check_eos)
+            self.check_eos_id = GLib.timeout_add(1000, self.check_eos)
             log.debug('Added check_eos() handler_id %r', self.check_eos_id)
 
