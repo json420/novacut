@@ -39,7 +39,7 @@ from .gsthelpers import (
 
 
 log = logging.getLogger(__name__)
-QUEUE_SIZE = 8
+QUEUE_SIZE = 16
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 Slice = namedtuple('Slice', 'id src start stop filename')
 
@@ -223,7 +223,13 @@ class Output(Pipeline):
         self.connect(self.src, 'need-data', self.on_need_data)
 
     def run(self):
-        self.set_state(Gst.State.PLAYING)
+        GLib.timeout_add(3000, self.do_run)
+
+    def do_run(self):
+        if self.success is None:
+            self.set_state(Gst.State.PLAYING)
+        else:
+            log.warning('do_run(): success in not None')
 
     def on_eos(self, bus, msg):
         self.complete(True)
