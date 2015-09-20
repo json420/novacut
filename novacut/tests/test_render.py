@@ -189,6 +189,10 @@ class TestOutput(TestCase):
         )
         self.assertEqual(inst.src.get_property('format'), 3)
 
+        # queue:
+        self.assertIsInstance(inst.q, Gst.Element)
+        self.assertEqual(inst.q.get_factory().get_name(), 'queue')
+
         # x264enc:
         self.assertIsInstance(inst.enc, Gst.Element)
         self.assertEqual(inst.enc.get_factory().get_name(), 'x264enc')
@@ -206,7 +210,7 @@ class TestOutput(TestCase):
         self.assertEqual(inst.sink.get_property('buffer-mode'), 2)
 
         # Make sure all elements have been added to Pipeline:
-        for child in [inst.src, inst.enc, inst.mux, inst.sink]:
+        for child in [inst.src, inst.q, inst.enc, inst.mux, inst.sink]:
             self.assertIs(child.get_parent(), inst.pipeline)
 
         # Make sure gsthelpers.Pipeline.__init__() was called:

@@ -184,6 +184,7 @@ class Output(Pipeline):
 
         # Create elements:
         self.src = make_element('appsrc', {'caps': output_caps, 'format': 3})
+        self.q = make_element('queue')
         self.enc = make_element_from_desc(settings['video']['encoder'])
         self.mux = make_element_from_desc(settings['muxer'])
         self.sink = make_element('filesink',
@@ -192,7 +193,7 @@ class Output(Pipeline):
 
         # Add elements to pipeline and link:
         add_and_link_elements(self.pipeline,
-            self.src, self.enc, self.mux, self.sink
+            self.src, self.q, self.enc, self.mux, self.sink
         )
 
         # Connect signal handlers using Pipeline.connect():
