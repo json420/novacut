@@ -39,6 +39,7 @@ from .gsthelpers import (
 
 
 log = logging.getLogger(__name__)
+QUEUE_SIZE = 8
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 Slice = namedtuple('Slice', 'id src start stop filename')
 
@@ -96,7 +97,7 @@ class Input(Decoder):
         self.convert = make_element('videoconvert')
         self.scale = make_element('videoscale', {'method': 3})
         self.sink = make_element('appsink',
-            {'caps': input_caps, 'emit-signals': True, 'max-buffers': 4}
+            {'caps': input_caps, 'emit-signals': True, 'max-buffers': 1}
         )
 
         # Add elements to pipeline and link:
@@ -228,8 +229,8 @@ class Output(Pipeline):
                 ts = video_pts_and_duration(self.frame, self.framerate)
                 buf.pts = ts.pts
                 buf.duration = ts.duration
-                appsrc.emit('push-buffer', buf)
                 self.frame += 1
+                appsrc.emit('push-buffer', buf)
         except:
             log.exception('%s.on_need_data():', self.__class__.__name__)
             self.complete(False)
@@ -245,7 +246,7 @@ class Renderer:
         self.slices = slices
         self.success = None
         self.total_frames = sum(s.stop - s.start for s in slices)
-        self.buffer_queue = queue.Queue(16)
+        self.buffer_queue = queue.Queue(QUEUE_SIZE)
         self.input = None
         self.output = Output(
             self.on_output_complete, self.buffer_queue, settings, filename

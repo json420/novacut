@@ -129,7 +129,7 @@ class TestInput(TestCase):
             'video/x-raw'
         )
         self.assertIs(inst.sink.get_property('emit-signals'), True)
-        self.assertEqual(inst.sink.get_property('max-buffers'), 4)
+        self.assertEqual(inst.sink.get_property('max-buffers'), 1)
 
         # Make sure all elements have been added to Pipeline:
         for child in [inst.src, inst.dec, inst.video_q, inst.convert, inst.scale, inst.sink]:
