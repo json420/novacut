@@ -63,8 +63,15 @@ def pynames_iter(pkdir=packagedir, pkname=None):
         yield from pynames_iter(fullname, subpkg)
 
 
-def run_tests():
-    pynames = tuple(pynames_iter())
+def run_tests(skip_gtk=False):
+    pynames = list(pynames_iter())
+    if skip_gtk:
+        pynames.remove('novacut.play')
+        pynames.remove('novacut.tests.test_play')
+    pynames = tuple(pynames)
+    for name in pynames:
+        print(name)
+    return True
 
     # Add unit-tests:
     loader = TestLoader()
@@ -86,6 +93,13 @@ def run_tests():
 
 
 if __name__ == '__main__':
-    if not run_tests():
-        raise SystemExit('2')
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--skip-gtk', action='store_true', default=False,
+        help='Skip GTK related tests',
+    )
+    args = parser.parse_args()
+    if not run_tests(args.skip_gtk):
+        raise SystemExit(2)
 

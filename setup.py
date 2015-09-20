@@ -81,16 +81,18 @@ class Test(Command):
 
     user_options = [
         ('skip-flakes', None, 'do not run pyflakes static checks'),
+        ('skip-gtk', None, 'Skip GTK related tests'),
     ]
 
     def initialize_options(self):
         self.skip_flakes = 0
+        self.skip_gtk = 0
 
     def finalize_options(self):
         pass
 
     def run(self):
-        if not run_tests():
+        if not run_tests(self.skip_gtk):
             sys.exit(2)
         if not self.skip_flakes:
             run_pyflakes3()
