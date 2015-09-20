@@ -426,6 +426,7 @@ class Decoder(Pipeline):
 
     def remove_check_eos_id(self):
         if self.check_eos_id is not None:
+            log.debug('removing check_eos_id=%r', self.check_eos_id)
             GLib.source_remove(self.check_eos_id)
             self.check_eos_id = None
 
@@ -442,12 +443,12 @@ class Decoder(Pipeline):
         super().do_complete(success)
 
     def clear_unhandled_eos(self):
-        self.remove_check_eos_id()
         self.unhandled_eos = False
+        self.remove_check_eos_id()
 
     def check_eos(self):
         log.debug('%s.check_eos()', self.__class__.__name__)
-        if self.unhandled_eos and self.success is not None:
+        if self.unhandled_eos:
             log.error('check_eos(): `unhandled_eos` flag not reset')
             self.complete(False)
 
@@ -455,6 +456,6 @@ class Decoder(Pipeline):
         log.debug('%s.on_eos()', self.__class__.__name__)
         if self.success is None:
             self.remove_check_eos_id()
-            self.check_eos_id = GLib.timeout_add(500, self.check_eos)
+            self.check_eos_id = GLib.timeout_add(1000, self.check_eos)
             self.unhandled_eos = True
 

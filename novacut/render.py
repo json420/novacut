@@ -140,8 +140,8 @@ class Input(Decoder):
         )
         return False
 
-    def do_done(self):
-        log.debug('%s.do_done()', self.__class__.__name__)
+    def done(self):
+        log.debug('%s.done()', self.__class__.__name__)
         self.clear_unhandled_eos()
         self.do_complete(True)
 
@@ -160,15 +160,15 @@ class Input(Decoder):
         if self.check_frame(buf) is not True:
             self.complete(False)
             return Gst.FlowReturn.CUSTOM_ERROR
+        self.frame += 1
         while self.success is None:
             try:
-                self.buffer_queue.put(buf, timeout=2)
+                self.buffer_queue.put(buf, timeout=0.1)
                 break
             except queue.Full:
                 pass
-        self.frame += 1
-        if self.frame == self.s.stop:
-            GLib.idle_add(self.do_done)
+        if self.frame >= self.s.stop:
+            GLib.idle_add(self.done)
         return Gst.FlowReturn.OK
 
 
@@ -223,7 +223,7 @@ class Output(Pipeline):
         buffers = []
         while self.success is None:
             try:
-                buf = q.get(timeout=2)
+                buf = q.get(timeout=0.1)
                 buffers.append(buf)
                 if len(buffers) >= 16 or buf is None:
                     break
