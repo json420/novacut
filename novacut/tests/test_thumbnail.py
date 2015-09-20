@@ -230,9 +230,12 @@ class TestThumbnailer(TestCase):
 
     def test_play_slice(self):
         class Subclass(thumbnail.Thumbnailer):
+            __slots__ = ('file_stop', 's', 'frame', 'unhandled_eos', '_calls')
+
             def __init__(self, file_stop):
                 assert file_stop > 0
                 self.file_stop = file_stop
+                self.unhandled_eos = False
                 self._calls = []
 
             def seek_by_frame(self, start, stop):
@@ -243,6 +246,7 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, 0)
+        self.assertIs(inst.unhandled_eos, True)
         self.assertEqual(inst._calls, [(0, 1)])
 
         file_stop = random.randrange(1234, 12345679)
@@ -251,6 +255,7 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, 0)
+        self.assertIs(inst.unhandled_eos, True)
         self.assertEqual(inst._calls, [(0, 1)])
 
         inst = Subclass(file_stop)
@@ -258,14 +263,17 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, file_stop - 1)
+        self.assertIs(inst.unhandled_eos, True)
         self.assertEqual(inst._calls, [(file_stop - 1, file_stop)])
 
         for i in range(100):
             inst = Subclass(file_stop)
+            self.assertIs(inst.unhandled_eos, False)
             s = random_start_stop(file_stop)
             self.assertIsNone(inst.play_slice(s))
             self.assertIs(inst.s, s)
             self.assertIs(inst.frame, s.start)
+            self.assertIs(inst.unhandled_eos, True)
             self.assertEqual(inst._calls, [(s.start, s.stop)])
 
     def test_next(self):

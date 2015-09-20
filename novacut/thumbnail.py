@@ -188,6 +188,7 @@ class Thumbnailer(Decoder):
         assert 0 <= s.start < s.stop <= self.file_stop
         self.s = s
         self.frame = s.start
+        self.unhandled_eos = True
         self.seek_by_frame(s.start, s.stop)
 
     def next(self):
@@ -224,7 +225,7 @@ class Thumbnailer(Decoder):
             self.thumbnails.append((self.frame, data))
             self.frame += 1
             if self.frame >= self.s.stop:
-                log.info('done with slice [%d:%d]', self.s.start, self.s.stop)
+                log.info('slice complete: [%d:%d]', self.s.start, self.s.stop)
                 GLib.idle_add(self.next)
         except:
             log.exception('%s.on_handoff()', self.__class__.__name__)
