@@ -32,7 +32,7 @@ def start_delta():
     return time.monotonic() - start_time
 
 
-import optparse
+import argparse
 import json
 from os import path
 from threading import Thread
@@ -65,7 +65,20 @@ session = dbus.SessionBus()
 mainloop = GLib.MainLoop()
 
 
-novacut.configure_logging()
+parser = argparse.ArgumentParser()
+parser.add_argument('--version', action='version',
+    version=novacut.__version__,
+)
+parser.add_argument('--bus', default=BUS,
+    help='DBus bus name; default is {!r}'.format(BUS),
+)
+parser.add_argument('--stderr', action='store_true', default=False,
+    help='Log to standard error instead of the log file'
+)
+args = parser.parse_args()
+
+
+novacut.configure_logging(args.stderr)
 log = logging.getLogger(__name__)
 
 
@@ -303,21 +316,12 @@ class Service(dbus.service.Object):
         log.info('@ThumbnailError(%r)', file_id)
 
 
-parser = optparse.OptionParser(
-	version=novacut.__version__,
-)
-parser.add_option('--bus',
-    help='DBus bus name; default is {!r}'.format(BUS),
-    default=BUS
-)
-(options, args) = parser.parse_args()
-
-
 try:
-    busname = dbus.service.BusName(options.bus, session)
+    busname = dbus.service.BusName(args.bus, session)
     service = Service(busname)
     service.run()
 except Exception as e:
     log.exception('Could not start novacut-service!')
     raise e
 log.info('Clean shutdown!')
+
