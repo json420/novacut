@@ -86,6 +86,9 @@ def _fraction(obj):
 
 
 class Input(Decoder):
+    # With GStreamer 1.2, we need the Input.check_eos() time to be fairly long:
+    CHECK_EOS = 2000
+
     def __init__(self, callback, buffer_queue, s, input_caps):
         super().__init__(callback, s.filename, video=True)
         self.buffer_queue = buffer_queue
