@@ -34,7 +34,12 @@ from gi.repository import GLib
 import dbus
 from microfiber import Database, NotFound
 
-from novacut.thumbnail import Thumbnailer
+from novacut.thumbnail import (
+    attachments_to_existing,
+    update_attachments,
+    Thumbnailer,
+)
+
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -46,13 +51,14 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument('file_id')
 parser.add_argument('frame', type=int, nargs='+')
 args = parser.parse_args()
 
 
-# Blah blah:
+# Resolve Dmedia file ID to local file path:
 Dmedia = dbus.SessionBus().get_object('org.freedesktop.Dmedia', '/')
 (_id, status, filename) = Dmedia.Resolve(args.file_id)
 if status != 0:
@@ -66,13 +72,17 @@ db = Database('thumbnails-1', env)
 db.ensure()
 
 # Thumbnail doc for this file_id:
+key = '_attachments'
 try:
     doc = db.get(_id)
+    if key not in doc:
+        doc['key'] = {}
 except NotFound:
     doc = {
         '_id': _id,
-        '_attachments': {},
+        key: {},
     }
+attachments = doc[key]
 
 # MainLoop:
 mainloop = GLib.MainLoop()
@@ -81,14 +91,16 @@ def callback(thumbnailer, success):
     log.info('success=%r', success)
     mainloop.quit()
 
-thumbnailer = Thumbnailer(callback, filename, args.frame, doc['_attachments'])
+existing = attachments_to_existing(attachments)
+thumbnailer = Thumbnailer(callback, filename, args.frame, existing)
 thumbnailer.run()
 mainloop.run()
 if thumbnailer.success is not True:
     log.error('Fatal error in Thumbnailer')
     sys.exit(1)
 
-if thumbnailer.changed:
+if thumbnailer.thumbnails:
+    update_attachments(attachments, thumbnailer.thumbnails)
     log.info('saving thumbnail changes for %s', args.file_id)
     db.save(doc)
 else:

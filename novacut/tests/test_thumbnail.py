@@ -24,18 +24,126 @@ Unit tests for the `novacut.validate` module.
 """
 
 from unittest import TestCase
+import os
 import sys
-from random import SystemRandom
-from fractions import Fraction
+from base64 import b64encode
 
 from gi.repository import Gst
 from dbase32 import random_id
 
-from ..timefuncs import frame_to_nanosecond
+from .helpers import random, random_framerate
+from ..misc import random_start_stop
+from ..timefuncs import video_pts_and_duration
 from .. import thumbnail
 
 
-random = SystemRandom()
+class TestFunctions(TestCase):
+    def test_get_slice_for_thumbnail(self):
+        get_slice_for_thumbnail = thumbnail.get_slice_for_thumbnail
+
+        # frame in existing:
+        for frame in range(100):
+            self.assertIsNone(get_slice_for_thumbnail({frame}, frame, 200))
+
+        # frame=0, no existing, then existing at frame 3:
+        for eg in [set(), {3}]:
+            s = get_slice_for_thumbnail(eg, 0, 99)
+            self.assertIsInstance(s, thumbnail.StartStop)
+            self.assertEqual(s, (0, 3))
+            self.assertEqual(s.stop - s.start, 3)
+
+        # frame=0, existing at frame 2:
+        s = get_slice_for_thumbnail({2}, 0, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (0, 2))
+        self.assertEqual(s.stop - s.start, 2)
+
+        # frame=0, existing at frame 1:
+        s = get_slice_for_thumbnail({1}, 0, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (0, 1))
+        self.assertEqual(s.stop - s.start, 1)
+
+        # frame=98, no existing, then existing at frame 95:
+        for eg in [set(), {95}]:
+            s = get_slice_for_thumbnail(eg, 98, 99)
+            self.assertIsInstance(s, thumbnail.StartStop)
+            self.assertEqual(s, (96, 99))
+            self.assertEqual(s.stop - s.start, 3)
+
+        # frame=98, existing at frame 96:
+        s = get_slice_for_thumbnail({96}, 98, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (97, 99))
+        self.assertEqual(s.stop - s.start, 2)
+
+        # frame=98, existing at frame 97:
+        s = get_slice_for_thumbnail({97}, 98, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (98, 99))
+        self.assertEqual(s.stop - s.start, 1)
+
+        # frame=33, not constrained on either side:
+        for eg in [set(), {31, 35}]:
+            s = get_slice_for_thumbnail(eg, 33, 99)
+            self.assertIsInstance(s, thumbnail.StartStop)
+            self.assertEqual(s, (32, 35))
+            self.assertEqual(s.stop - s.start, 3)
+
+        # frame=33, constrained by {32, 34}:
+        s = get_slice_for_thumbnail({32, 34}, 33, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (33, 34))
+        self.assertEqual(s.stop - s.start, 1)
+
+        # frame=33, constrained by 32 behind, should walk forward 10 frames:
+        s = get_slice_for_thumbnail({32}, 33, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (33, 43))
+        self.assertEqual(s.stop - s.start, 10)
+
+        # frame=33, constrained by 34 ahead, should walk backward 10 frames:
+        s = get_slice_for_thumbnail({34}, 33, 99)
+        self.assertIsInstance(s, thumbnail.StartStop)
+        self.assertEqual(s, (24, 34))
+        self.assertEqual(s.stop - s.start, 10)
+
+    def test_attachments_to_existing(self):
+        indexes = tuple(random.randrange(0, 5000) for i in range(17))
+        attachments = dict(
+            (str(i), {random_id: random_id}) for i in indexes
+        )
+        existing = thumbnail.attachments_to_existing(attachments)
+        self.assertIsInstance(existing, set)
+        self.assertEqual(existing, set(indexes))
+
+    def test_update_attachments(self):
+        data1 = os.urandom(200)
+        data2 = os.urandom(17)
+        data3 = os.urandom(333)
+        attachments = {}
+        thumbnails = [
+            (0, data1),
+            (17, data2),
+            (29, data3),
+        ]
+        self.assertIsNone(thumbnail.update_attachments(attachments, thumbnails))
+        self.assertEqual(attachments,
+            {
+                '0': {
+                    'content_type': 'image/jpeg',
+                    'data': b64encode(data1).decode(),
+                },
+                '17': {
+                    'content_type': 'image/jpeg',
+                    'data': b64encode(data2).decode(),
+                },
+                '29': {
+                    'content_type': 'image/jpeg',
+                    'data': b64encode(data3).decode(),
+                },
+            }
+        )
 
 
 class TestThumbnailer(TestCase):
@@ -45,12 +153,16 @@ class TestThumbnailer(TestCase):
 
         filename = '/tmp/' + random_id() + '.mov'
         indexes = [random.randrange(0, 5000) for i in range(15)]
-        attachments = {}
-        inst = thumbnail.Thumbnailer(callback, filename, indexes, attachments)
-        self.assertIs(inst.attachments, attachments)
+        existing = set(random.randrange(0, 5000) for i in range(20))
+        inst = thumbnail.Thumbnailer(callback, filename, indexes, existing)
         self.assertEqual(inst.indexes, sorted(set(indexes)))
+        self.assertIs(inst.existing, existing)
         self.assertIsNone(inst.framerate)
-        self.assertIs(inst.changed, False)
+        self.assertIsNone(inst.file_stop)
+        self.assertIsNone(inst.s)
+        self.assertIsNone(inst.frame)
+        self.assertEqual(inst.thumbnails, [])
+        self.assertIs(inst.unhandled_eos, False)
 
         # filesrc:
         self.assertIsInstance(inst.src, Gst.Element)
@@ -116,96 +228,154 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.handlers, [])
         self.assertEqual(sys.getrefcount(inst), 2)
 
-    def test_seek_to_frame(self):
-        class DummyPipeline:
-            def __init__(self):
+    def test_play_slice(self):
+        class Subclass(thumbnail.Thumbnailer):
+            def __init__(self, file_stop):
+                assert file_stop > 0
+                self.file_stop = file_stop
                 self._calls = []
 
-            def seek_simple(self, frmt, flags, ns):
-                self._calls.append((frmt, flags, ns))
+            def seek_by_frame(self, start, stop):
+                self._calls.append((start, stop))
 
-        class Subclass(thumbnail.Thumbnailer):
-            def __init__(self, pipeline, framerate):
-                self.pipeline = pipeline
-                self.framerate = framerate
+        inst = Subclass(1)
+        s = thumbnail.StartStop(0, 1)
+        self.assertIsNone(inst.play_slice(s))
+        self.assertIs(inst.s, s)
+        self.assertEqual(inst.frame, 0)
+        self.assertEqual(inst._calls, [(0, 1)])
 
-        pipeline = DummyPipeline()
-        framerate = Fraction(30000, 1001)
-        inst = Subclass(pipeline, framerate)
-        frmt = Gst.Format.TIME
-        flags = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
-        self.assertIsNone(inst.seek_to_frame(0))
-        self.assertEqual(inst.target, 0)
-        self.assertEqual(pipeline._calls, [
-            (frmt, flags, 0),
-        ])
-        self.assertIsNone(inst.seek_to_frame(1))
-        self.assertEqual(inst.target, 1)
-        self.assertEqual(pipeline._calls, [
-            (frmt, flags, 0),
-            (frmt, flags, 33366666),
-        ])
-        self.assertIsNone(inst.seek_to_frame(2))
-        self.assertEqual(inst.target, 2)
-        self.assertEqual(pipeline._calls, [
-            (frmt, flags, 0),
-            (frmt, flags, 33366666),
-            (frmt, flags, 66733333),
-        ])
+        file_stop = random.randrange(1234, 12345679)
+        inst = Subclass(file_stop)
+        s = thumbnail.StartStop(0, 1)
+        self.assertIsNone(inst.play_slice(s))
+        self.assertIs(inst.s, s)
+        self.assertEqual(inst.frame, 0)
+        self.assertEqual(inst._calls, [(0, 1)])
 
-        for i in range(500):
-            pipeline = DummyPipeline()
-            inst = Subclass(pipeline, framerate)
-            frame = random.randrange(1234567)
-            self.assertIsNone(inst.seek_to_frame(frame))
-            self.assertIs(inst.target, frame)
-            self.assertEqual(pipeline._calls,
-                [(frmt, flags, frame_to_nanosecond(frame, framerate))]
-            )
+        inst = Subclass(file_stop)
+        s = thumbnail.StartStop(file_stop - 1, file_stop)
+        self.assertIsNone(inst.play_slice(s))
+        self.assertIs(inst.s, s)
+        self.assertEqual(inst.frame, file_stop - 1)
+        self.assertEqual(inst._calls, [(file_stop - 1, file_stop)])
+
+        for i in range(100):
+            inst = Subclass(file_stop)
+            s = random_start_stop(file_stop)
+            self.assertIsNone(inst.play_slice(s))
+            self.assertIs(inst.s, s)
+            self.assertIs(inst.frame, s.start)
+            self.assertEqual(inst._calls, [(s.start, s.stop)])
 
     def test_next(self):
         class Subclass(thumbnail.Thumbnailer):
-            def __init__(self, indexes, attachments):
+            __slots__ = (
+                'indexes',
+                'existing',
+                'file_stop',
+                'unhandled_eos',
+                'thumbnails',
+                '_calls',
+            )
+
+            def __init__(self, indexes, existing, file_stop):
                 self.indexes = indexes
-                self.attachments = attachments
+                self.existing = existing
+                self.file_stop = file_stop
+                self.unhandled_eos = True
+                self.thumbnails = []
                 self._calls = []
 
-            def seek_to_frame(self, frame):
-                self._calls.append(('seek_to_frame', frame))
+            def play_slice(self, s):
+                self._calls.append(('play_slice', s))
 
             def complete(self, success):
                 self._calls.append(('complete', success))
 
+        indexes = [2, 17, 18, 19]
+        existing = {18}
+        inst = Subclass(indexes, existing, 23)
 
-        indexes = [17, 18, 19]
-        attachments = {'18': 'foobar'}
-        inst = Subclass(indexes, attachments)
-
-        # Frame 17:
+        # Frame 2: should play slice [1:4]
+        self.assertIs(inst.unhandled_eos, True)
         self.assertIsNone(inst.next())
-        self.assertEqual(inst.indexes, [18, 19])
-        self.assertEqual(inst.attachments, {'18': 'foobar'})
+        self.assertIs(inst.unhandled_eos, False)
+        self.assertEqual(inst.indexes, [17, 18, 19])
+        self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            ('seek_to_frame', 17),
+            ('play_slice', (1, 4)),
         ])
 
-        # Frame 18 should be skipped as it's already in attachments:
+        # Frame 17: as 18 exists, should walk backward 10 frames
+        inst.unhandled_eos = True
+        self.assertIs(inst.unhandled_eos, True)
         self.assertIsNone(inst.next())
-        self.assertEqual(inst.indexes, [])
-        self.assertEqual(inst.attachments, {'18': 'foobar'})
+        self.assertIs(inst.unhandled_eos, False)
+        self.assertEqual(inst.indexes, [18, 19])
+        self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            ('seek_to_frame', 17),
-            ('seek_to_frame', 19),
+            ('play_slice', (1, 4)),
+            ('play_slice', (8, 18)),
+        ])
+
+        # Frame 18: exists, should be skipped
+        # Frame 19: as 18 exists, should walk forward up to file_stop
+        inst.unhandled_eos = True
+        self.assertIs(inst.unhandled_eos, True)
+        self.assertIsNone(inst.next())
+        self.assertIs(inst.unhandled_eos, False)
+        self.assertEqual(inst.indexes, [])
+        self.assertEqual(inst.existing, {18})
+        self.assertEqual(inst._calls, [
+            ('play_slice', (1, 4)),
+            ('play_slice', (8, 18)),
+            ('play_slice', (19, 23)),
         ])
 
         # Pipeline.complete() should be called once indexes is empty:
+        inst.unhandled_eos = True
+        self.assertIs(inst.unhandled_eos, True)
         self.assertIsNone(inst.next())
+        self.assertIs(inst.unhandled_eos, False)
         self.assertEqual(inst.indexes, [])
-        self.assertEqual(inst.attachments, {'18': 'foobar'})
+        self.assertEqual(inst.existing, {18})
+        self.assertEqual(inst.thumbnails, [])
         self.assertEqual(inst._calls, [
-            ('seek_to_frame', 17),
-            ('seek_to_frame', 19),
+            ('play_slice', (1, 4)),
+            ('play_slice', (8, 18)),
+            ('play_slice', (19, 23)),
             ('complete', True),
         ])
 
+    def test_check_frame(self):
+        class Subclass(thumbnail.Thumbnailer):
+            __slots__ = ('framerate', 'existing', 'frame')
+
+            def __init__(self, framerate, existing, frame):
+                self.framerate = framerate
+                self.existing = existing
+                self.frame = frame
+
+        framerate = random_framerate()
+        existing = set()
+        current = random.randrange(1, 123456)
+        inst = Subclass(framerate, existing, current)
+
+        # One frame less, one frame more than expected:
+        for frame in (current - 1, current + 1):
+            ts = video_pts_and_duration(frame, framerate)
+            with self.assertRaises(ValueError) as cm:
+                inst.check_frame(ts)
+            self.assertEqual(str(cm.exception),
+                'expected frame {}, got {}'.format(current, frame)
+            )
+            self.assertIs(inst.existing, existing)
+            self.assertEqual(inst.existing, set())
+
+        # Correct frame:
+        ts = video_pts_and_duration(current, framerate)
+        self.assertIsNone(inst.check_frame(ts))
+        self.assertIs(inst.existing, existing)
+        self.assertEqual(inst.existing, {current})
 

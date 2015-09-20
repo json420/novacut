@@ -29,9 +29,9 @@ don't want to accumulate too much magic wrapper sauce!
 from fractions import Fraction
 import logging
 
-from gi.repository import Gst, GLib
+from gi.repository import GLib, Gst
 
-from .timefuncs import frame_to_nanosecond
+from .timefuncs import frame_to_nanosecond, nanosecond_to_frame
 
 
 log = logging.getLogger(__name__)
@@ -362,12 +362,41 @@ class Decoder(Pipeline):
         # Connect signal handlers using Pipeline.connect():
         self.connect(self.dec, 'pad-added', self.on_pad_added)
 
-    def seek(self, ns, key_unit=False):
+    def get_duration(self):
+        (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
+        if success:
+            return ns
+        raise ValueError('could not query duration')
+
+    def frame_to_nanosecond(self, frame):
+        return frame_to_nanosecond(frame, self.framerate)
+
+    def nanosecond_to_frame(self, nanosecond):
+        return nanosecond_to_frame(nanosecond, self.framerate)
+
+    def seek_simple(self, ns, key_unit=False):
         flags = (FLAGS_KEY_UNIT if key_unit is True else FLAGS_ACCURATE)
         self.pipeline.seek_simple(Gst.Format.TIME, flags, ns)
 
-    def seek_to_frame(self, frame, key_unit=False):
-        self.seek(frame_to_nanosecond(frame, self.framerate), key_unit)
+    def seek(self, start_ns, stop_ns, key_unit=False):
+        flags = (FLAGS_KEY_UNIT if key_unit is True else FLAGS_ACCURATE)
+        self.pipeline.seek(
+            1.0,
+            Gst.Format.TIME,        
+            flags,
+            Gst.SeekType.SET,
+            start_ns,
+            Gst.SeekType.SET,
+            stop_ns
+        )
+
+    def seek_by_frame(self, start, stop=None, key_unit=False):
+        start_ns = self.frame_to_nanosecond(start)
+        if stop is None:
+            self.seek_simple(start_ns, key_unit)
+        else:
+            stop_ns = self.frame_to_nanosecond(stop)
+            self.seek(start_ns, stop_ns, key_unit)
 
     def extract_video_info(self, structure):
         self.framerate = get_fraction(structure, 'framerate')

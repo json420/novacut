@@ -27,21 +27,11 @@ __version__ = '15.09.0'
 BUS = 'com.novacut.Renderer'
 
 
-def configure_logging():
-    import sys
+def get_log_filename(script):
     import os
     from os import path
-    import logging
-    import platform
 
-    script = path.abspath(sys.argv[0])
     namespace = path.basename(script)
-    format = [
-        '%(levelname)s',
-        '%(processName)s',
-        '%(threadName)s',
-        '%(message)s',
-    ]
     home = path.abspath(os.environ['HOME'])
     if not path.isdir(home):
         raise Exception('$HOME is not a directory: {!r}'.format(home))
@@ -51,6 +41,23 @@ def configure_logging():
     filename = path.join(cache, namespace + '.log')
     if path.exists(filename):
         os.rename(filename, filename + '.previous')
+    return filename
+
+
+def configure_logging(use_stderr=False):
+    import sys
+    from os import path
+    import logging
+    import platform
+
+    format = [
+        '%(levelname)s',
+        '%(processName)s',
+        '%(threadName)s',
+        '%(message)s',
+    ]
+    script = path.abspath(sys.argv[0])
+    filename = (None if use_stderr else get_log_filename(script))
     logging.basicConfig(
         filename=filename,
         filemode='w',

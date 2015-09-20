@@ -32,9 +32,9 @@ import sys
 from dbase32 import random_id
 from gi.repository import Gst
 
+from .helpers import random_filename, random_slice
 from .. import timefuncs
 from ..settings import get_default_settings
-from ..misc import random_start_stop
 from .. import render
 
 
@@ -85,22 +85,6 @@ class TestFunctions(TestCase):
                 self.assertIs(_int(d, key, minval), val)
 
 
-def random_framerate():
-    num = random.randrange(1, 54321)
-    denom = random.randrange(1, 54321)
-    return (num, denom, Fraction(num, denom))
-
-
-def random_filename():
-    return '/tmp/' + random_id() + '.mov'
-
-
-def random_slice():
-    (start, stop) = random_start_stop()
-    filename = random_filename()
-    return render.Slice(random_id(), random_id(30), start, stop, filename)
-
-
 class TestInput(TestCase):
     def test_init(self):
         def callback(inst, success):
@@ -145,7 +129,7 @@ class TestInput(TestCase):
             'video/x-raw'
         )
         self.assertIs(inst.sink.get_property('emit-signals'), True)
-        self.assertEqual(inst.sink.get_property('max-buffers'), 1)
+        self.assertEqual(inst.sink.get_property('max-buffers'), 4)
 
         # Make sure all elements have been added to Pipeline:
         for child in [inst.src, inst.dec, inst.video_q, inst.convert, inst.scale, inst.sink]:

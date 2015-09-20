@@ -29,8 +29,6 @@ from gi.repository import Gst
 
 from .timefuncs import (
     Timestamp,
-    frame_to_nanosecond,
-    nanosecond_to_frame,
     video_pts_and_duration,
 )
 from .gsthelpers import Decoder, make_element, get_int
@@ -96,7 +94,7 @@ class Validator(Decoder):
         self.info['valid'] = False
 
     def check_frame(self, ts):
-        frame = nanosecond_to_frame(ts.pts, self.framerate)
+        frame = self.nanosecond_to_frame(ts.pts)
         if self.frame != frame:
             log.error('Expected frame %s, got %s (pts=%s, duration=%s)',
                 self.frame, frame, ts.pts, ts.duration
@@ -114,8 +112,8 @@ class Validator(Decoder):
     def check_duration(self):
         frames = self.info['frames']
         duration = self.info['duration']
-        expected_frames = nanosecond_to_frame(duration, self.framerate)
-        expected_duration = frame_to_nanosecond(frames, self.framerate)
+        expected_frames = self.nanosecond_to_frame(duration)
+        expected_duration = self.frame_to_nanosecond(frames)
         if expected_frames != frames:
             log.error('Expected %s total frames, got %s',
                 expected_frames, frames

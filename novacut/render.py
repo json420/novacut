@@ -113,7 +113,7 @@ class Input(Decoder):
         self.convert = make_element('videoconvert')
         self.scale = make_element('videoscale', {'method': 3})
         self.sink = make_element('appsink',
-            {'caps': input_caps, 'emit-signals': True, 'max-buffers': 1}
+            {'caps': input_caps, 'emit-signals': True, 'max-buffers': 4}
         )
 
         # Add elements to pipeline and link:
@@ -128,7 +128,7 @@ class Input(Decoder):
     def run(self):
         log.info('Input slice %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
         self.set_state(Gst.State.PAUSED, sync=True)
-        self.seek_to_frame(self.s.start)
+        self.seek_by_frame(self.s.start, self.s.stop)
         self.set_state(Gst.State.PLAYING)
 
     def check_frame(self, buf):
