@@ -26,7 +26,7 @@ Opinionated video and audio encoder settings.
 from . import schema
 
 
-def get_default_settings():
+def get_default_settings(width=1920, height=1080):
     return {
 #        'muxer': {
 #            'name': 'qtmux',
@@ -49,8 +49,8 @@ def get_default_settings():
             },
             'caps': {
                 'format': 'I420',
-                'width': 1920,
-                'height': 1080,
+                'width': width,
+                'height': height,
                 'interlace-mode': 'progressive',
                 'pixel-aspect-ratio': '1/1',
                 'chroma-site': 'mpeg2',
