@@ -55,5 +55,25 @@ class TestFunctions(TestCase):
             vcaps = video['caps']
             self.assertEqual(vcaps.get('width'), w)
             self.assertEqual(vcaps.get('width'), h)
-            self.assertIsInstance(s.get('audio'), dict) 
+            self.assertIsInstance(s.get('audio'), dict)
+
+    def default_setting(self):
+        doc = settings.default_settings()
+        self.assertIsInstance(doc, dict)
+        self.assertIsInstance(doc.get('node'), dict)
+        node = doc['node']
+        self.assertEqual(node, settings.get_default_settings())
+        self.assertEqual(node['video']['caps']['width'], 1920)
+        self.assertEqual(node['video']['caps']['height'], 1080)
+
+        for (w, h) in [(1280, 720), (960, 540), (640, 480)]:
+            doc = settings.default_settings(width=w, height=h)
+            self.assertIsInstance(doc, dict)
+            self.assertIsInstance(doc.get('node'), dict)
+            node = doc['node']
+            self.assertEqual(node,
+                settings.get_default_settings(width=w, height=h)
+            )
+            self.assertEqual(node['video']['caps']['width'], w)
+            self.assertEqual(node['video']['caps']['height'], h) 
 

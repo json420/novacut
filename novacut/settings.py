@@ -72,7 +72,7 @@ def get_default_settings(width=1920, height=1080):
     }
 
 
-def default_settings():
-    node = get_default_settings()
+def default_settings(width=1920, height=1080):
+    node = get_default_settings(width, height)
     return schema.create_settings(node)
 
