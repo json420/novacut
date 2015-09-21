@@ -27,6 +27,7 @@ Script to re-render all existing jobs in novacut-1 Database.
 
 import json
 import os
+import sys
 from os import path
 import argparse
 import logging
@@ -94,6 +95,10 @@ def on_complete(r, success):
     log.info('on_complete: success=%r', success)
     mainloop.quit()
 
+fail = []
+
+def add_fail(root_id):
+    fail.append(root_id)
 
 def render_one(root_id):
     settings = get_settings()
@@ -113,22 +118,36 @@ def render_one(root_id):
     r.run()
     mainloop.run()
     if r.success is not True:
-        raise SystemExit('fatal error in Renderer')
+        log.error('fatal error in Renderer')
+        return add_fail(root_id)
     v = Validator(on_complete, tmp_dst, False, False)
     v.run()
     mainloop.run()
     if v.success is not True:
-        raise SystemExit('fatal error in Validator')
+        log.error('fatal error in Validator')
+        return add_fail(root_id)
     expected_frames = sum(s.stop - s.start for s in slices)
     if expected_frames != v.info['frames']:
-        raise SystemExit(
-            'expected {} frames, got {}'.format(expected_frames, v.info['frames'])
+        log.error('expected %d frames, got %d',
+            expected_frames, v.info['frames']
         )
+        return add_fail(root_id)
     os.rename(tmp_dst, dst)
     log.info('Result:\n%s\n', dst)
 
 
+root_ids = []
 for r in db.view('doc', 'type', key='novacut/job', include_docs=True)['rows']:
-    root_id = r['doc']['node']['root']
-    render_one(root_id)
+    root_ids.append(r['doc']['node']['root'])
+root_ids.sort()
+
+for _id in root_ids:
+    render_one(_id)
+log.info('Rendered %d edit graphs', len(root_ids))
+if fail:
+    log.error('Errors on %d renderes', len(fail))
+    print('')
+    for _id in fail:
+        print(_id)
+    sys.exit(2)
 
