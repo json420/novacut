@@ -57,6 +57,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--default', action='store_true', default=False,
     help='Use default render settings rather than OGG/Theora'
 )
+parser.add_argument('--low', action='store_true', default=False,
+    help='Force resolution to 1280x720'
+)
 args = parser.parse_args()
 
 
@@ -69,7 +72,10 @@ db = Database('novacut-1', env)
 
 def get_settings():
     if args.default:
-        return get_default_settings()
+        if args.low:
+            return get_default_settings(width=1280, height=720)
+        else:
+            return get_default_settings()
     return {
         'muxer': 'oggmux',
         'ext': 'ogg',
