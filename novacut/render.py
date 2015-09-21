@@ -39,6 +39,7 @@ from .gsthelpers import (
 
 
 log = logging.getLogger(__name__)
+QUEUE_SIZE = 16
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 Slice = namedtuple('Slice', 'id src start stop filename')
 
@@ -85,6 +86,9 @@ def _fraction(obj):
 
 
 class Input(Decoder):
+    # With GStreamer 1.2, we need the Input.check_eos() time to be fairly long:
+    CHECK_EOS = 2000
+
     def __init__(self, callback, buffer_queue, s, input_caps):
         super().__init__(callback, s.filename, video=True)
         self.buffer_queue = buffer_queue
@@ -96,7 +100,7 @@ class Input(Decoder):
         self.convert = make_element('videoconvert')
         self.scale = make_element('videoscale', {'method': 3})
         self.sink = make_element('appsink',
-            {'caps': input_caps, 'emit-signals': True, 'max-buffers': 4}
+            {'caps': input_caps, 'emit-signals': True, 'max-buffers': 1}
         )
 
         # Add elements to pipeline and link:
@@ -109,12 +113,15 @@ class Input(Decoder):
         self.connect(self.sink, 'new-sample', self.on_new_sample)
 
     def run(self):
-        log.info('starting %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
-        self.unhandled_eos = True
-        self.set_state(Gst.State.PAUSED, sync=True)
-        stop = (None if USE_HACKS else self.s.stop)
-        self.seek_by_frame(self.s.start, stop)
-        self.set_state(Gst.State.PLAYING)
+        try:
+            log.info('%s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+            self.set_state(Gst.State.PAUSED, sync=True)
+            stop = (None if USE_HACKS else self.s.stop)
+            self.seek_by_frame(self.s.start, stop)
+            self.set_state(Gst.State.PLAYING)
+        except:
+            log.exception('%s.run():', self.__class__.__name__)
+            self.complete(False)
 
     def check_frame(self, buf):
         frame = nanosecond_to_frame(buf.pts, self.framerate)
@@ -126,36 +133,55 @@ class Input(Decoder):
         return False
 
     def done(self):
-        log.info('finished %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
-        self.clear_unhandled_eos()
+        log.info('done: %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+        self.remove_check_eos()
         self.do_complete(True)
 
     def on_new_sample(self, appsink):
-        if self.frame >= self.s.stop:
-            log.warning('Ignoring extra frames past end of slice')
-            return Gst.FlowReturn.EOS
-        if self.success is not None:
-            log.warning(
-                'Ignoring frame received after Input.complete() was called'
-            )
-            return Gst.FlowReturn.EOS
-        buf = appsink.emit('pull-sample').get_buffer()
-        if USE_HACKS:
-            # FIXME: work-around needed for GStreamer 1.2
-            buf = buf.copy()
-        if self.check_frame(buf) is not True:
-            self.complete(False)
+        try:
+            if self.frame >= self.s.stop:
+                log.warning('Ignoring extra frames past end of slice')
+                return Gst.FlowReturn.EOS
+            buf = appsink.emit('pull-sample').get_buffer()
+            if USE_HACKS:
+                # FIXME: work-around needed for GStreamer 1.2
+                buf = buf.copy()
+            if self.check_frame(buf) is not True:
+                self.complete(False)
+                return Gst.FlowReturn.CUSTOM_ERROR
+            self.frame += 1
+            while self.success is None:
+                try:
+                    self.buffer_queue.put(buf, timeout=0.1)
+                    if self.frame >= self.s.stop:
+                        GLib.idle_add(self.done)
+                    return Gst.FlowReturn.OK
+                except queue.Full:
+                    pass
             return Gst.FlowReturn.CUSTOM_ERROR
-        self.frame += 1
-        while self.success is None:
-            try:
-                self.buffer_queue.put(buf, timeout=0.1)
-                break
-            except queue.Full:
-                pass
-        if self.frame >= self.s.stop:
-            GLib.idle_add(self.done)
-        return Gst.FlowReturn.OK
+        except:
+            log.exception('%s.on_new_sample():', self.__class__.__name__)
+            self.complete(False)
+            return Gst.FlowReturn.ERROR
+
+    def check_eos(self):
+        self.remove_check_eos()
+        if self.success is not None:
+            log.debug('check_eos(): complete() already called, nothing to do')
+        elif self.frame >= self.s.stop:
+            log.debug(
+                'check_eos(): assuming on_new_sample() will call complete()'
+            )
+        else:
+            log.warning('check_eos(): missing %d frames',
+                self.s.stop - self.frame
+            )
+            self.do_complete(False)
+
+    def on_eos(self, bus, msg):
+        if self.success is None and self.frame < self.s.stop:
+            log.warning('on_eos(): missing %d frames', self.s.stop - self.frame)
+            self.add_check_eos()
 
 
 def make_video_caps(desc):
@@ -184,6 +210,7 @@ class Output(Pipeline):
 
         # Create elements:
         self.src = make_element('appsrc', {'caps': output_caps, 'format': 3})
+        self.q = make_element('queue')
         self.enc = make_element_from_desc(settings['video']['encoder'])
         self.mux = make_element_from_desc(settings['muxer'])
         self.sink = make_element('filesink',
@@ -192,58 +219,52 @@ class Output(Pipeline):
 
         # Add elements to pipeline and link:
         add_and_link_elements(self.pipeline,
-            self.src, self.enc, self.mux, self.sink
+            self.src, self.q, self.enc, self.mux, self.sink
         )
 
         # Connect signal handlers using Pipeline.connect():
         self.connect(self.src, 'need-data', self.on_need_data)
 
     def run(self):
-        self.set_state(Gst.State.PLAYING)
+        GLib.timeout_add(3000, self.do_run)
+
+    def do_run(self):
+        if self.success is None:
+            self.set_state(Gst.State.PLAYING)
+        else:
+            log.warning('do_run(): success in not None')
 
     def on_eos(self, bus, msg):
         self.complete(True)
 
-    def get_buffers(self):
+    def get_buffer(self):
         q = self.buffer_queue
-        buffers = []
         while self.success is None:
             try:
-                buf = q.get(timeout=0.1)
-                buffers.append(buf)
-                if len(buffers) >= 16 or buf is None:
-                    break
+                return q.get(timeout=0.1)
             except queue.Empty:
                 pass
-        return buffers
+        raise Exception('Output.success is not None, wont wait for buffer')
 
     def on_need_data(self, appsrc, amount):
-        if self.sent_eos:
-            log.info('sent_eos is True, nothing to do in need-data callback')
-            return
-        buffers = self.get_buffers()
-        if self.success is not None:
-            log.warning(
-                'Output.complete() must have been called, ignoring %s buffers',
-                len(buffers)
-            )
-            return
-        while buffers:
-            self.push(appsrc, buffers.pop(0))
-
-    def push(self, appsrc, buf):
-        assert self.sent_eos is False
-        if buf is None:
-            log.info('Output: received end-of-render sentinel')
-            self.sent_eos = True
-            appsrc.emit('end-of-stream')
-            return True
-        ts = video_pts_and_duration(self.frame, self.framerate)
-        buf.pts = ts.pts
-        buf.duration = ts.duration
-        appsrc.emit('push-buffer', buf)
-        self.frame += 1
-        return False
+        try:
+            if self.sent_eos:
+                log.info('sent_eos is True, nothing to do in on_need_data()')
+                return
+            buf = self.get_buffer()
+            if buf is None:
+                log.info('Output: received end-of-render sentinel')
+                self.sent_eos = True
+                appsrc.emit('end-of-stream')
+            else:
+                ts = video_pts_and_duration(self.frame, self.framerate)
+                buf.pts = ts.pts
+                buf.duration = ts.duration
+                self.frame += 1
+                appsrc.emit('push-buffer', buf)
+        except:
+            log.exception('%s.on_need_data():', self.__class__.__name__)
+            self.complete(False)
 
 
 class Renderer:
@@ -256,7 +277,7 @@ class Renderer:
         self.slices = slices
         self.success = None
         self.total_frames = sum(s.stop - s.start for s in slices)
-        self.buffer_queue = queue.Queue(16)
+        self.buffer_queue = queue.Queue(QUEUE_SIZE)
         self.input = None
         self.output = Output(
             self.on_output_complete, self.buffer_queue, settings, filename

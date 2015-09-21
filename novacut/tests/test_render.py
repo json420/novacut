@@ -129,7 +129,7 @@ class TestInput(TestCase):
             'video/x-raw'
         )
         self.assertIs(inst.sink.get_property('emit-signals'), True)
-        self.assertEqual(inst.sink.get_property('max-buffers'), 4)
+        self.assertEqual(inst.sink.get_property('max-buffers'), 1)
 
         # Make sure all elements have been added to Pipeline:
         for child in [inst.src, inst.dec, inst.video_q, inst.convert, inst.scale, inst.sink]:
@@ -189,11 +189,17 @@ class TestOutput(TestCase):
         )
         self.assertEqual(inst.src.get_property('format'), 3)
 
+        # queue:
+        self.assertIsInstance(inst.q, Gst.Element)
+        self.assertEqual(inst.q.get_factory().get_name(), 'queue')
+
         # x264enc:
         self.assertIsInstance(inst.enc, Gst.Element)
         self.assertEqual(inst.enc.get_factory().get_name(), 'x264enc')
-        self.assertEqual(inst.enc.get_property('bitrate'), 8192)
-        self.assertEqual(inst.enc.get_property('psy-tune'), 5)
+        self.assertEqual(inst.enc.get_property('pass'), 5)
+        self.assertEqual(inst.enc.get_property('qp-max'), 25)
+        self.assertEqual(inst.enc.get_property('key-int-max'), 60)
+        self.assertEqual(inst.enc.get_property('b-adapt'), False)
 
         # matroskamux:
         self.assertIsInstance(inst.mux, Gst.Element)
@@ -206,7 +212,7 @@ class TestOutput(TestCase):
         self.assertEqual(inst.sink.get_property('buffer-mode'), 2)
 
         # Make sure all elements have been added to Pipeline:
-        for child in [inst.src, inst.enc, inst.mux, inst.sink]:
+        for child in [inst.src, inst.q, inst.enc, inst.mux, inst.sink]:
             self.assertIs(child.get_parent(), inst.pipeline)
 
         # Make sure gsthelpers.Pipeline.__init__() was called:

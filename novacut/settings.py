@@ -26,7 +26,7 @@ Opinionated video and audio encoder settings.
 from . import schema
 
 
-def get_default_settings():
+def get_default_settings(width=1920, height=1080):
     return {
 #        'muxer': {
 #            'name': 'qtmux',
@@ -41,14 +41,16 @@ def get_default_settings():
             'encoder': {
                 'name': 'x264enc',
                 'props': {
-                    'bitrate': 8192,
-                    'psy-tune': 5,  # Tune for SSIM
+                    'pass': 5,  # Constant Quality
+                    'qp-max': 25,
+                    'key-int-max': 60,
+                    'b-adapt': False,
                 },
             },
             'caps': {
                 'format': 'I420',
-                'width': 1920,
-                'height': 1080,
+                'width': width,
+                'height': height,
                 'interlace-mode': 'progressive',
                 'pixel-aspect-ratio': '1/1',
                 'chroma-site': 'mpeg2',
@@ -70,7 +72,7 @@ def get_default_settings():
     }
 
 
-def default_settings():
-    node = get_default_settings()
+def default_settings(width=1920, height=1080):
+    node = get_default_settings(width, height)
     return schema.create_settings(node)
 
