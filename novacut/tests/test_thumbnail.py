@@ -241,7 +241,7 @@ class TestThumbnailer(TestCase):
             def __init__(self):
                 self._calls = []
 
-            def set_property(key, value):
+            def set_property(self, key, value):
                 self._calls.append((key, value))    
 
         class Subclass(thumbnail.Thumbnailer):
