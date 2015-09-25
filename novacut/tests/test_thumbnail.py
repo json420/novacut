@@ -46,24 +46,12 @@ class TestFunctions(TestCase):
         for frame in range(100):
             self.assertIsNone(get_slice_for_thumbnail({frame}, frame, 200))
 
-        # frame=0, no existing, then existing at frame 5:
-        for eg in [set(), {5}]:
+        # frame=0, no existing, then existing at frame 3:
+        for eg in [set(), {3}]:
             s = get_slice_for_thumbnail(eg, 0, 99)
             self.assertIsInstance(s, thumbnail.StartStop)
-            self.assertEqual(s, (0, 5))
-            self.assertEqual(s.stop - s.start, 5)
-
-        # frame=0, existing at frame 4:
-        s = get_slice_for_thumbnail({4}, 0, 99)
-        self.assertIsInstance(s, thumbnail.StartStop)
-        self.assertEqual(s, (0, 4))
-        self.assertEqual(s.stop - s.start, 4)
-
-        # frame=0, existing at frame 3:
-        s = get_slice_for_thumbnail({3}, 0, 99)
-        self.assertIsInstance(s, thumbnail.StartStop)
-        self.assertEqual(s, (0, 3))
-        self.assertEqual(s.stop - s.start, 3)
+            self.assertEqual(s, (0, 3))
+            self.assertEqual(s.stop - s.start, 3)
 
         # frame=0, existing at frame 2:
         s = get_slice_for_thumbnail({2}, 0, 99)
@@ -77,24 +65,12 @@ class TestFunctions(TestCase):
         self.assertEqual(s, (0, 1))
         self.assertEqual(s.stop - s.start, 1)
 
-        # frame=98, no existing, then existing at frame 93:
-        for eg in [set(), {93}]:
+        # frame=98, no existing, then existing at frame 95:
+        for eg in [set(), {95}]:
             s = get_slice_for_thumbnail(eg, 98, 99)
             self.assertIsInstance(s, thumbnail.StartStop)
-            self.assertEqual(s, (94, 99))
-            self.assertEqual(s.stop - s.start, 5)
-
-        # frame=98, existing at frame 94:
-        s = get_slice_for_thumbnail({94}, 98, 99)
-        self.assertIsInstance(s, thumbnail.StartStop)
-        self.assertEqual(s, (95, 99))
-        self.assertEqual(s.stop - s.start, 4)
-
-        # frame=98, existing at frame 95:
-        s = get_slice_for_thumbnail({95}, 98, 99)
-        self.assertIsInstance(s, thumbnail.StartStop)
-        self.assertEqual(s, (96, 99))
-        self.assertEqual(s.stop - s.start, 3)
+            self.assertEqual(s, (96, 99))
+            self.assertEqual(s.stop - s.start, 3)
 
         # frame=98, existing at frame 96:
         s = get_slice_for_thumbnail({96}, 98, 99)
@@ -109,17 +85,11 @@ class TestFunctions(TestCase):
         self.assertEqual(s.stop - s.start, 1)
 
         # frame=33, not constrained on either side:
-        for eg in [set(), {29, 37}]:
+        for eg in [set(), {31, 35}]:
             s = get_slice_for_thumbnail(eg, 33, 99)
             self.assertIsInstance(s, thumbnail.StartStop)
-            self.assertEqual(s, (31, 36))
-            self.assertEqual(s.stop - s.start, 5)
-
-        # frame=33, constrained by {31, 35}:
-        s = get_slice_for_thumbnail({31, 35}, 33, 99)
-        self.assertIsInstance(s, thumbnail.StartStop)
-        self.assertEqual(s, (32, 35))
-        self.assertEqual(s.stop - s.start, 3)
+            self.assertEqual(s, (32, 35))
+            self.assertEqual(s.stop - s.start, 3)
 
         # frame=33, constrained by {32, 34}:
         s = get_slice_for_thumbnail({32, 34}, 33, 99)
@@ -342,13 +312,13 @@ class TestThumbnailer(TestCase):
         existing = {18}
         inst = Subclass(indexes, existing, 23)
 
-        # Frame 2: should play slice [0:5]
+        # Frame 2: should play slice [1:4]
         self.assertIsNone(inst.next())
         self.assertEqual(inst.indexes, [17, 18, 19])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
             ('clear_unhandled_eos'),
-            ('play_slice', (0, 5)),
+            ('play_slice', (1, 4)),
         ])
 
         # Frame 17: as 18 exists, should walk backward 10 frames
@@ -357,7 +327,7 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
             ('clear_unhandled_eos'),
-            ('play_slice', (0, 5)),
+            ('play_slice', (1, 4)),
             ('clear_unhandled_eos'),
             ('play_slice', (8, 18)),
         ])
@@ -369,7 +339,7 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
             ('clear_unhandled_eos'),
-            ('play_slice', (0, 5)),
+            ('play_slice', (1, 4)),
             ('clear_unhandled_eos'),
             ('play_slice', (8, 18)),
             ('clear_unhandled_eos'),
@@ -383,7 +353,7 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.thumbnails, [])
         self.assertEqual(inst._calls, [
             ('clear_unhandled_eos'),
-            ('play_slice', (0, 5)),
+            ('play_slice', (1, 4)),
             ('clear_unhandled_eos'),
             ('play_slice', (8, 18)),
             ('clear_unhandled_eos'),

@@ -88,7 +88,7 @@ class GenericThumbnailer(Decoder):
         self.complete(False)
 
 
-def walk_backward(existing, frame, steps=2):
+def walk_backward(existing, frame, steps=1):
     assert frame >= 0
     assert frame not in existing
     assert steps >= 1
@@ -99,7 +99,7 @@ def walk_backward(existing, frame, steps=2):
     return frame
 
 
-def walk_forward(existing, frame, file_stop, steps=2):
+def walk_forward(existing, frame, file_stop, steps=1):
     assert 0 <= frame < file_stop
     assert frame not in existing
     assert steps >= 1
@@ -116,17 +116,17 @@ def get_slice_for_thumbnail(existing, frame, file_stop):
         return None
     if frame == 0:
         start = frame
-        end = walk_forward(existing, frame, file_stop, steps=4)
+        end = walk_forward(existing, frame, file_stop, steps=2)
     elif frame == file_stop - 1:
-        start = walk_backward(existing, frame, steps=4)
+        start = walk_backward(existing, frame, steps=2)
         end = frame
     else:
         start = walk_backward(existing, frame)
         end = walk_forward(existing, frame, file_stop)
         if start < frame and end == frame:
-            start = walk_backward(existing, start, steps=7)
+            start = walk_backward(existing, start, steps=8)
         elif end > frame and start == frame:
-            end = walk_forward(existing, end, file_stop, steps=7)
+            end = walk_forward(existing, end, file_stop, steps=8)
     return StartStop(start, end + 1)
 
 
