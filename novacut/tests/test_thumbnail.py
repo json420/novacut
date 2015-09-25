@@ -312,13 +312,22 @@ class TestThumbnailer(TestCase):
         existing = {18}
         inst = Subclass(indexes, existing, 23)
 
+        if USE_HACKS:
+            start_stop_1 = (1, None)
+            start_stop_2 = (8, None)
+            start_stop_3 = (19, None)
+        else:
+            start_stop_1 = (1, 4)
+            start_stop_2 = (8, 18)
+            start_stop_3 = (19, 23)
+
         # Frame 2: should play slice [1:4]
         self.assertIsNone(inst.next())
         self.assertEqual(inst.indexes, [17, 18, 19])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            ('clear_unhandled_eos'),
-            ('play_slice', (1, 4)),
+            'clear_unhandled_eos',
+            ('play_slice', start_stop_1),
         ])
 
         # Frame 17: as 18 exists, should walk backward 10 frames
@@ -326,10 +335,10 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.indexes, [18, 19])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            ('clear_unhandled_eos'),
-            ('play_slice', (1, 4)),
-            ('clear_unhandled_eos'),
-            ('play_slice', (8, 18)),
+            'clear_unhandled_eos',
+            ('play_slice', start_stop_1),
+            'clear_unhandled_eos',
+            ('play_slice', start_stop_2),
         ])
 
         # Frame 18: exists, should be skipped
@@ -338,12 +347,12 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.indexes, [])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            ('clear_unhandled_eos'),
-            ('play_slice', (1, 4)),
-            ('clear_unhandled_eos'),
-            ('play_slice', (8, 18)),
-            ('clear_unhandled_eos'),
-            ('play_slice', (19, 23)),
+            'clear_unhandled_eos',
+            ('play_slice', start_stop_1),
+            'clear_unhandled_eos',
+            ('play_slice', start_stop_2),
+            'clear_unhandled_eos',
+            ('play_slice', start_stop_3),
         ])
 
         # Pipeline.complete() should be called once indexes is empty:
@@ -352,13 +361,13 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst.thumbnails, [])
         self.assertEqual(inst._calls, [
-            ('clear_unhandled_eos'),
-            ('play_slice', (1, 4)),
-            ('clear_unhandled_eos'),
-            ('play_slice', (8, 18)),
-            ('clear_unhandled_eos'),
-            ('play_slice', (19, 23)),
-            ('clear_unhandled_eos'),
+            'clear_unhandled_eos',
+            ('play_slice', start_stop_1),
+            'clear_unhandled_eos',
+            ('play_slice', start_stop_2),
+            'clear_unhandled_eos',
+            ('play_slice', start_stop_3),
+            'clear_unhandled_eos',
             ('complete', True),
         ])
 

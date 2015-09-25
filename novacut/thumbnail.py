@@ -190,7 +190,8 @@ class Thumbnailer(Decoder):
         self.s = s
         self.frame = s.start
         self.unhandled_eos = not USE_HACKS
-        self.seek_by_frame(s.start, s.stop)
+        stop = (None if USE_HACKS else s.stop)
+        self.seek_by_frame(s.start, stop)
 
     def next(self):
         self.clear_unhandled_eos()
