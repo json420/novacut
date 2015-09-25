@@ -253,7 +253,8 @@ class TestThumbnailer(TestCase):
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, 0)
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
-        self.assertEqual(inst._calls, [(0, 1)])
+        stop = (None if USE_HACKS else s.stop)
+        self.assertEqual(inst._calls, [(0, stop)])
 
         file_stop = random.randrange(1234, 12345679)
         inst = Subclass(file_stop)
@@ -262,7 +263,8 @@ class TestThumbnailer(TestCase):
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, 0)
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
-        self.assertEqual(inst._calls, [(0, 1)])
+        stop = (None if USE_HACKS else s.stop)
+        self.assertEqual(inst._calls, [(0, stop)])
 
         inst = Subclass(file_stop)
         s = thumbnail.StartStop(file_stop - 1, file_stop)
@@ -270,7 +272,8 @@ class TestThumbnailer(TestCase):
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, file_stop - 1)
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
-        self.assertEqual(inst._calls, [(file_stop - 1, file_stop)])
+        stop = (None if USE_HACKS else s.stop)
+        self.assertEqual(inst._calls, [(file_stop - 1, stop)])
 
         for i in range(100):
             inst = Subclass(file_stop)
@@ -280,7 +283,8 @@ class TestThumbnailer(TestCase):
             self.assertIs(inst.s, s)
             self.assertIs(inst.frame, s.start)
             self.assertIs(inst.unhandled_eos, not USE_HACKS)
-            self.assertEqual(inst._calls, [(s.start, s.stop)])
+            stop = (None if USE_HACKS else s.stop)
+            self.assertEqual(inst._calls, [(s.start, stop)])
 
     def test_next(self):
         class Subclass(thumbnail.Thumbnailer):
@@ -312,22 +316,13 @@ class TestThumbnailer(TestCase):
         existing = {18}
         inst = Subclass(indexes, existing, 23)
 
-        if USE_HACKS:
-            start_stop_1 = (1, None)
-            start_stop_2 = (8, None)
-            start_stop_3 = (19, None)
-        else:
-            start_stop_1 = (1, 4)
-            start_stop_2 = (8, 18)
-            start_stop_3 = (19, 23)
-
         # Frame 2: should play slice [1:4]
         self.assertIsNone(inst.next())
         self.assertEqual(inst.indexes, [17, 18, 19])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
             'clear_unhandled_eos',
-            ('play_slice', start_stop_1),
+            ('play_slice', (1, 4)),
         ])
 
         # Frame 17: as 18 exists, should walk backward 10 frames
@@ -336,9 +331,9 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
             'clear_unhandled_eos',
-            ('play_slice', start_stop_1),
+            ('play_slice', (1, 4)),
             'clear_unhandled_eos',
-            ('play_slice', start_stop_2),
+            ('play_slice', (8, 18)),
         ])
 
         # Frame 18: exists, should be skipped
@@ -348,11 +343,11 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
             'clear_unhandled_eos',
-            ('play_slice', start_stop_1),
+            ('play_slice', (1, 4)),
             'clear_unhandled_eos',
-            ('play_slice', start_stop_2),
+            ('play_slice', (8, 18)),
             'clear_unhandled_eos',
-            ('play_slice', start_stop_3),
+            ('play_slice', (19, 23)),
         ])
 
         # Pipeline.complete() should be called once indexes is empty:
@@ -362,11 +357,11 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.thumbnails, [])
         self.assertEqual(inst._calls, [
             'clear_unhandled_eos',
-            ('play_slice', start_stop_1),
+            ('play_slice', (1, 4)),
             'clear_unhandled_eos',
-            ('play_slice', start_stop_2),
+            ('play_slice', (8, 18)),
             'clear_unhandled_eos',
-            ('play_slice', start_stop_3),
+            ('play_slice', (19, 23)),
             'clear_unhandled_eos',
             ('complete', True),
         ])
