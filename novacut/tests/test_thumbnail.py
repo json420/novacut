@@ -235,11 +235,21 @@ class TestThumbnailer(TestCase):
         self.assertEqual(sys.getrefcount(inst), 2)
 
     def test_play_slice(self):
+        class DummyFakeSink:
+            __slots__ = ('_calls',)
+
+            def __init__(self):
+                self._calls = []
+
+            def set_property(key, value):
+                self._calls.append((key, value))    
+
         class Subclass(thumbnail.Thumbnailer):
             __slots__ = ('file_stop', 's', 'frame', 'unhandled_eos', '_calls')
 
-            def __init__(self, file_stop):
+            def __init__(self, sink, file_stop):
                 assert file_stop > 0
+                self.sink = sink
                 self.file_stop = file_stop
                 self.unhandled_eos = False
                 self._calls = []
@@ -247,17 +257,21 @@ class TestThumbnailer(TestCase):
             def seek_by_frame(self, start, stop):
                 self._calls.append((start, stop))
 
-        inst = Subclass(1)
+        sink_calls = ([('signal-handoffs', True)] if USE_HACKS else [])
+
+        sink = DummyFakeSink()
+        inst = Subclass(sink, 1)
         s = thumbnail.StartStop(0, 1)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, 0)
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
         stop = (None if USE_HACKS else s.stop)
-        self.assertEqual(inst._calls, [(0, stop)])
+        self.assertEqual(sink._calls, sink_calls)
 
+        sink = DummyFakeSink()
         file_stop = random.randrange(1234, 12345679)
-        inst = Subclass(file_stop)
+        inst = Subclass(sink, file_stop)
         s = thumbnail.StartStop(0, 1)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
@@ -265,8 +279,10 @@ class TestThumbnailer(TestCase):
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
         stop = (None if USE_HACKS else s.stop)
         self.assertEqual(inst._calls, [(0, stop)])
+        self.assertEqual(sink._calls, sink_calls)
 
-        inst = Subclass(file_stop)
+        sink = DummyFakeSink()
+        inst = Subclass(sink, file_stop)
         s = thumbnail.StartStop(file_stop - 1, file_stop)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
@@ -274,9 +290,11 @@ class TestThumbnailer(TestCase):
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
         stop = (None if USE_HACKS else s.stop)
         self.assertEqual(inst._calls, [(file_stop - 1, stop)])
+        self.assertEqual(sink._calls, sink_calls)
 
         for i in range(100):
-            inst = Subclass(file_stop)
+            sink = DummyFakeSink()
+            inst = Subclass(sink, file_stop)
             self.assertIs(inst.unhandled_eos, False)
             s = random_start_stop(file_stop)
             self.assertIsNone(inst.play_slice(s))
@@ -285,6 +303,7 @@ class TestThumbnailer(TestCase):
             self.assertIs(inst.unhandled_eos, not USE_HACKS)
             stop = (None if USE_HACKS else s.stop)
             self.assertEqual(inst._calls, [(s.start, stop)])
+            self.assertEqual(sink._calls, sink_calls)
 
     def test_next(self):
         class Subclass(thumbnail.Thumbnailer):
