@@ -232,9 +232,6 @@ class Thumbnailer(Decoder):
             self.complete(False)
 
     def on_eos(self, bus, msg):
-        """
-        Override Decodebin.check_eos().
-        """
         s = self.s
         if s is None or s.stop != self.frame:
             log.error('Did not receive all frames in slice %r', s)
