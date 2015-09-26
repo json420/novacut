@@ -209,16 +209,6 @@ class Thumbnailer(Decoder):
         log.info('Created %d thumbnails', len(self.thumbnails))
         self.complete(True)
 
-    def check_frame(self, buf):
-        frame = nanosecond_to_frame(buf.pts, self.framerate)
-        if self.frame == frame:
-            self.existing.add(frame)
-            return
-        log.error('expected frame %d, frame %d', self.frame, frame)
-        raise ValueError(
-            'expected frame {!r}, got {!r}'.format(self.frame, frame)
-        )
-
     def on_handoff(self, element, buf, pad):
         try:
             s = self.s
