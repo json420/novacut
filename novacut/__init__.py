@@ -57,13 +57,14 @@ def configure_logging(use_stderr=False):
         '%(message)s',
     ]
     script = path.abspath(sys.argv[0])
-    filename = (None if use_stderr else get_log_filename(script))
-    logging.basicConfig(
-        filename=filename,
-        filemode='w',
-        level=logging.DEBUG,
-        format='\t'.join(format),
-    )
+    kw = {
+        'level': logging.DEBUG,
+        'format': '\t'.join(format),
+    }
+    if not use_stderr:
+        kw['filename'] = get_log_filename(script)
+        kw['filemode'] = 'w'
+    logging.basicConfig(**kw)
     log = logging.getLogger()
     log.info('======== Process Start ========')
     log.info('script: %r', script)

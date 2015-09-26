@@ -32,6 +32,7 @@ from gi.repository import GLib, Gst
 from .timefuncs import nanosecond_to_frame
 from .gsthelpers import (
     USE_HACKS,
+    VIDEOSCALE_METHOD,
     Decoder,
     make_element,
     add_elements,
@@ -88,7 +89,7 @@ class GenericThumbnailer(Decoder):
         self.complete(False)
 
 
-def walk_backward(existing, frame, steps=2):
+def walk_backward(existing, frame, steps=1):
     assert frame >= 0
     assert frame not in existing
     assert steps >= 1
@@ -99,7 +100,7 @@ def walk_backward(existing, frame, steps=2):
     return frame
 
 
-def walk_forward(existing, frame, file_stop, steps=2):
+def walk_forward(existing, frame, file_stop, steps=1):
     assert 0 <= frame < file_stop
     assert frame not in existing
     assert steps >= 1
@@ -116,17 +117,17 @@ def get_slice_for_thumbnail(existing, frame, file_stop):
         return None
     if frame == 0:
         start = frame
-        end = walk_forward(existing, frame, file_stop, steps=4)
+        end = walk_forward(existing, frame, file_stop, steps=2)
     elif frame == file_stop - 1:
-        start = walk_backward(existing, frame, steps=4)
+        start = walk_backward(existing, frame, steps=2)
         end = frame
     else:
         start = walk_backward(existing, frame)
         end = walk_forward(existing, frame, file_stop)
         if start < frame and end == frame:
-            start = walk_backward(existing, start, steps=7)
+            start = walk_backward(existing, start, steps=8)
         elif end > frame and start == frame:
-            end = walk_forward(existing, end, file_stop, steps=7)
+            end = walk_forward(existing, end, file_stop, steps=8)
     return StartStop(start, end + 1)
 
 
@@ -154,7 +155,7 @@ class Thumbnailer(Decoder):
 
         # Create elements
         self.convert = make_element('videoconvert')
-        self.scale = make_element('videoscale', {'method': 2})
+        self.scale = make_element('videoscale', {'method': VIDEOSCALE_METHOD})
         self.enc = make_element('jpegenc', {'idct-method': 2})
         self.sink = make_element('fakesink', {'signal-handoffs': True})
 
@@ -188,9 +189,9 @@ class Thumbnailer(Decoder):
     def play_slice(self, s):
         assert 0 <= s.start < s.stop <= self.file_stop
         self.s = s
-        self.frame = s.start
         self.unhandled_eos = not USE_HACKS
-        self.seek_by_frame(s.start, s.stop)
+        stop = (None if USE_HACKS else s.stop)
+        self.seek_by_frame(s.start, stop)
 
     def next(self):
         self.clear_unhandled_eos()
@@ -208,25 +209,27 @@ class Thumbnailer(Decoder):
         log.info('Created %d thumbnails', len(self.thumbnails))
         self.complete(True)
 
-    def check_frame(self, buf):
-        frame = nanosecond_to_frame(buf.pts, self.framerate)
-        if self.frame == frame:
-            self.existing.add(frame)
-            return
-        log.error('expected frame %d, frame %d', self.frame, frame)
-        raise ValueError(
-            'expected frame {!r}, got {!r}'.format(self.frame, frame)
-        )
-
     def on_handoff(self, element, buf, pad):
         try:
-            self.check_frame(buf)
-            log.info('[%d:%d] @%d', self.s.start, self.s.stop, self.frame)
+            s = self.s
+            frame = nanosecond_to_frame(buf.pts, self.framerate)
+            if USE_HACKS and not (s.start <= frame < s.stop):
+                log.warning('ignoring frame %d, outside [%d:%d]',
+                    frame, s.start, s.stop
+                )
+                return
+            if frame == s.start:
+                self.frame = frame
+            elif frame != self.frame:
+                raise ValueError(
+                    'expected frame {!r}, got {!r}'.format(self.frame, frame)
+                )
+            log.info('[%d:%d] @%d', s.start, s.stop, frame)
             data = buf.extract_dup(0, buf.get_size())
-            self.thumbnails.append((self.frame, data))
+            self.thumbnails.append((frame, data))
             self.frame += 1
-            if self.frame >= self.s.stop:
-                log.info('slice complete: [%d:%d]', self.s.start, self.s.stop)
+            if self.frame >= s.stop:
+                log.info('finished [%d:%d]', s.start, s.stop)
                 GLib.idle_add(self.next)
         except:
             log.exception('%s.on_handoff()', self.__class__.__name__)

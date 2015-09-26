@@ -37,8 +37,11 @@ from .timefuncs import frame_to_nanosecond, nanosecond_to_frame
 log = logging.getLogger(__name__)
 Gst.init()
 
-# This flag is used to turn on varios hacks needed for GStreamer 1.2:
+# This flag is used to turn on various hacks needed for GStreamer 1.2:
 USE_HACKS = (True if Gst.version() < (1, 4) else False)
+
+# Use higher quality videoscale method available in GStreamer 1.6:
+VIDEOSCALE_METHOD = (2 if Gst.version() < (1, 5, 90) else 5)
 
 FLAGS_ACCURATE = Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
 FLAGS_KEY_UNIT = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
@@ -345,7 +348,7 @@ class Pipeline:
 
 
 class Decoder(Pipeline):
-    CHECK_EOS = 500
+    CHECK_EOS = 2000
 
     def __init__(self, callback, filename, video=False, audio=False):
         super().__init__(callback)

@@ -32,7 +32,7 @@ from gi.repository import Gst
 from dbase32 import random_id
 
 from .helpers import random, random_framerate
-from ..gsthelpers import USE_HACKS
+from ..gsthelpers import USE_HACKS, VIDEOSCALE_METHOD
 from ..misc import random_start_stop
 from ..timefuncs import video_pts_and_duration
 from .. import thumbnail
@@ -46,24 +46,12 @@ class TestFunctions(TestCase):
         for frame in range(100):
             self.assertIsNone(get_slice_for_thumbnail({frame}, frame, 200))
 
-        # frame=0, no existing, then existing at frame 5:
-        for eg in [set(), {5}]:
+        # frame=0, no existing, then existing at frame 3:
+        for eg in [set(), {3}]:
             s = get_slice_for_thumbnail(eg, 0, 99)
             self.assertIsInstance(s, thumbnail.StartStop)
-            self.assertEqual(s, (0, 5))
-            self.assertEqual(s.stop - s.start, 5)
-
-        # frame=0, existing at frame 4:
-        s = get_slice_for_thumbnail({4}, 0, 99)
-        self.assertIsInstance(s, thumbnail.StartStop)
-        self.assertEqual(s, (0, 4))
-        self.assertEqual(s.stop - s.start, 4)
-
-        # frame=0, existing at frame 3:
-        s = get_slice_for_thumbnail({3}, 0, 99)
-        self.assertIsInstance(s, thumbnail.StartStop)
-        self.assertEqual(s, (0, 3))
-        self.assertEqual(s.stop - s.start, 3)
+            self.assertEqual(s, (0, 3))
+            self.assertEqual(s.stop - s.start, 3)
 
         # frame=0, existing at frame 2:
         s = get_slice_for_thumbnail({2}, 0, 99)
@@ -77,24 +65,12 @@ class TestFunctions(TestCase):
         self.assertEqual(s, (0, 1))
         self.assertEqual(s.stop - s.start, 1)
 
-        # frame=98, no existing, then existing at frame 93:
-        for eg in [set(), {93}]:
+        # frame=98, no existing, then existing at frame 95:
+        for eg in [set(), {95}]:
             s = get_slice_for_thumbnail(eg, 98, 99)
             self.assertIsInstance(s, thumbnail.StartStop)
-            self.assertEqual(s, (94, 99))
-            self.assertEqual(s.stop - s.start, 5)
-
-        # frame=98, existing at frame 94:
-        s = get_slice_for_thumbnail({94}, 98, 99)
-        self.assertIsInstance(s, thumbnail.StartStop)
-        self.assertEqual(s, (95, 99))
-        self.assertEqual(s.stop - s.start, 4)
-
-        # frame=98, existing at frame 95:
-        s = get_slice_for_thumbnail({95}, 98, 99)
-        self.assertIsInstance(s, thumbnail.StartStop)
-        self.assertEqual(s, (96, 99))
-        self.assertEqual(s.stop - s.start, 3)
+            self.assertEqual(s, (96, 99))
+            self.assertEqual(s.stop - s.start, 3)
 
         # frame=98, existing at frame 96:
         s = get_slice_for_thumbnail({96}, 98, 99)
@@ -109,17 +85,11 @@ class TestFunctions(TestCase):
         self.assertEqual(s.stop - s.start, 1)
 
         # frame=33, not constrained on either side:
-        for eg in [set(), {29, 37}]:
+        for eg in [set(), {31, 35}]:
             s = get_slice_for_thumbnail(eg, 33, 99)
             self.assertIsInstance(s, thumbnail.StartStop)
-            self.assertEqual(s, (31, 36))
-            self.assertEqual(s.stop - s.start, 5)
-
-        # frame=33, constrained by {31, 35}:
-        s = get_slice_for_thumbnail({31, 35}, 33, 99)
-        self.assertIsInstance(s, thumbnail.StartStop)
-        self.assertEqual(s, (32, 35))
-        self.assertEqual(s.stop - s.start, 3)
+            self.assertEqual(s, (32, 35))
+            self.assertEqual(s.stop - s.start, 3)
 
         # frame=33, constrained by {32, 34}:
         s = get_slice_for_thumbnail({32, 34}, 33, 99)
@@ -216,7 +186,7 @@ class TestThumbnailer(TestCase):
         # videoscale:
         self.assertIsInstance(inst.scale, Gst.Element)
         self.assertEqual(inst.scale.get_factory().get_name(), 'videoscale')
-        self.assertEqual(inst.scale.get_property('method'), 2)
+        self.assertEqual(inst.scale.get_property('method'), VIDEOSCALE_METHOD)
 
         # jpegenc:
         self.assertIsInstance(inst.enc, Gst.Element)
@@ -266,8 +236,6 @@ class TestThumbnailer(TestCase):
 
     def test_play_slice(self):
         class Subclass(thumbnail.Thumbnailer):
-            __slots__ = ('file_stop', 's', 'frame', 'unhandled_eos', '_calls')
-
             def __init__(self, file_stop):
                 assert file_stop > 0
                 self.file_stop = file_stop
@@ -281,26 +249,26 @@ class TestThumbnailer(TestCase):
         s = thumbnail.StartStop(0, 1)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
-        self.assertEqual(inst.frame, 0)
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
-        self.assertEqual(inst._calls, [(0, 1)])
+        stop = (None if USE_HACKS else s.stop)
+        self.assertEqual(inst._calls, [(0, stop)])
 
         file_stop = random.randrange(1234, 12345679)
         inst = Subclass(file_stop)
         s = thumbnail.StartStop(0, 1)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
-        self.assertEqual(inst.frame, 0)
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
-        self.assertEqual(inst._calls, [(0, 1)])
+        stop = (None if USE_HACKS else s.stop)
+        self.assertEqual(inst._calls, [(0, stop)])
 
         inst = Subclass(file_stop)
         s = thumbnail.StartStop(file_stop - 1, file_stop)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
-        self.assertEqual(inst.frame, file_stop - 1)
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
-        self.assertEqual(inst._calls, [(file_stop - 1, file_stop)])
+        stop = (None if USE_HACKS else s.stop)
+        self.assertEqual(inst._calls, [(file_stop - 1, stop)])
 
         for i in range(100):
             inst = Subclass(file_stop)
@@ -308,9 +276,9 @@ class TestThumbnailer(TestCase):
             s = random_start_stop(file_stop)
             self.assertIsNone(inst.play_slice(s))
             self.assertIs(inst.s, s)
-            self.assertIs(inst.frame, s.start)
             self.assertIs(inst.unhandled_eos, not USE_HACKS)
-            self.assertEqual(inst._calls, [(s.start, s.stop)])
+            stop = (None if USE_HACKS else s.stop)
+            self.assertEqual(inst._calls, [(s.start, stop)])
 
     def test_next(self):
         class Subclass(thumbnail.Thumbnailer):
@@ -342,13 +310,13 @@ class TestThumbnailer(TestCase):
         existing = {18}
         inst = Subclass(indexes, existing, 23)
 
-        # Frame 2: should play slice [0:5]
+        # Frame 2: should play slice [1:4]
         self.assertIsNone(inst.next())
         self.assertEqual(inst.indexes, [17, 18, 19])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            ('clear_unhandled_eos'),
-            ('play_slice', (0, 5)),
+            'clear_unhandled_eos',
+            ('play_slice', (1, 4)),
         ])
 
         # Frame 17: as 18 exists, should walk backward 10 frames
@@ -356,9 +324,9 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.indexes, [18, 19])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            ('clear_unhandled_eos'),
-            ('play_slice', (0, 5)),
-            ('clear_unhandled_eos'),
+            'clear_unhandled_eos',
+            ('play_slice', (1, 4)),
+            'clear_unhandled_eos',
             ('play_slice', (8, 18)),
         ])
 
@@ -368,11 +336,11 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.indexes, [])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            ('clear_unhandled_eos'),
-            ('play_slice', (0, 5)),
-            ('clear_unhandled_eos'),
+            'clear_unhandled_eos',
+            ('play_slice', (1, 4)),
+            'clear_unhandled_eos',
             ('play_slice', (8, 18)),
-            ('clear_unhandled_eos'),
+            'clear_unhandled_eos',
             ('play_slice', (19, 23)),
         ])
 
@@ -382,44 +350,13 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst.thumbnails, [])
         self.assertEqual(inst._calls, [
-            ('clear_unhandled_eos'),
-            ('play_slice', (0, 5)),
-            ('clear_unhandled_eos'),
+            'clear_unhandled_eos',
+            ('play_slice', (1, 4)),
+            'clear_unhandled_eos',
             ('play_slice', (8, 18)),
-            ('clear_unhandled_eos'),
+            'clear_unhandled_eos',
             ('play_slice', (19, 23)),
-            ('clear_unhandled_eos'),
+            'clear_unhandled_eos',
             ('complete', True),
         ])
-
-    def test_check_frame(self):
-        class Subclass(thumbnail.Thumbnailer):
-            __slots__ = ('framerate', 'existing', 'frame')
-
-            def __init__(self, framerate, existing, frame):
-                self.framerate = framerate
-                self.existing = existing
-                self.frame = frame
-
-        framerate = random_framerate()
-        existing = set()
-        current = random.randrange(1, 123456)
-        inst = Subclass(framerate, existing, current)
-
-        # One frame less, one frame more than expected:
-        for frame in (current - 1, current + 1):
-            ts = video_pts_and_duration(frame, framerate)
-            with self.assertRaises(ValueError) as cm:
-                inst.check_frame(ts)
-            self.assertEqual(str(cm.exception),
-                'expected frame {}, got {}'.format(current, frame)
-            )
-            self.assertIs(inst.existing, existing)
-            self.assertEqual(inst.existing, set())
-
-        # Correct frame:
-        ts = video_pts_and_duration(current, framerate)
-        self.assertIsNone(inst.check_frame(ts))
-        self.assertIs(inst.existing, existing)
-        self.assertEqual(inst.existing, {current})
 
