@@ -189,6 +189,7 @@ class Thumbnailer(Decoder):
     def play_slice(self, s):
         assert 0 <= s.start < s.stop <= self.file_stop
         self.s = s
+        self.frame = s.start
         stop = (None if USE_HACKS else s.stop)
         self.seek_by_frame(s.start, stop)
 
@@ -216,9 +217,8 @@ class Thumbnailer(Decoder):
                     frame, s.start, s.stop
                 )
                 return
-            if frame == s.start:
-                self.frame = frame
-            elif frame != self.frame:
+            if self.frame >= s.stop
+            if frame != self.frame:
                 raise ValueError(
                     'expected frame {!r}, got {!r}'.format(self.frame, frame)
                 )
@@ -236,7 +236,10 @@ class Thumbnailer(Decoder):
 
     def on_eos(self, bus, msg):
         s = self.s
-        if s is None or s.stop != self.frame:
+        if USE_HACKS:
+            log.info('hacky EOS finish [%d:%d]', s.start, s.stop)
+            self.next()
+        elif s.stop != self.frame:
             log.error('Did not receive all frames in slice %r', s)
             self.complete(False)
         else:

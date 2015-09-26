@@ -241,6 +241,7 @@ class TestThumbnailer(TestCase):
         s = thumbnail.StartStop(0, 1)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
+        self.assertIs(inst.frame, s.start)
         stop = (None if USE_HACKS else s.stop)
         self.assertEqual(inst._calls, [(0, stop)])
 
@@ -249,6 +250,7 @@ class TestThumbnailer(TestCase):
         s = thumbnail.StartStop(0, 1)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
+        self.assertIs(inst.frame, s.start)
         stop = (None if USE_HACKS else s.stop)
         self.assertEqual(inst._calls, [(0, stop)])
 
@@ -256,6 +258,7 @@ class TestThumbnailer(TestCase):
         s = thumbnail.StartStop(file_stop - 1, file_stop)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
+        self.assertIs(inst.frame, s.start)
         stop = (None if USE_HACKS else s.stop)
         self.assertEqual(inst._calls, [(file_stop - 1, stop)])
 
@@ -264,6 +267,7 @@ class TestThumbnailer(TestCase):
             s = random_start_stop(file_stop)
             self.assertIsNone(inst.play_slice(s))
             self.assertIs(inst.s, s)
+            self.assertIs(inst.frame, s.start)
             stop = (None if USE_HACKS else s.stop)
             self.assertEqual(inst._calls, [(s.start, stop)])
 
