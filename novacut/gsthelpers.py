@@ -348,7 +348,7 @@ class Pipeline:
 
 
 class Decoder(Pipeline):
-    CHECK_EOS = 500
+    CHECK_EOS = 2000
 
     def __init__(self, callback, filename, video=False, audio=False):
         super().__init__(callback)
