@@ -115,6 +115,10 @@ def make_element(name, props=None):
     return element
 
 
+def make_queue():
+    return make_element('queue', {'silent': True, 'max-size-buffers': 1})
+
+
 def make_element_from_desc(desc):
     """
     Create a `Gst.Element` from a JSON-serializable description.
@@ -359,9 +363,9 @@ class Decoder(Pipeline):
 
         # Create elements:
         self.src = make_element('filesrc', {'location': filename})
-        self.dec = make_element('decodebin')
-        self.video_q = (make_element('queue') if video is True else None)
-        self.audio_q = (make_element('queue') if audio is True else None)
+        self.dec = make_element('decodebin', {'max-size-buffers': 1})
+        self.video_q = (make_queue() if video is True else None)
+        self.audio_q = (make_queue() if audio is True else None)
 
         # Add elements to pipeline and link:
         add_and_link_elements(self.pipeline, self.src, self.dec)

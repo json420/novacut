@@ -121,6 +121,13 @@ class TestFunctions(TestCase):
         self.assertEqual(element.get_property('quality'), 40)
         self.assertEqual(element.get_property('speed-level'), 2)
 
+    def test_make_queue(self):
+        q = gsthelpers.make_queue()
+        self.assertIsInstance(q, Gst.Element)
+        self.assertEqual(q.get_factory().get_name(), 'queue')
+        self.assertEqual(q.get_property('silent'), True)
+        self.assertEqual(q.get_property('max-size-buffers'), 1)
+
     def test_make_element_from_desc(self):
         el = gsthelpers.make_element_from_desc('theoraenc')
         self.assertIsInstance(el, Gst.Element)
@@ -545,6 +552,7 @@ class TestDecoder(TestCase):
         # decodebin:
         self.assertIsInstance(inst.dec, Gst.Element)
         self.assertEqual(inst.dec.get_factory().get_name(), 'decodebin')
+        self.assertEqual(inst.dec.get_property('max-size-buffers'), 1)
 
         # Make sure all elements have been added to Pipeline:
         for child in [inst.src, inst.dec]:
@@ -576,6 +584,8 @@ class TestDecoder(TestCase):
         inst = gsthelpers.Decoder(callback, filename, video=True)
         self.assertIsInstance(inst.video_q, Gst.Element)
         self.assertEqual(inst.video_q.get_factory().get_name(), 'queue')
+        self.assertEqual(inst.video_q.get_property('silent'), True)
+        self.assertEqual(inst.video_q.get_property('max-size-buffers'), 1)
         self.assertIs(inst.video_q.get_parent(), inst.pipeline)
         self.assertIsNone(inst.audio_q)
         self.assertIsNone(inst.destroy())

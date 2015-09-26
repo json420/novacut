@@ -45,6 +45,7 @@ def get_default_settings(width=1920, height=1080):
                     'qp-max': 25,
                     'key-int-max': 60,
                     'b-adapt': False,
+                    'rc-lookahead': 20,
                 },
             },
             'caps': {

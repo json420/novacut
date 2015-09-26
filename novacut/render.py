@@ -32,6 +32,7 @@ from .gsthelpers import (
     VIDEOSCALE_METHOD,
     Pipeline,
     Decoder,
+    make_queue,
     make_element,
     make_element_from_desc,
     make_caps,
@@ -40,7 +41,7 @@ from .gsthelpers import (
 
 
 log = logging.getLogger(__name__)
-QUEUE_SIZE = 16
+QUEUE_SIZE = 8
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 Slice = namedtuple('Slice', 'id src start stop filename')
 
@@ -208,7 +209,7 @@ class Output(Pipeline):
 
         # Create elements:
         self.src = make_element('appsrc', {'caps': output_caps, 'format': 3})
-        self.q = make_element('queue')
+        self.q = make_queue()
         self.enc = make_element_from_desc(settings['video']['encoder'])
         self.mux = make_element_from_desc(settings['muxer'])
         self.sink = make_element('filesink',
@@ -224,13 +225,7 @@ class Output(Pipeline):
         self.connect(self.src, 'need-data', self.on_need_data)
 
     def run(self):
-        GLib.timeout_add(3000, self.do_run)
-
-    def do_run(self):
-        if self.success is None:
-            self.set_state(Gst.State.PLAYING)
-        else:
-            log.warning('do_run(): success in not None')
+        self.set_state(Gst.State.PLAYING)
 
     def on_eos(self, bus, msg):
         self.complete(True)
