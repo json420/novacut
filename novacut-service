@@ -181,7 +181,7 @@ class Service(dbus.service.Object):
         cmd.extend(str(f) for f in frames)
         p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
         try:
-            p.communicate(input=self.env_s, timeout=10)
+            p.communicate(input=self.env_s, timeout=30)
         except subprocess.TimeoutExpired:
             log.error('Timeout calling %r', cmd)
             p.kill()
