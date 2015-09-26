@@ -32,7 +32,7 @@ from gi.repository import Gst
 from dbase32 import random_id
 
 from .helpers import random, random_framerate
-from ..gsthelpers import USE_HACKS
+from ..gsthelpers import USE_HACKS, VIDEOSCALE_METHOD
 from ..misc import random_start_stop
 from ..timefuncs import video_pts_and_duration
 from .. import thumbnail
@@ -186,7 +186,7 @@ class TestThumbnailer(TestCase):
         # videoscale:
         self.assertIsInstance(inst.scale, Gst.Element)
         self.assertEqual(inst.scale.get_factory().get_name(), 'videoscale')
-        self.assertEqual(inst.scale.get_property('method'), 2)
+        self.assertEqual(inst.scale.get_property('method'), VIDEOSCALE_METHOD)
 
         # jpegenc:
         self.assertIsInstance(inst.enc, Gst.Element)

@@ -29,6 +29,7 @@ from gi.repository import GLib, Gst
 from .timefuncs import nanosecond_to_frame, video_pts_and_duration
 from .gsthelpers import (
     USE_HACKS,
+    VIDEOSCALE_METHOD,
     Pipeline,
     Decoder,
     make_element,
@@ -98,7 +99,7 @@ class Input(Decoder):
 
         # Create elements
         self.convert = make_element('videoconvert')
-        self.scale = make_element('videoscale', {'method': 3})
+        self.scale = make_element('videoscale', {'method': VIDEOSCALE_METHOD})
         self.sink = make_element('appsink',
             {'caps': input_caps, 'emit-signals': True, 'max-buffers': 1}
         )

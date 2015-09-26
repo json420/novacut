@@ -33,6 +33,7 @@ from dbase32 import random_id
 from gi.repository import Gst
 
 from .helpers import random_filename, random_slice
+from ..gsthelpers import VIDEOSCALE_METHOD
 from .. import timefuncs
 from ..settings import get_default_settings
 from .. import render
@@ -120,7 +121,7 @@ class TestInput(TestCase):
         # videoscale:
         self.assertIsInstance(inst.scale, Gst.Element)
         self.assertEqual(inst.scale.get_factory().get_name(), 'videoscale')
-        self.assertEqual(inst.scale.get_property('method'), 3)
+        self.assertEqual(inst.scale.get_property('method'), VIDEOSCALE_METHOD)
 
         # appsink:
         self.assertIsInstance(inst.sink, Gst.Element)

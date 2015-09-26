@@ -32,6 +32,7 @@ from gi.repository import GLib, Gst
 from .timefuncs import nanosecond_to_frame
 from .gsthelpers import (
     USE_HACKS,
+    VIDEOSCALE_METHOD,
     Decoder,
     make_element,
     add_elements,
@@ -154,7 +155,7 @@ class Thumbnailer(Decoder):
 
         # Create elements
         self.convert = make_element('videoconvert')
-        self.scale = make_element('videoscale', {'method': 2})
+        self.scale = make_element('videoscale', {'method': VIDEOSCALE_METHOD})
         self.enc = make_element('jpegenc', {'idct-method': 2})
         self.sink = make_element('fakesink', {'signal-handoffs': True})
 

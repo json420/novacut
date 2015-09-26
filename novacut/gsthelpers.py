@@ -40,6 +40,9 @@ Gst.init()
 # This flag is used to turn on various hacks needed for GStreamer 1.2:
 USE_HACKS = (True if Gst.version() < (1, 4) else False)
 
+# Use higher quality videoscale method available in GStreamer 1.6:
+VIDEOSCALE_METHOD = (2 if Gst.version() < (1, 5, 90) else 5)
+
 FLAGS_ACCURATE = Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
 FLAGS_KEY_UNIT = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
