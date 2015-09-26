@@ -306,11 +306,23 @@ Frame.prototype = {
 
     set_index: function(index) {
         if (index === this.index) {
-            return;
+            return false;
         }
         this.index = index;
-        this.info.textContent = index + 1;
         Thumbs.enqueue(this);
+        return true;
+    },
+
+    set_start: function(start) {
+        if (this.set_index(start)) {
+            this.info.textContent = start;
+        }
+    },
+
+    set_stop: function(stop) {
+        if (this.set_index(stop - 1)) {
+            this.info.textContent = stop;
+        }
     },
 
     request_thumbnail: function() {
@@ -438,8 +450,8 @@ Slice.prototype = {
         }
         this.doc = doc;
         var node = doc.node;
-        this.start.set_index(node.start);
-        this.end.set_index(node.stop - 1);
+        this.start.set_start(node.start);
+        this.end.set_stop(node.stop);
         this.indicator.update(node.start, node.stop, this.frames);
         Thumbs.flush();
     },
@@ -956,6 +968,7 @@ var VideoFrame = function(which) {
     this.element.appendChild(this.info);
     this.ready = false;
     this.pending = null;
+    this.index = null;
     this.video.addEventListener('canplaythrough',
         $bind(this.on_canplaythrough, this)
     );
@@ -965,8 +978,24 @@ var VideoFrame = function(which) {
 }
 VideoFrame.prototype = {
     set_index: function(index) {
-        this.info.textContent = index + 1;
+        if (index === this.index) {
+            return false;
+        }
+        this.index = index;
         this.seek(index);
+        return true;
+    },
+
+    set_start: function(start) {
+        if (this.set_index(start)) {
+            this.info.textContent = start;
+        }
+    },
+
+    set_stop: function(stop) {
+        if (this.set_index(stop - 1)) {
+            this.info.textContent = stop;
+        }
     },
 
     on_canplaythrough: function(event) {
@@ -1155,7 +1184,7 @@ RoughCut.prototype = {
 
     set start(value) {
         this._start = Math.max(0, Math.min(value, this._stop - 1));
-        this.startvideo.set_index(this._start);
+        this.startvideo.set_start(this._start);
     },
 
     get start() {
@@ -1164,7 +1193,7 @@ RoughCut.prototype = {
 
     set stop(value) {
         this._stop = Math.max(this._start + 1, Math.min(value, this.frames));
-        this.endvideo.set_index(this._stop - 1);
+        this.endvideo.set_stop(this._stop);
     },
 
     get stop() {
