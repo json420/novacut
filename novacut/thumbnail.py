@@ -150,6 +150,7 @@ class Thumbnailer(Decoder):
         self.file_stop = None
         self.s = None
         self.frame = None
+        self.slice_done = True
         self.thumbnails = []
 
         # Create elements
@@ -191,6 +192,7 @@ class Thumbnailer(Decoder):
         self.frame = s.start
         self.unhandled_eos = not USE_HACKS
         stop = (None if USE_HACKS else s.stop)
+        self.slice_done = False
         self.seek_by_frame(s.start, stop)
 
     def next(self):
@@ -221,13 +223,19 @@ class Thumbnailer(Decoder):
 
     def on_handoff(self, element, buf, pad):
         try:
+            if self.slice_done:
+                log.warning('ignoring extra frame past end of slice[%d:%d]',
+                    self.s.start, self.s.stop
+                )
+                return
             self.check_frame(buf)
             log.info('[%d:%d] @%d', self.s.start, self.s.stop, self.frame)
             data = buf.extract_dup(0, buf.get_size())
             self.thumbnails.append((self.frame, data))
             self.frame += 1
             if self.frame >= self.s.stop:
-                log.info('slice complete: [%d:%d]', self.s.start, self.s.stop)
+                log.info('slice done: [%d:%d]', self.s.start, self.s.stop)
+                self.slice_done = True
                 GLib.idle_add(self.next)
         except:
             log.exception('%s.on_handoff()', self.__class__.__name__)

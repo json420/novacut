@@ -162,6 +162,7 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.file_stop)
         self.assertIsNone(inst.s)
         self.assertIsNone(inst.frame)
+        self.assertIs(inst.slice_done, True)
         self.assertEqual(inst.thumbnails, [])
         self.assertIs(inst.unhandled_eos, False)
 
@@ -242,6 +243,7 @@ class TestThumbnailer(TestCase):
                 assert file_stop > 0
                 self.file_stop = file_stop
                 self.unhandled_eos = False
+                self.slice_done = True
                 self._calls = []
 
             def seek_by_frame(self, start, stop):
@@ -253,6 +255,7 @@ class TestThumbnailer(TestCase):
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, 0)
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
+        self.assertIs(inst.slice_done, False)
         stop = (None if USE_HACKS else s.stop)
         self.assertEqual(inst._calls, [(0, stop)])
 
@@ -263,6 +266,7 @@ class TestThumbnailer(TestCase):
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, 0)
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
+        self.assertIs(inst.slice_done, False)
         stop = (None if USE_HACKS else s.stop)
         self.assertEqual(inst._calls, [(0, stop)])
 
@@ -272,6 +276,7 @@ class TestThumbnailer(TestCase):
         self.assertIs(inst.s, s)
         self.assertEqual(inst.frame, file_stop - 1)
         self.assertIs(inst.unhandled_eos, not USE_HACKS)
+        self.assertIs(inst.slice_done, False)
         stop = (None if USE_HACKS else s.stop)
         self.assertEqual(inst._calls, [(file_stop - 1, stop)])
 
@@ -283,6 +288,7 @@ class TestThumbnailer(TestCase):
             self.assertIs(inst.s, s)
             self.assertIs(inst.frame, s.start)
             self.assertIs(inst.unhandled_eos, not USE_HACKS)
+            self.assertIs(inst.slice_done, False)
             stop = (None if USE_HACKS else s.stop)
             self.assertEqual(inst._calls, [(s.start, stop)])
 

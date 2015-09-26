@@ -37,7 +37,7 @@ from .timefuncs import frame_to_nanosecond, nanosecond_to_frame
 log = logging.getLogger(__name__)
 Gst.init()
 
-# This flag is used to turn on varios hacks needed for GStreamer 1.2:
+# This flag is used to turn on various hacks needed for GStreamer 1.2:
 USE_HACKS = (True if Gst.version() < (1, 4) else False)
 
 FLAGS_ACCURATE = Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
