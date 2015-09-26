@@ -116,7 +116,8 @@ class Input(Decoder):
             s = self.s
             log.info('Playing: %s[%s:%s]', s.src, s.start, s.stop)
             self.set_state(Gst.State.PAUSED, sync=True)
-            self.seek_by_frame(s.start, s.stop)
+            stop = (None if USE_HACKS else s.stop)
+            self.seek_by_frame(s.start, stop)
             self.set_state(Gst.State.PLAYING)
         except:
             log.exception('%s.run():', self.__class__.__name__)
@@ -140,6 +141,9 @@ class Input(Decoder):
             while self.success is None:
                 try:
                     self.buffer_queue.put(buf, timeout=0.1)
+                    if USE_HACKS and self.frame == self.s.stop:
+                        log.info('Gst 1.2 hack for end of slice')
+                        self.complete(True)
                     return Gst.FlowReturn.OK
                 except queue.Full:
                     pass
@@ -154,7 +158,7 @@ class Input(Decoder):
             log.error('Did not receive all frames in slice %r', self.s)
             self.complete(False)
         else:
-            log.info('finish: %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+            log.info('Finished: %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
             self.complete(True)
 
 

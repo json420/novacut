@@ -227,6 +227,9 @@ class Thumbnailer(Decoder):
             data = buf.extract_dup(0, buf.get_size())
             self.existing.add(frame)
             self.thumbnails.append((frame, data))
+            if USE_HACKS and self.frame == s.stop:
+                log.info('hacky finish [%d:%d]', s.start, s.stop)
+                self.complete(True)
         except:
             log.exception('%s.on_handoff()', self.__class__.__name__)
             self.complete(False)
