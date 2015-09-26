@@ -191,8 +191,6 @@ class Thumbnailer(Decoder):
         self.frame = s.start
         self.unhandled_eos = not USE_HACKS
         stop = (None if USE_HACKS else s.stop)
-        if USE_HACKS:
-            self.sink.set_property('signal-handoffs', True)
         self.seek_by_frame(s.start, stop)
 
     def next(self):
@@ -230,8 +228,6 @@ class Thumbnailer(Decoder):
             self.frame += 1
             if self.frame >= self.s.stop:
                 log.info('slice complete: [%d:%d]', self.s.start, self.s.stop)
-                if USE_HACKS:
-                    element.set_property('signal-handoffs', False)
                 GLib.idle_add(self.next)
         except:
             log.exception('%s.on_handoff()', self.__class__.__name__)
