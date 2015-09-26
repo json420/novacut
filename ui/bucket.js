@@ -93,7 +93,7 @@ var Thumbs = {
             console.log('no thumbnails in queue');
             return;
         }
-        while (ids.length > 0 && Object.keys(Thumbs.active).length <= 2) {
+        while (ids.length > 0 && Object.keys(Thumbs.active).length <= 3) {
             var id = ids.shift();
             if (Thumbs.active[id]) {
                 console.log('already waiting for ' + id);
