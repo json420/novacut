@@ -112,7 +112,9 @@ def walk_forward(existing, frame, file_stop, steps=1):
 
 
 def get_slice_for_thumbnail(existing, frame, file_stop):
-    assert 0 <= frame < file_stop
+    if not (0 <= frame < file_stop):
+        log.warning('invalid frame %d, outside of [0:%d]', frame, file_stop)
+        return None
     if frame in existing:
         return None
     if frame == 0:
@@ -180,6 +182,9 @@ class Thumbnailer(Decoder):
             ns = self.get_duration()
             self.file_stop = nanosecond_to_frame(ns, self.framerate)
             log.info('duration: %d frames, %d nanoseconds', self.file_stop, ns)
+            if USE_HACKS:
+                self.file_stop = max(1, self.file_stop - 2)
+                log.warning('Reduced frames to %d', self.file_stop)
             self.next()
             self.set_state(Gst.State.PLAYING)
         except:

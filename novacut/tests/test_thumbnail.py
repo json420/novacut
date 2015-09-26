@@ -41,6 +41,12 @@ class TestFunctions(TestCase):
     def test_get_slice_for_thumbnail(self):
         get_slice_for_thumbnail = thumbnail.get_slice_for_thumbnail
 
+        # frame < 0:
+        self.assertIsNone(get_slice_for_thumbnail(set(), -1, 99))
+
+        # frame >= file_stop:
+        self.assertIsNone(get_slice_for_thumbnail(set(), 99, 99))
+
         # frame in existing:
         for frame in range(100):
             self.assertIsNone(get_slice_for_thumbnail({frame}, frame, 200))
