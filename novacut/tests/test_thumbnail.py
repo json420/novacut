@@ -31,10 +31,9 @@ from base64 import b64encode
 from gi.repository import Gst
 from dbase32 import random_id
 
-from .helpers import random, random_framerate
+from .helpers import random
 from ..gsthelpers import USE_HACKS, VIDEOSCALE_METHOD
 from ..misc import random_start_stop
-from ..timefuncs import video_pts_and_duration
 from .. import thumbnail
 
 
