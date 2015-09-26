@@ -113,10 +113,10 @@ class Input(Decoder):
 
     def run(self):
         try:
-            log.info('begin: %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+            s = self.s
+            log.info('Playing: %s[%s:%s]', s.src, s.start, s.stop)
             self.set_state(Gst.State.PAUSED, sync=True)
-            stop = (None if USE_HACKS else self.s.stop)
-            self.seek_by_frame(self.s.start, stop)
+            self.seek_by_frame(s.start, s.stop)
             self.set_state(Gst.State.PLAYING)
         except:
             log.exception('%s.run():', self.__class__.__name__)
