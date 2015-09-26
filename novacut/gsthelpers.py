@@ -352,12 +352,8 @@ class Pipeline:
 
 
 class Decoder(Pipeline):
-    CHECK_EOS = 2000
-
     def __init__(self, callback, filename, video=False, audio=False):
         super().__init__(callback)
-        self.unhandled_eos = False
-        self.check_eos_id = None
         self.framerate = None
         self.rate = None
 
@@ -435,46 +431,4 @@ class Decoder(Pipeline):
             log.exception('%s.on_pad_added():', self.__class__.__name__)
             self.complete(False)
             raise
-
-    def remove_check_eos(self):
-        if self.check_eos_id is not None:
-            log.debug('Removing check_eos() source %r', self.check_eos_id)
-            GLib.source_remove(self.check_eos_id)
-            self.check_eos_id = None
-
-    def add_check_eos(self):
-        self.remove_check_eos()
-        self.check_eos_id = GLib.timeout_add(self.CHECK_EOS, self.check_eos)
-        log.debug('Added check_eos() source %r', self.check_eos_id)
-
-    def destroy(self):
-        super().destroy()
-        self.remove_check_eos()
-
-    def do_complete(self, success):
-        if self.unhandled_eos is not False:
-            log.error('%s.do_complete() called, but unhandled EOS exists',
-                self.__class__.__name__
-            )
-            success = False
-        super().do_complete(success)
-
-    def clear_unhandled_eos(self):
-        self.unhandled_eos = False
-        self.remove_check_eos()
-
-    def check_eos(self):
-        log.debug('%s.check_eos()', self.__class__.__name__)
-        self.remove_check_eos()
-        if self.success is None:
-            if self.unhandled_eos is not False:
-                log.error('check_eos(): `unhandled_eos` flag not reset')
-                self.do_complete(False)
-            else:
-                self.do_complete(True)
-
-    def on_eos(self, bus, msg):
-        log.debug('%s.on_eos()', self.__class__.__name__)
-        if self.success is None:
-            self.add_check_eos()
 

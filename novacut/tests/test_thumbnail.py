@@ -162,7 +162,6 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.s)
         self.assertIsNone(inst.frame)
         self.assertEqual(inst.thumbnails, [])
-        self.assertIs(inst.unhandled_eos, False)
 
         # filesrc:
         self.assertIsInstance(inst.src, Gst.Element)
@@ -222,15 +221,10 @@ class TestThumbnailer(TestCase):
         self.assertIsInstance(inst.pipeline, Gst.Pipeline)
         self.assertIsInstance(inst.bus, Gst.Bus)
         self.assertEqual(sys.getrefcount(inst), 6)
-        self.assertIsNone(inst.check_eos_id)
-        self.assertIsNone(inst.on_eos('bus', 'msg'))
-        self.assertIsInstance(inst.check_eos_id, int)
-        self.assertEqual(sys.getrefcount(inst), 7)
         self.assertIsNone(inst.destroy())
         self.assertFalse(hasattr(inst, 'pipeline'))
         self.assertFalse(hasattr(inst, 'bus'))
         self.assertEqual(inst.handlers, [])
-        self.assertIsNone(inst.check_eos_id)
         self.assertEqual(sys.getrefcount(inst), 2)
 
     def test_play_slice(self):
@@ -238,7 +232,6 @@ class TestThumbnailer(TestCase):
             def __init__(self, file_stop):
                 assert file_stop > 0
                 self.file_stop = file_stop
-                self.unhandled_eos = False
                 self._calls = []
 
             def seek_by_frame(self, start, stop):
@@ -248,7 +241,6 @@ class TestThumbnailer(TestCase):
         s = thumbnail.StartStop(0, 1)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
-        self.assertIs(inst.unhandled_eos, not USE_HACKS)
         stop = (None if USE_HACKS else s.stop)
         self.assertEqual(inst._calls, [(0, stop)])
 
@@ -257,7 +249,6 @@ class TestThumbnailer(TestCase):
         s = thumbnail.StartStop(0, 1)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
-        self.assertIs(inst.unhandled_eos, not USE_HACKS)
         stop = (None if USE_HACKS else s.stop)
         self.assertEqual(inst._calls, [(0, stop)])
 
@@ -265,17 +256,14 @@ class TestThumbnailer(TestCase):
         s = thumbnail.StartStop(file_stop - 1, file_stop)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
-        self.assertIs(inst.unhandled_eos, not USE_HACKS)
         stop = (None if USE_HACKS else s.stop)
         self.assertEqual(inst._calls, [(file_stop - 1, stop)])
 
         for i in range(100):
             inst = Subclass(file_stop)
-            self.assertIs(inst.unhandled_eos, False)
             s = random_start_stop(file_stop)
             self.assertIsNone(inst.play_slice(s))
             self.assertIs(inst.s, s)
-            self.assertIs(inst.unhandled_eos, not USE_HACKS)
             stop = (None if USE_HACKS else s.stop)
             self.assertEqual(inst._calls, [(s.start, stop)])
 
@@ -296,9 +284,6 @@ class TestThumbnailer(TestCase):
                 self.thumbnails = []
                 self._calls = []
 
-            def clear_unhandled_eos(self):
-                self._calls.append('clear_unhandled_eos')
-
             def play_slice(self, s):
                 self._calls.append(('play_slice', s))
 
@@ -314,7 +299,6 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.indexes, [17, 18, 19])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            'clear_unhandled_eos',
             ('play_slice', (1, 4)),
         ])
 
@@ -323,9 +307,7 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.indexes, [18, 19])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            'clear_unhandled_eos',
             ('play_slice', (1, 4)),
-            'clear_unhandled_eos',
             ('play_slice', (8, 18)),
         ])
 
@@ -335,11 +317,8 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.indexes, [])
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst._calls, [
-            'clear_unhandled_eos',
             ('play_slice', (1, 4)),
-            'clear_unhandled_eos',
             ('play_slice', (8, 18)),
-            'clear_unhandled_eos',
             ('play_slice', (19, 23)),
         ])
 
@@ -349,13 +328,9 @@ class TestThumbnailer(TestCase):
         self.assertEqual(inst.existing, {18})
         self.assertEqual(inst.thumbnails, [])
         self.assertEqual(inst._calls, [
-            'clear_unhandled_eos',
             ('play_slice', (1, 4)),
-            'clear_unhandled_eos',
             ('play_slice', (8, 18)),
-            'clear_unhandled_eos',
             ('play_slice', (19, 23)),
-            'clear_unhandled_eos',
             ('complete', True),
         ])
 

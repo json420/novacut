@@ -27,7 +27,7 @@ import logging
 from base64 import b64encode
 from collections import namedtuple
 
-from gi.repository import GLib, Gst
+from gi.repository import Gst
 
 from .timefuncs import nanosecond_to_frame
 from .gsthelpers import (
@@ -189,12 +189,10 @@ class Thumbnailer(Decoder):
     def play_slice(self, s):
         assert 0 <= s.start < s.stop <= self.file_stop
         self.s = s
-        self.unhandled_eos = not USE_HACKS
         stop = (None if USE_HACKS else s.stop)
         self.seek_by_frame(s.start, stop)
 
     def next(self):
-        self.clear_unhandled_eos()
         while self.indexes:
             frame = self.indexes.pop(0)
             s = get_slice_for_thumbnail(self.existing, frame, self.file_stop)
@@ -224,27 +222,24 @@ class Thumbnailer(Decoder):
                 raise ValueError(
                     'expected frame {!r}, got {!r}'.format(self.frame, frame)
                 )
+            self.frame += 1
             log.info('[%d:%d] @%d', s.start, s.stop, frame)
             data = buf.extract_dup(0, buf.get_size())
+            self.existing.add(frame)
             self.thumbnails.append((frame, data))
-            self.frame += 1
-            if self.frame >= s.stop:
-                log.info('finished [%d:%d]', s.start, s.stop)
-                GLib.idle_add(self.next)
         except:
             log.exception('%s.on_handoff()', self.__class__.__name__)
             self.complete(False)
 
-    def check_eos(self):
+    def on_eos(self, bus, msg):
         """
         Override Decodebin.check_eos().
         """
-        log.debug('%s.check_eos()', self.__class__.__name__)
-        self.remove_check_eos()
-        if self.success is None:
-            if self.unhandled_eos is not False:
-                log.error('check_eos(): `unhandled_eos` flag not reset')
-                self.do_complete(False)
-            else:
-                self.next()
+        s = self.s
+        if s is None or s.stop != self.frame:
+            log.error('Did not receive all frames in slice %r', s)
+            self.complete(False)
+        else:
+            log.info('finished [%d:%d]', s.start, s.stop)
+            self.next()
 
