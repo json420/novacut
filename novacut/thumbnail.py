@@ -217,7 +217,6 @@ class Thumbnailer(Decoder):
                     frame, s.start, s.stop
                 )
                 return
-            if self.frame >= s.stop
             if frame != self.frame:
                 raise ValueError(
                     'expected frame {!r}, got {!r}'.format(self.frame, frame)
