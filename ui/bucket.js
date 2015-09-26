@@ -1601,7 +1601,9 @@ Clips.prototype = {
             dnd.ondrag = null;
             UI.copy_clip(dnd.id);
             var clip = this.session.get_doc(dnd.id);
-            var doc = create_video_slice(clip._id, 0, clip.duration.frames);
+            // FIXME: Work-around last two frames not being thumbnailed with Gst 1.2:
+            var stop = Math.max(1, clip.duration.frames - 2);
+            var doc = create_video_slice(clip._id, 0, stop);
             this.session.save(doc, true);
             var slice = new Slice(UI.session, doc);
             slice.x = dnd.x - 64;
