@@ -344,3 +344,22 @@ class TestThumbnailer(TestCase):
             ('complete', True),
         ])
 
+    def test_error_without_hacks(self):
+        class Subclass(thumbnail.Thumbnailer):
+            def __init__(self):
+                self._calls = []
+
+            def complete(self, success):
+                self._calls.append(success)
+
+        calls = ([] if USE_HACKS else [False])
+        msg_args = (
+            ('hello, world',),
+            ('hello, %s', 'world'),
+            ('%s, %s', 'hello', 'world')
+        )
+        for args in msg_args:
+            inst = Subclass()
+            self.assertIsNone(inst.error_without_hacks(*args))
+            self.assertEqual(inst._calls, calls)
+

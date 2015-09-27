@@ -27,7 +27,7 @@ import logging
 from base64 import b64encode
 from collections import namedtuple
 
-from gi.repository import Gst
+from gi.repository import GLib, Gst
 
 from .timefuncs import nanosecond_to_frame
 from .gsthelpers import (
@@ -213,15 +213,25 @@ class Thumbnailer(Decoder):
         log.info('Created %d thumbnails', len(self.thumbnails))
         self.complete(True)
 
+    def error_without_hacks(self, msg, *args):
+        if USE_HACKS:
+            log.warning(msg, *args)
+        else:
+            log.error(msg, *args)
+            self.complete(False)
+
     def on_handoff(self, element, buf, pad):
         try:
             s = self.s
-            frame = nanosecond_to_frame(buf.pts, self.framerate)
-            if USE_HACKS and not (s.start <= frame < s.stop):
-                log.warning('ignoring frame %d, outside [%d:%d]',
-                    frame, s.start, s.stop
+            if self.frame >= s.stop:
+                return self.error_without_hacks(
+                    'handoff, but [%d:%d] is finished', s.start, s.stop
                 )
-                return
+            frame = nanosecond_to_frame(buf.pts, self.framerate)
+            if not (s.start <= frame < s.stop):
+                return self.error_without_hacks(
+                    'frame %d not in [%d:%d]', frame, s.start, s.stop
+                )
             if frame != self.frame:
                 raise ValueError(
                     'expected frame {!r}, got {!r}'.format(self.frame, frame)
@@ -233,7 +243,7 @@ class Thumbnailer(Decoder):
             self.thumbnails.append((frame, data))
             if USE_HACKS and self.frame == s.stop:
                 log.info('hacky finish [%d:%d]', s.start, s.stop)
-                self.complete(True)
+                GLib.idle_add(self.next)
         except:
             log.exception('%s.on_handoff()', self.__class__.__name__)
             self.complete(False)
