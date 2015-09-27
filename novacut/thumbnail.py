@@ -182,9 +182,6 @@ class Thumbnailer(Decoder):
             ns = self.get_duration()
             self.file_stop = nanosecond_to_frame(ns, self.framerate)
             log.info('duration: %d frames, %d nanoseconds', self.file_stop, ns)
-            if USE_HACKS:
-                self.file_stop = max(1, self.file_stop - 2)
-                log.warning('Reduced frames to %d', self.file_stop)
             self.next()
             self.set_state(Gst.State.PLAYING)
         except:
