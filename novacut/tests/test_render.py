@@ -25,14 +25,13 @@ Unit tests for the `novacut.renderer` module.
 
 from unittest import TestCase
 from fractions import Fraction
-from random import SystemRandom
 from queue import Queue
 import sys
 
 from dbase32 import random_id
 from gi.repository import Gst
 
-from .helpers import random_filename, random_slice
+from .helpers import random, random_filename, random_slice, random_framerate
 from ..gsthelpers import VIDEOSCALE_METHOD
 from .. import timefuncs
 from ..settings import get_default_settings
@@ -40,9 +39,6 @@ from .. import render
 
 
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
-
-
-random = SystemRandom()
 
 
 class TestFunctions(TestCase):
@@ -148,20 +144,26 @@ class TestInput(TestCase):
 
     def test_check_frame(self):
         class Subclass(render.Input):
-            def __init__(self, s, frame, framerate):
-                self.s = s
+            def __init__(self, frame, framerate):
                 self.frame = frame
                 self.framerate = framerate
 
-        s = random_slice()
-        framerate = Fraction(30000, 1001)
-        inst = Subclass(s, s.start, framerate)
-        buf = timefuncs.video_pts_and_duration(s.start, framerate)
-        self.assertIs(inst.check_frame(buf), True)
-        self.assertEqual(inst.frame, s.start)
-        inst.frame += 1
-        self.assertIs(inst.check_frame(buf), False)
-        self.assertEqual(inst.frame, s.start + 1)
+        frame = random.randrange(10, 5000)
+        framerate = random_framerate()
+        inst = Subclass(frame, framerate)
+        buf = timefuncs.video_pts_and_duration(frame, framerate)
+        self.assertIsNone(inst.check_frame(buf))
+        self.assertEqual(inst.frame, frame)
+        self.assertEqual(inst.framerate, framerate)
+        for bad in (frame - 1, frame + 1):
+            buf = timefuncs.video_pts_and_duration(bad, framerate)
+            with self.assertRaises(ValueError) as cm:
+                inst.check_frame(buf)
+            self.assertEqual(str(cm.exception),
+                'expected frame {!r}, got {!r}'.format(frame, bad)
+            )
+            self.assertEqual(inst.frame, frame)
+            self.assertEqual(inst.framerate, framerate)
 
 
 class TestOutput(TestCase):

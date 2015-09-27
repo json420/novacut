@@ -112,7 +112,9 @@ def walk_forward(existing, frame, file_stop, steps=1):
 
 
 def get_slice_for_thumbnail(existing, frame, file_stop):
-    assert 0 <= frame < file_stop
+    if not (0 <= frame < file_stop):
+        log.warning('invalid frame %d, outside of [0:%d]', frame, file_stop)
+        return None
     if frame in existing:
         return None
     if frame == 0:
@@ -189,12 +191,11 @@ class Thumbnailer(Decoder):
     def play_slice(self, s):
         assert 0 <= s.start < s.stop <= self.file_stop
         self.s = s
-        self.unhandled_eos = not USE_HACKS
+        self.frame = s.start
         stop = (None if USE_HACKS else s.stop)
         self.seek_by_frame(s.start, stop)
 
     def next(self):
-        self.clear_unhandled_eos()
         while self.indexes:
             frame = self.indexes.pop(0)
             s = get_slice_for_thumbnail(self.existing, frame, self.file_stop)
@@ -209,42 +210,50 @@ class Thumbnailer(Decoder):
         log.info('Created %d thumbnails', len(self.thumbnails))
         self.complete(True)
 
+    def error_without_hacks(self, msg, *args):
+        if USE_HACKS:
+            log.warning(msg, *args)
+        else:
+            log.error(msg, *args)
+            self.complete(False)
+
     def on_handoff(self, element, buf, pad):
         try:
             s = self.s
-            frame = nanosecond_to_frame(buf.pts, self.framerate)
-            if USE_HACKS and not (s.start <= frame < s.stop):
-                log.warning('ignoring frame %d, outside [%d:%d]',
-                    frame, s.start, s.stop
+            if self.frame >= s.stop:
+                return self.error_without_hacks(
+                    'handoff, but [%d:%d] is finished', s.start, s.stop
                 )
-                return
-            if frame == s.start:
-                self.frame = frame
-            elif frame != self.frame:
+            frame = nanosecond_to_frame(buf.pts, self.framerate)
+            if not (s.start <= frame < s.stop):
+                return self.error_without_hacks(
+                    'frame %d not in [%d:%d]', frame, s.start, s.stop
+                )
+            if frame != self.frame:
                 raise ValueError(
                     'expected frame {!r}, got {!r}'.format(self.frame, frame)
                 )
+            self.frame += 1
             log.info('[%d:%d] @%d', s.start, s.stop, frame)
             data = buf.extract_dup(0, buf.get_size())
+            self.existing.add(frame)
             self.thumbnails.append((frame, data))
-            self.frame += 1
-            if self.frame >= s.stop:
-                log.info('finished [%d:%d]', s.start, s.stop)
+            if USE_HACKS and self.frame == s.stop:
+                log.info('hacky finish [%d:%d]', s.start, s.stop)
                 GLib.idle_add(self.next)
         except:
             log.exception('%s.on_handoff()', self.__class__.__name__)
             self.complete(False)
 
-    def check_eos(self):
-        """
-        Override Decodebin.check_eos().
-        """
-        log.debug('%s.check_eos()', self.__class__.__name__)
-        self.remove_check_eos()
-        if self.success is None:
-            if self.unhandled_eos is not False:
-                log.error('check_eos(): `unhandled_eos` flag not reset')
-                self.do_complete(False)
-            else:
-                self.next()
+    def on_eos(self, bus, msg):
+        s = self.s
+        if USE_HACKS:
+            log.info('hacky EOS finish [%d:%d]', s.start, s.stop)
+            self.next()
+        elif s.stop != self.frame:
+            log.error('Did not receive all frames in slice %r', s)
+            self.complete(False)
+        else:
+            log.info('finished [%d:%d]', s.start, s.stop)
+            self.next()
 
