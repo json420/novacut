@@ -123,12 +123,14 @@ def render_one(root_id):
     r = Renderer(on_complete, slices, settings, tmp_dst)
     r.run()
     mainloop.run()
+    r.destroy()
     if r.success is not True:
         log.error('fatal error in Renderer')
         return add_fail(root_id)
     v = Validator(on_complete, tmp_dst, False, False)
     v.run()
     mainloop.run()
+    v.destroy()
     if v.success is not True:
         log.error('fatal error in Validator')
         return add_fail(root_id)
