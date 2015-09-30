@@ -24,6 +24,8 @@ Check video for timestamp conformance.
 """
 
 import logging
+from hashlib import sha1
+from collections import namedtuple
 
 from gi.repository import Gst
 
@@ -35,6 +37,7 @@ from .gsthelpers import Decoder, make_element, get_int
 
 
 log = logging.getLogger(__name__)
+BufferInfo = namedtuple('BufferInfo', 'sha1 duration pts')
 
 
 def _row(label, ts):
@@ -168,4 +171,57 @@ class Validator(Decoder):
             log.info('Success, video is conformant under NON-strict checking!')
             log.info('[Use the --strict option to enable strict checking.]')
         self.complete(valid)
+
+
+def get_buffer_info(buf):
+    data = buf.extract_dup(0, buf.get_size())
+    digest = sha1(data).hexdigest()
+    return BufferInfo(digest, buf.duration, buf.pts)
+
+
+class PlayThrough(Decoder):
+    def __init__(self, callback, filename):
+        super().__init__(callback, filename, video=True)
+        self.duration = None
+        self.video = []
+
+        # Create elements:
+        self.sink = make_element('fakesink', {'signal-handoffs': True})
+
+        # Add elements to pipeline and link:
+        self.pipeline.add(self.sink)
+        self.video_q.link(self.sink)
+
+        # Connect signal handlers with Pipeline.connect():
+        self.connect(self.sink, 'handoff', self.on_handoff)
+
+    def run(self):
+        try:
+            self.set_state(Gst.State.PAUSED, sync=True)
+            log.info('Framerate: %s', self.framerate)
+            self.duration = self.get_duration()
+            log.info('Duration: %d', self.duration)
+            self.set_state(Gst.State.PLAYING)
+        except:
+            log.exception('%s.run():', self.__class__.__name__)
+            self.complete(False)
+
+    def on_handoff(self, sink, buf, pad):
+        try:
+            info = get_buffer_info(buf)
+            log.info('%s %d %d %d',
+                info.sha1, info.duration, info.pts, len(self.video)
+            )
+            self.video.append(info)
+        except:
+            log.exception('%s.on_handoff():', self.__class__.__name__)
+            self.complete(False)
+
+    def on_eos(self, bus, msg):
+        try:
+            log.info('Frames: %d', len(self.video))
+            self.complete(True)
+        except:
+            log.exception('%s.on_eos():', self.__class__.__name__)
+            self.complete(False)
 

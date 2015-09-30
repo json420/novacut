@@ -31,6 +31,8 @@ from fractions import Fraction
 from gi.repository import Gst
 from dbase32 import random_id
 
+from .helpers import random_filename
+from .. import gsthelpers
 from ..timefuncs import Timestamp, frame_to_nanosecond, video_pts_and_duration
 from .. import validate
 
@@ -231,4 +233,62 @@ class TestValidator(TestCase):
                 self.assertEqual(inst.info,
                     {'frames': frames, 'duration': bad_dur, 'valid': False}
                 )
+
+
+class TestPlayThrough(TestCase):
+    def test_init(self):
+        def callback(inst, success):
+            pass
+
+        filename = random_filename()
+        inst = validate.PlayThrough(callback, filename)
+        self.assertIsInstance(inst, gsthelpers.Decoder)
+        self.assertIsNone(inst.duration)
+        self.assertEqual(inst.video, [])
+
+        # src (filesrc):
+        self.assertIsInstance(inst.src, Gst.Element)
+        self.assertEqual(inst.src.get_factory().get_name(), 'filesrc')
+        self.assertEqual(inst.src.get_property('location'), filename)
+
+        # dec (decodebin):
+        self.assertIsInstance(inst.dec, Gst.Element)
+        self.assertEqual(inst.dec.get_factory().get_name(), 'decodebin')
+        self.assertEqual(inst.dec.get_property('max-size-buffers'), 1)
+
+        # video_q (queue):
+        self.assertIsInstance(inst.video_q, Gst.Element)
+        self.assertEqual(inst.video_q.get_factory().get_name(), 'queue')
+        self.assertEqual(inst.video_q.get_property('silent'), True)
+        self.assertEqual(inst.video_q.get_property('max-size-buffers'), 1)
+
+        # audio_q:
+        self.assertIsNone(inst.audio_q)
+
+        # sink (fakesink):
+        self.assertIsInstance(inst.sink, Gst.Element)
+        self.assertEqual(inst.sink.get_factory().get_name(), 'fakesink')
+        self.assertIs(inst.sink.get_property('signal-handoffs'), True)
+
+        # Make sure all elements have been added to pipeline:
+        for child in [inst.src, inst.dec, inst.video_q, inst.sink]:
+            self.assertIs(child.get_parent(), inst.pipeline)
+
+        # Check that Pipeline.connect() was used:
+        self.assertEqual(len(inst.handlers), 4)
+        self.assertIs(inst.handlers[0][0], inst.bus)
+        self.assertIs(inst.handlers[1][0], inst.bus)
+        self.assertIs(inst.handlers[2][0], inst.dec)
+        self.assertIs(inst.handlers[3][0], inst.sink)
+
+        # Make sure gsthelpers.Pipeline.__init__() was called:
+        self.assertIs(inst.callback, callback)
+        self.assertIsInstance(inst.pipeline, Gst.Pipeline)
+        self.assertIsInstance(inst.bus, Gst.Bus)
+        self.assertEqual(sys.getrefcount(inst), 6)
+        self.assertIsNone(inst.destroy())
+        self.assertFalse(hasattr(inst, 'pipeline'))
+        self.assertFalse(hasattr(inst, 'bus'))
+        self.assertEqual(inst.handlers, [])
+        self.assertEqual(sys.getrefcount(inst), 2)
 
