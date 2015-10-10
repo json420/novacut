@@ -26,6 +26,7 @@ Check video for timestamp conformance.
 import logging
 from hashlib import sha1
 from collections import namedtuple
+from random import SystemRandom
 
 from gi.repository import GLib, Gst
 
@@ -38,6 +39,7 @@ from .gsthelpers import Decoder, make_element, get_int
 
 log = logging.getLogger(__name__)
 BufferInfo = namedtuple('BufferInfo', 'sha1 duration pts')
+random = SystemRandom()
 
 
 def _row(label, ts):
@@ -177,6 +179,13 @@ def get_buffer_info(buf):
     data = buf.extract_dup(0, buf.get_size())
     digest = sha1(data).hexdigest()
     return BufferInfo(digest, buf.duration, buf.pts)
+
+
+def shuffle_indexes(count):
+    indexes = list(range(count))
+    random.shuffle(indexes)
+    random.shuffle(indexes)  # Shuffle twice for higher quality random order
+    return tuple(indexes)
 
 
 class PlayThrough(Decoder):

@@ -25,8 +25,10 @@ Unit tests for the `novacut.validate` module.
 
 from unittest import TestCase
 import sys
+import os
 from random import SystemRandom
 from fractions import Fraction
+from hashlib import sha1
 
 from gi.repository import Gst
 from dbase32 import random_id
@@ -38,6 +40,53 @@ from .. import validate
 
 
 random = SystemRandom()
+
+
+class TestFunctions(TestCase):
+    def test_get_buffer_info(self):
+        class MockBuffer:
+            def __init__(self, size, data, pts, duration):
+                self._size = size
+                self._data = data
+                self._calls = []
+                self.pts = pts
+                self.duration = duration
+
+            def get_size(self):
+                self._calls.append('get_size')
+                return self._size
+
+            def extract_dup(self, start, stop):
+                self._calls.append(('extract_dup', start, stop))
+                return self._data
+
+        size = random.randrange(1, 34969)
+        data = os.urandom(size)
+        pts = random.randrange(123456789)
+        duration = random.randrange(123456789)
+        buf = MockBuffer(size, data, pts, duration)
+        info = validate.get_buffer_info(buf)
+        self.assertIs(type(info), validate.BufferInfo)
+        self.assertEqual(info.sha1, sha1(data).hexdigest())
+        self.assertEqual(info.pts, pts)
+        self.assertEqual(info.duration, duration)
+        self.assertEqual(buf._calls, [
+            'get_size',
+            ('extract_dup', 0, size),
+        ])
+
+    def test_shuffle_indexes(self):
+        for count in (75, 3469):
+            indexes = validate.shuffle_indexes(count)
+            self.assertIsInstance(indexes, tuple)
+            self.assertEqual(len(indexes), count)
+            self.assertEqual(len(set(indexes)), count)
+            self.assertNotEqual(indexes, tuple(range(count)))
+            self.assertIn(0, indexes)
+            self.assertIn(count - 1, indexes)
+            for i in indexes:
+                self.assertIsInstance(i, int)
+                self.assertTrue(0 <= i < count)
 
 
 class TestValidator(TestCase):

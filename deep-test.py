@@ -30,8 +30,7 @@ import sys
 from gi.repository import GLib
 
 import novacut
-from novacut.misc import random
-from novacut.validate import PlayThrough, PrerollTester
+from novacut.validate import PlayThrough, PrerollTester, shuffle_indexes
 
 
 parser = argparse.ArgumentParser()
@@ -72,10 +71,7 @@ def deep_test_one(filename):
         raise SystemError('critical error in PlayThrough')
     expected = tuple(inst.video)
     count = len(expected)
-    indexes = list(range(count))
-    random.shuffle(indexes)
-    random.shuffle(indexes)  # Shuffle twice for higher quality random order
-    indexes = tuple(indexes)
+    indexes = shuffle_indexes(count)
     seek_times = [expected[i].pts for i in indexes]
 
     inst = PrerollTester(on_complete, filename, seek_times)
@@ -111,16 +107,18 @@ for f in args.files:
         failed.append(filename)
 assert len(passed) + len(failed) == count
 
-print('PASSED {}/{}:', len(passed), count)
+print('PASSED {}/{}:'.format(len(passed), count))
 for filename in passed:
     print('  {!r}'.format(filename))
 
-print('FAILED {}/{}:', len(failed), count)
+print('FAILED {}/{}:'.format(len(failed), count))
 for filename in failed:
     print('  {!r}'.format(filename))
 
 if failed:
     print('FAIL!')
     sys.exit(4)
+else:
+    print('PASS!')
 
 
