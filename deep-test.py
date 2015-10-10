@@ -111,14 +111,12 @@ print('PASSED {}/{}:'.format(len(passed), count))
 for filename in passed:
     print('  {!r}'.format(filename))
 
-print('FAILED {}/{}:'.format(len(failed), count))
-for filename in failed:
-    print('  {!r}'.format(filename))
-
 if failed:
-    print('FAIL!')
+    print('FAILED {}/{}:'.format(len(failed), count))
+    for filename in failed:
+        print('  {!r}'.format(filename))
+    print('** FAIL!')
     sys.exit(4)
 else:
-    print('PASS!')
-
+    print('** PASS!')
 
