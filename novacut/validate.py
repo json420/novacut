@@ -24,8 +24,11 @@ Check video for timestamp conformance.
 """
 
 import logging
+from hashlib import sha1
+from collections import namedtuple
+from random import SystemRandom
 
-from gi.repository import Gst
+from gi.repository import GLib, Gst
 
 from .timefuncs import (
     Timestamp,
@@ -35,6 +38,8 @@ from .gsthelpers import Decoder, make_element, get_int
 
 
 log = logging.getLogger(__name__)
+BufferInfo = namedtuple('BufferInfo', 'sha1 duration pts')
+random = SystemRandom()
 
 
 def _row(label, ts):
@@ -168,4 +173,173 @@ class Validator(Decoder):
             log.info('Success, video is conformant under NON-strict checking!')
             log.info('[Use the --strict option to enable strict checking.]')
         self.complete(valid)
+
+
+def get_buffer_info(buf):
+    data = buf.extract_dup(0, buf.get_size())
+    digest = sha1(data).hexdigest()
+    return BufferInfo(digest, buf.duration, buf.pts)
+
+
+def shuffle_indexes(count):
+    indexes = list(range(count))
+    random.shuffle(indexes)
+    random.shuffle(indexes)  # Shuffle twice for higher quality random order
+    return tuple(indexes)
+
+
+class PlayThrough(Decoder):
+    def __init__(self, callback, filename):
+        super().__init__(callback, filename, video=True)
+        self.filename = filename
+        self.duration = None
+        self.video = []
+
+        # Create elements:
+        self.sink = make_element('fakesink', {'signal-handoffs': True})
+
+        # Add elements to pipeline and link:
+        self.pipeline.add(self.sink)
+        self.video_q.link(self.sink)
+
+        # Connect signal handlers with Pipeline.connect():
+        self.connect(self.sink, 'handoff', self.on_handoff)
+
+    def run(self):
+        try:
+            log.info('Play-through test: %r', self.filename)
+            self.set_state(Gst.State.PAUSED, sync=True)
+            log.info('Framerate: %s', self.framerate)
+            self.duration = self.get_duration()
+            log.info('Duration: %d nanoseconds', self.duration)
+            self.set_state(Gst.State.PLAYING)
+        except:
+            log.exception('%s.run():', self.__class__.__name__)
+            self.complete(False)
+
+    def on_handoff(self, sink, buf, pad):
+        try:
+            info = get_buffer_info(buf)
+            log.debug('%s %d %d %d',
+                info.sha1, info.duration, info.pts, len(self.video)
+            )
+            self.video.append(info)
+        except:
+            log.exception('%s.on_handoff():', self.__class__.__name__)
+            self.complete(False)
+
+    def on_eos(self, bus, msg):
+        try:
+            log.info('Frames: %d', len(self.video))
+            self.complete(True)
+        except:
+            log.exception('%s.on_eos():', self.__class__.__name__)
+            self.complete(False)
+
+
+class PrerollTester(Decoder):
+    def __init__(self, callback, filename, seek_times):
+        super().__init__(callback, filename, video=True)
+        assert isinstance(seek_times, list)
+        self.filename = filename
+        self.seek_times = seek_times
+        self.video = []
+
+        # Create elements:
+        self.sink = make_element('fakesink')
+
+        # Add elements to pipeline and link:
+        self.pipeline.add(self.sink)
+        self.video_q.link(self.sink)
+
+        # Connect signal handlers with Pipeline.connect():
+        self.connect(self.sink, 'preroll-handoff', self.on_preroll_handoff)
+
+    def run(self):
+        try:
+            log.info('Preroll test: %r', self.filename)
+            self.set_state(Gst.State.PAUSED, sync=True)
+            self.sink.set_property('signal-handoffs', True)
+            GLib.idle_add(self.next)
+        except:
+            log.exception('%s.run():', self.__class__.__name__)
+            self.complete(False)
+
+    def next(self):
+        try:
+            if self.seek_times:
+                ns = self.seek_times.pop(0)
+                self.seek_simple(ns)
+            else:
+                self.complete(True)
+        except:
+            log.exception('%s.next():', self.__class__.__name__)
+            self.complete(False)
+
+    def on_preroll_handoff(self, sink, buf, pad):
+        try:
+            info = get_buffer_info(buf)
+            log.debug('%s %d %d %d',
+                info.sha1, info.duration, info.pts, len(self.video)
+            )
+            self.video.append(info)
+            GLib.idle_add(self.next)
+        except:
+            log.exception('%s.on_preroll_handoff():', self.__class__.__name__)
+            self.complete(False)
+
+
+class SeekTester(Decoder):
+    def __init__(self, callback, filename, slices):
+        super().__init__(callback, filename, video=True)
+        assert isinstance(slices, list)
+        self.filename = filename
+        self.slices = slices
+        self.video = []
+
+        # Create elements:
+        self.sink = make_element('fakesink', {'signal-handoffs': True})
+
+        # Add elements to pipeline and link:
+        self.pipeline.add(self.sink)
+        self.video_q.link(self.sink)
+
+        # Connect signal handlers with Pipeline.connect():
+        self.connect(self.sink, 'handoff', self.on_handoff)
+
+    def run(self):
+        try:
+            log.info('Seek test: %r', self.filename)
+            self.set_state(Gst.State.PAUSED, sync=True)
+            self.next()
+            self.set_state(Gst.State.PLAYING)
+        except:
+            log.exception('%s.run():', self.__class__.__name__)
+            self.complete(False)
+
+    def next(self):
+        try:
+            if self.slices:
+                (start, stop) = self.slices.pop(0)
+                self.seek(start, stop)
+            else:
+                self.complete(True)
+        except:
+            log.exception('%s.next():', self.__class__.__name__)
+            self.complete(False)
+
+    def on_handoff(self, sink, buf, pad):
+        try:
+            info = get_buffer_info(buf)
+            log.debug('%s %d %d %d',
+                info.sha1, info.duration, info.pts, len(self.video)
+            )
+            self.video.append(info)
+        except:
+            log.exception('%s.on_handoff():', self.__class__.__name__)
+            self.complete(False)
+
+    def on_eos(self, bus, msg):
+        log.debug('%s.on_eos', self.__class__.__name__)
+        self.next()
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # novacut: the collaborative video editor
-# Copyright (C) 2011 Novacut Inc
+# Copyright (C) 2011-2015 Novacut Inc
 #
 # This file is part of `novacut`.
 #
