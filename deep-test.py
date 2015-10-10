@@ -30,7 +30,12 @@ import sys
 from gi.repository import GLib
 
 import novacut
-from novacut.validate import PlayThrough, PrerollTester, shuffle_indexes
+from novacut.validate import (
+    PlayThrough,
+    PrerollTester,
+    SeekTester,
+    shuffle_indexes,
+)
 
 
 parser = argparse.ArgumentParser()
@@ -72,13 +77,32 @@ def deep_test_one(filename):
     expected = tuple(inst.video)
     count = len(expected)
     indexes = shuffle_indexes(count)
-    seek_times = [expected[i].pts for i in indexes]
 
+    seek_times = [expected[i].pts for i in indexes]
     inst = PrerollTester(on_complete, filename, seek_times)
     GLib.idle_add(inst.run)
     mainloop.run()
     if inst.success is not True:
         raise SystemError('critical error in PrerollTester')
+    got = tuple(inst.video)
+
+    if len(got) != count:
+        raise ValueError('{} != {}'.format(len(got), count))
+    for i in range(count):
+        info1 = expected[indexes[i]]
+        info2 = got[i]
+        if info1 != info2:
+            raise ValueError('{}: {} != {}'.format( i, info1, info2))
+
+    slices = [
+        (expected[i].pts, expected[i].pts + expected[i].duration)
+        for i in indexes
+    ]
+    inst = SeekTester(on_complete, filename, slices)
+    GLib.idle_add(inst.run)
+    mainloop.run()
+    if inst.success is not True:
+        raise SystemError('critical error in SliceTester')
     got = tuple(inst.video)
 
     if len(got) != count:
