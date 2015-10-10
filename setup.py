@@ -29,6 +29,10 @@ import sys
 if sys.version_info < (3, 4):
     sys.exit('Novacut requires Python 3.4 or newer')
 
+from gi.repository import Gst
+if Gst.version() < (1, 6):
+    sys.exit('Novacut requires GStreamer 1.6 or newer')
+
 import os
 from os import path
 import subprocess
