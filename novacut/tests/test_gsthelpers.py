@@ -456,16 +456,22 @@ class TestPipeline(TestCase):
             ('get_state', Gst.CLOCK_TIME_NONE),
         ])
 
+        # Test again to make sure there are no side-effects or state:
+        self.assertIsNone(inst.pause())
+        self.assertEqual(pipeline._calls, [
+            ('set_state', Gst.State.PAUSED),
+            ('get_state', Gst.CLOCK_TIME_NONE),
+            ('set_state', Gst.State.PAUSED),
+            ('get_state', Gst.CLOCK_TIME_NONE),
+        ])
+
     def test_play(self):
         class MockPipeline:
             def __init__(self):
                 self._calls = []
 
             def set_state(self, state):
-                self._calls.append(('set_state', state))
-
-            def get_state(self, timeout):
-                self._calls.append(('get_state', timeout))
+                self._calls.append(state)
 
         class Subclass(gsthelpers.Pipeline):
             def __init__(self, pipeline):
@@ -474,12 +480,16 @@ class TestPipeline(TestCase):
         pipeline = MockPipeline()
         inst = Subclass(pipeline)
         self.assertIsNone(inst.play())
-        self.assertEqual(pipeline._calls, [
-            ('set_state', Gst.State.PLAYING),
-        ])
+        self.assertEqual(pipeline._calls, [Gst.State.PLAYING])
+
+        # Test again to make sure there are no side-effects or state:
+        self.assertIsNone(inst.play())
+        self.assertEqual(pipeline._calls,
+            [Gst.State.PLAYING, Gst.State.PLAYING]
+        )
 
     def test_on_error(self):
-        class DummyMessage:
+        class MockMessage:
             def __init__(self, error):
                 self._error = error
                 self._calls = 0
@@ -487,7 +497,6 @@ class TestPipeline(TestCase):
             def parse_error(self):
                 self._calls += 1
                 return self._error
-
 
         class Subclass(gsthelpers.Pipeline):
             def __init__(self):
@@ -497,7 +506,7 @@ class TestPipeline(TestCase):
                 self._complete_calls.append(success)
 
         inst = Subclass() 
-        msg = DummyMessage(random_id())
+        msg = MockMessage(random_id())
         self.assertIsNone(inst.on_error('bus', msg))
         self.assertEqual(msg._calls, 1)
         self.assertEqual(inst._complete_calls, [False])
