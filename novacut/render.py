@@ -114,9 +114,9 @@ class Input(Decoder):
         try:
             s = self.s
             log.info('Playing: %s[%s:%s]', s.src, s.start, s.stop)
-            self.set_state(Gst.State.PAUSED, sync=True)
+            self.pause()
             self.seek_by_frame(s.start, s.stop)
-            self.set_state(Gst.State.PLAYING)
+            self.play()
         except:
             log.exception('%s.run():', self.__class__.__name__)
             self.complete(False)
@@ -196,7 +196,7 @@ class Output(Pipeline):
         self.connect(self.src, 'need-data', self.on_need_data)
 
     def run(self):
-        self.set_state(Gst.State.PLAYING)
+        self.play()
 
     def on_eos(self, bus, msg):
         self.complete(True)
