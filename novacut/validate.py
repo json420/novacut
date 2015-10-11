@@ -137,7 +137,7 @@ class Validator(Decoder):
             log.warning(
                 'Checking video in NON-strict mode, consider using --strict'
             )
-        self.set_state(Gst.State.PAUSED, sync=True)
+        self.pause()
         (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
         if not success:
             log.error('Could not query duration')
@@ -145,7 +145,7 @@ class Validator(Decoder):
             return
         log.info('Duration in nanoseconds: %d ns', ns)
         self.info['duration'] = ns
-        self.set_state(Gst.State.PLAYING)
+        self.play()
 
     def extract_video_info(self, structure):
         super().extract_video_info(structure)
@@ -208,11 +208,11 @@ class PlayThrough(Decoder):
     def run(self):
         try:
             log.info('Play-through test: %r', self.filename)
-            self.set_state(Gst.State.PAUSED, sync=True)
+            self.pause()
             log.info('Framerate: %s', self.framerate)
             self.duration = self.get_duration()
             log.info('Duration: %d nanoseconds', self.duration)
-            self.set_state(Gst.State.PLAYING)
+            self.play()
         except:
             log.exception('%s.run():', self.__class__.__name__)
             self.complete(False)
@@ -258,7 +258,7 @@ class PrerollTester(Decoder):
     def run(self):
         try:
             log.info('Preroll test: %r', self.filename)
-            self.set_state(Gst.State.PAUSED, sync=True)
+            self.pause()
             self.sink.set_property('signal-handoffs', True)
             GLib.idle_add(self.next)
         except:
@@ -310,9 +310,9 @@ class SeekTester(Decoder):
     def run(self):
         try:
             log.info('Seek test: %r', self.filename)
-            self.set_state(Gst.State.PAUSED, sync=True)
+            self.pause()
             self.next()
-            self.set_state(Gst.State.PLAYING)
+            self.play()
         except:
             log.exception('%s.run():', self.__class__.__name__)
             self.complete(False)
