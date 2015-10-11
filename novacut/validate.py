@@ -28,7 +28,7 @@ from hashlib import sha1
 from collections import namedtuple
 from random import SystemRandom
 
-from gi.repository import GLib, Gst
+from gi.repository import GLib
 
 from .timefuncs import (
     Timestamp,
@@ -138,11 +138,7 @@ class Validator(Decoder):
                 'Checking video in NON-strict mode, consider using --strict'
             )
         self.pause()
-        (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
-        if not success:
-            log.error('Could not query duration')
-            self.complete(False)
-            return
+        ns = self.get_duration()
         log.info('Duration in nanoseconds: %d ns', ns)
         self.info['duration'] = ns
         self.play()
