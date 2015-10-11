@@ -48,9 +48,9 @@ class TestNamedTuples(TestCase):
         tup = validate.BufferInfo(*args)
         self.assertIsInstance(tup, tuple)
         self.assertIsInstance(tup, validate.BufferInfo)
-        self.assertIs(tup.sha1,     args[0])
-        self.assertIs(tup.duration, args[1])
-        self.assertIs(tup.pts,      args[2])
+        self.assertIs(args[0], tup.sha1)
+        self.assertIs(args[1], tup.duration)
+        self.assertIs(args[2], tup.pts)
         self.assertEqual(tup, args)
 
 

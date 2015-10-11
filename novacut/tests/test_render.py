@@ -41,6 +41,20 @@ from .. import render
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
 
 
+class TestNamedTuples(TestCase):
+    def test_Slice(self):
+        args = tuple(random_id() for i in range(5))
+        tup = render.Slice(*args)
+        self.assertIsInstance(tup, tuple)
+        self.assertIsInstance(tup, render.Slice)
+        self.assertIs(args[0], tup.id)
+        self.assertIs(args[1], tup.src)
+        self.assertIs(args[2], tup.start)
+        self.assertIs(args[3], tup.stop)
+        self.assertIs(args[4], tup.filename)
+        self.assertEqual(tup, args)
+
+
 class TestFunctions(TestCase):
     def test_get(self):
         _get = render._get

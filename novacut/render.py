@@ -42,6 +42,7 @@ from .gsthelpers import (
 log = logging.getLogger(__name__)
 QUEUE_SIZE = 8
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
+# FIXME: Remove Slice.id, Slice.src as they're `novacut.renderservice` domain:
 Slice = namedtuple('Slice', 'id src start stop filename')
 
 
