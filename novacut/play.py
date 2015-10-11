@@ -62,7 +62,7 @@ class SliceDecoder(Decoder):
         self.connect(self.sink, 'new-sample', self.on_new_sample)
 
     def preroll(self):
-        self.set_state(Gst.State.PAUSED, sync=True)
+        self.pause()
         if self.framerate is None:
             log.error('%s.preroll(): no framerate', self.__class__.__name__)
             self.complete(False)
@@ -74,7 +74,7 @@ class SliceDecoder(Decoder):
         assert self.isprerolled is True
         log.info('start %d %s %d', self.sample_queue.qsize(),
             self.s.id, self.s.stop - self.s.start)
-        self.set_state(Gst.State.PLAYING)
+        self.play()
 
     def on_new_sample(self, appsink):
         try:
@@ -131,7 +131,7 @@ class VideoSink(Pipeline):
 
     def wait_for_queue_to_fill(self):
         if self.sample_queue.full():
-            self.set_state(Gst.State.PLAYING)
+            self.play()
             return False
         log.info('waiting for sample queue to fill...')
         return True
@@ -156,9 +156,9 @@ class VideoSink(Pipeline):
                 if miss is False:
                     miss = True
                     log.error('miss at frame %d', self.frame)
-                    self.set_state(Gst.State.PAUSED)
+                    self.pause()
         if miss is True:
-            GLib.timeout_add(2000, self.set_state, Gst.State.PLAYING)
+            GLib.timeout_add(2000, self.play)
         return sample
 
     def on_need_data(self, appsrc, amount):
