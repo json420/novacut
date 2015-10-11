@@ -31,6 +31,7 @@ import sys
 from gi.repository import Gst
 from dbase32 import random_id
 
+from .helpers import random_filename
 from ..timefuncs import frame_to_nanosecond
 from .. import gsthelpers
 
@@ -547,8 +548,9 @@ class TestDecoder(TestCase):
     def test_init(self):
         def callback(inst, success):
             pass
-        filename = '/tmp/' + random_id() + '.mov'
+        filename = random_filename()
         inst = gsthelpers.Decoder(callback, filename)
+        self.assertIs(inst.filename, filename)
         self.assertIsNone(inst.framerate)
         self.assertIsNone(inst.rate)
         self.assertIsNone(inst.video_q)
@@ -618,6 +620,42 @@ class TestDecoder(TestCase):
         self.assertIsNone(inst.destroy())
         self.assertEqual(inst.handlers, [])
         self.assertEqual(sys.getrefcount(inst), 2)
+
+    def test_get_duration(self):
+        class MockPipeline:
+            def __init__(self, success, duration):
+                self._success = success
+                self._duration = duration
+                self._calls = []
+
+            def query_duration(self, frmt):
+                self._calls.append(frmt)
+                return (self._success, self._duration)
+
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self, pipeline):
+                self.pipeline = pipeline
+
+        duration = random.randrange(1234567890)
+
+        # success is True:
+        pipeline = MockPipeline(True, duration)
+        inst = Subclass(pipeline)
+        self.assertIs(inst.get_duration(), duration)
+        self.assertEqual(pipeline._calls, [Gst.Format.TIME])
+
+        # success is not True:
+        for success in (1, False, None, 'hello'):
+            filename = random_filename()
+            pipeline = MockPipeline(success, duration)
+            inst = Subclass(pipeline)
+            inst.filename = filename
+            with self.assertRaises(ValueError) as cm:
+                inst.get_duration()
+            self.assertEqual(str(cm.exception),
+                'Could not query duration: {!r}'.format(filename)
+            )
+            self.assertEqual(pipeline._calls, [Gst.Format.TIME])
 
     def test_seek_simple(self):
         class DummyPipeline:

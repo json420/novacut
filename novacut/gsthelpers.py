@@ -356,6 +356,7 @@ class Pipeline:
 class Decoder(Pipeline):
     def __init__(self, callback, filename, video=False, audio=False):
         super().__init__(callback)
+        self.filename = filename
         self.framerate = None
         self.rate = None
 
@@ -376,9 +377,11 @@ class Decoder(Pipeline):
 
     def get_duration(self):
         (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
-        if success:
+        if success is True:
             return ns
-        raise ValueError('could not query duration')
+        raise ValueError(
+            'Could not query duration: {!r}'.format(self.filename)
+        )
 
     def frame_to_nanosecond(self, frame):
         return frame_to_nanosecond(frame, self.framerate)
