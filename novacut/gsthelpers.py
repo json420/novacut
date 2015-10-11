@@ -324,12 +324,6 @@ class Pipeline:
         """
         GLib.idle_add(self.do_complete, success)
 
-    def set_state(self, state, sync=False):
-        assert isinstance(sync, bool)
-        self.pipeline.set_state(state)
-        if sync is True:
-            self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
-
     def pause(self):
         """
         Synchronously go to Gst.State.PAUSED.

@@ -433,37 +433,6 @@ class TestPipeline(TestCase):
             self.assertEqual(inst._destroy_calls, 1)
             self.assertEqual(callback._calls, [(inst, success)])
 
-    def test_set_state(self):
-        class DummyPipeline:
-            def __init__(self):
-                self._calls = []
-
-            def set_state(self, state):
-                self._calls.append(('set_state', state))
-
-            def get_state(self, timeout):
-                self._calls.append(('get_state', timeout))
-
-        class Subclass(gsthelpers.Pipeline):
-            def __init__(self, pipeline):
-                self.pipeline = pipeline
-
-        # When sync is False:
-        pipeline = DummyPipeline()
-        inst = Subclass(pipeline)
-        state = random_id()
-        self.assertIsNone(inst.set_state(state))
-        self.assertEqual(pipeline._calls, [('set_state', state)])
-
-        # When sync is True:
-        pipeline = DummyPipeline()
-        inst = Subclass(pipeline)
-        state = random_id()
-        self.assertIsNone(inst.set_state(state, sync=True))
-        self.assertEqual(pipeline._calls,
-            [('set_state', state), ('get_state', Gst.CLOCK_TIME_NONE)]
-        )
-
     def test_pause(self):
         class MockPipeline:
             def __init__(self):
