@@ -330,6 +330,19 @@ class Pipeline:
         if sync is True:
             self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
 
+    def pause(self):
+        """
+        Synchronously go to Gst.State.PAUSED.
+        """
+        self.pipeline.set_state(Gst.State.PAUSED)
+        self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
+
+    def play(self):
+        """
+        Asynchronously go to Gst.State.PLAYING.
+        """
+        self.pipeline.set_state(Gst.State.PLAYING)
+
     def on_error(self, bus, msg):
         log.error('%s.on_error(): %s',
             self.__class__.__name__, msg.parse_error()

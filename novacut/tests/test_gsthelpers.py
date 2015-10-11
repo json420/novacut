@@ -464,6 +464,51 @@ class TestPipeline(TestCase):
             [('set_state', state), ('get_state', Gst.CLOCK_TIME_NONE)]
         )
 
+    def test_pause(self):
+        class MockPipeline:
+            def __init__(self):
+                self._calls = []
+
+            def set_state(self, state):
+                self._calls.append(('set_state', state))
+
+            def get_state(self, timeout):
+                self._calls.append(('get_state', timeout))
+
+        class Subclass(gsthelpers.Pipeline):
+            def __init__(self, pipeline):
+                self.pipeline = pipeline
+
+        pipeline = MockPipeline()
+        inst = Subclass(pipeline)
+        self.assertIsNone(inst.pause())
+        self.assertEqual(pipeline._calls, [
+            ('set_state', Gst.State.PAUSED),
+            ('get_state', Gst.CLOCK_TIME_NONE),
+        ])
+
+    def test_play(self):
+        class MockPipeline:
+            def __init__(self):
+                self._calls = []
+
+            def set_state(self, state):
+                self._calls.append(('set_state', state))
+
+            def get_state(self, timeout):
+                self._calls.append(('get_state', timeout))
+
+        class Subclass(gsthelpers.Pipeline):
+            def __init__(self, pipeline):
+                self.pipeline = pipeline
+
+        pipeline = MockPipeline()
+        inst = Subclass(pipeline)
+        self.assertIsNone(inst.play())
+        self.assertEqual(pipeline._calls, [
+            ('set_state', Gst.State.PLAYING),
+        ])
+
     def test_on_error(self):
         class DummyMessage:
             def __init__(self, error):
