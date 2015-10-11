@@ -252,6 +252,21 @@ class Renderer:
         log.info('**** Rendering %s slices, %s frames...',
             len(self.slices), self.total_frames
         )
+        # MEMORY USAGE NOTE: memory allocated by the Output instance wont be
+        # freed till the render is complete, so in terms of heap
+        # fragmentation, it's best to bring the Output instance up to
+        # Gst.State.PLAYING first, then to create the first Input instance and
+        # bring it up to Gst.State.PLAYING.
+        #
+        # Otherwise allocations for the Output instance will be (heap-wise)
+        # after allocations for the first Input instance, meaning the latter
+        # can't be freed till the render is complete.
+        #
+        # Of course, there are other heap fragmentation issues that can
+        # prevent the memory allocated by a given Input instance from being
+        # freed, in particular Gst.Buffer items in the Renderer.buffer_queue.
+        # But this detail is still worthwhile and will tend to keep memory
+        # usage a bit lower.
         self.output.run()
         self.slices_iter = iter(self.slices)
         self.next()
