@@ -27,11 +27,10 @@ import logging
 from base64 import b64encode
 from collections import namedtuple
 
-from gi.repository import GLib, Gst
+from gi.repository import Gst
 
 from .timefuncs import nanosecond_to_frame
 from .gsthelpers import (
-    USE_HACKS,
     VIDEOSCALE_METHOD,
     Decoder,
     make_element,
@@ -192,8 +191,7 @@ class Thumbnailer(Decoder):
         assert 0 <= s.start < s.stop <= self.file_stop
         self.s = s
         self.frame = s.start
-        stop = (None if USE_HACKS else s.stop)
-        self.seek_by_frame(s.start, stop)
+        self.seek_by_frame(s.start, s.stop)
 
     def next(self):
         while self.indexes:
@@ -210,25 +208,14 @@ class Thumbnailer(Decoder):
         log.info('Created %d thumbnails', len(self.thumbnails))
         self.complete(True)
 
-    def error_without_hacks(self, msg, *args):
-        if USE_HACKS:
-            log.warning(msg, *args)
-        else:
-            log.error(msg, *args)
-            self.complete(False)
-
     def on_handoff(self, element, buf, pad):
         try:
             s = self.s
             if self.frame >= s.stop:
-                return self.error_without_hacks(
-                    'handoff, but [%d:%d] is finished', s.start, s.stop
+                raise ValueError(
+                    'handoff, but [{}:{}] is finished'.format(s.start, s.stop)
                 )
             frame = nanosecond_to_frame(buf.pts, self.framerate)
-            if not (s.start <= frame < s.stop):
-                return self.error_without_hacks(
-                    'frame %d not in [%d:%d]', frame, s.start, s.stop
-                )
             if frame != self.frame:
                 raise ValueError(
                     'expected frame {!r}, got {!r}'.format(self.frame, frame)
@@ -238,19 +225,13 @@ class Thumbnailer(Decoder):
             data = buf.extract_dup(0, buf.get_size())
             self.existing.add(frame)
             self.thumbnails.append((frame, data))
-            if USE_HACKS and self.frame == s.stop:
-                log.info('hacky finish [%d:%d]', s.start, s.stop)
-                GLib.idle_add(self.next)
         except:
             log.exception('%s.on_handoff()', self.__class__.__name__)
             self.complete(False)
 
     def on_eos(self, bus, msg):
         s = self.s
-        if USE_HACKS:
-            log.info('hacky EOS finish [%d:%d]', s.start, s.stop)
-            self.next()
-        elif s.stop != self.frame:
+        if s.stop != self.frame:
             log.error('Did not receive all frames in slice %r', s)
             self.complete(False)
         else:

@@ -32,7 +32,7 @@ from gi.repository import Gst
 from dbase32 import random_id
 
 from .helpers import random
-from ..gsthelpers import USE_HACKS, VIDEOSCALE_METHOD
+from ..gsthelpers import VIDEOSCALE_METHOD
 from ..misc import random_start_stop
 from .. import thumbnail
 
@@ -248,8 +248,7 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
         self.assertIs(inst.frame, s.start)
-        stop = (None if USE_HACKS else s.stop)
-        self.assertEqual(inst._calls, [(0, stop)])
+        self.assertEqual(inst._calls, [(0, s.stop)])
 
         file_stop = random.randrange(1234, 12345679)
         inst = Subclass(file_stop)
@@ -257,16 +256,14 @@ class TestThumbnailer(TestCase):
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
         self.assertIs(inst.frame, s.start)
-        stop = (None if USE_HACKS else s.stop)
-        self.assertEqual(inst._calls, [(0, stop)])
+        self.assertEqual(inst._calls, [(0, s.stop)])
 
         inst = Subclass(file_stop)
         s = thumbnail.StartStop(file_stop - 1, file_stop)
         self.assertIsNone(inst.play_slice(s))
         self.assertIs(inst.s, s)
         self.assertIs(inst.frame, s.start)
-        stop = (None if USE_HACKS else s.stop)
-        self.assertEqual(inst._calls, [(file_stop - 1, stop)])
+        self.assertEqual(inst._calls, [(file_stop - 1, s.stop)])
 
         for i in range(100):
             inst = Subclass(file_stop)
@@ -274,8 +271,7 @@ class TestThumbnailer(TestCase):
             self.assertIsNone(inst.play_slice(s))
             self.assertIs(inst.s, s)
             self.assertIs(inst.frame, s.start)
-            stop = (None if USE_HACKS else s.stop)
-            self.assertEqual(inst._calls, [(s.start, stop)])
+            self.assertEqual(inst._calls, [(s.start, s.stop)])
 
     def test_next(self):
         class Subclass(thumbnail.Thumbnailer):
@@ -343,23 +339,4 @@ class TestThumbnailer(TestCase):
             ('play_slice', (19, 23)),
             ('complete', True),
         ])
-
-    def test_error_without_hacks(self):
-        class Subclass(thumbnail.Thumbnailer):
-            def __init__(self):
-                self._calls = []
-
-            def complete(self, success):
-                self._calls.append(success)
-
-        calls = ([] if USE_HACKS else [False])
-        msg_args = (
-            ('hello, world',),
-            ('hello, %s', 'world'),
-            ('%s, %s', 'hello', 'world')
-        )
-        for args in msg_args:
-            inst = Subclass()
-            self.assertIsNone(inst.error_without_hacks(*args))
-            self.assertEqual(inst._calls, calls)
 

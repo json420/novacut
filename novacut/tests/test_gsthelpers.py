@@ -39,20 +39,9 @@ random = SystemRandom()
 
 
 class TestConstants(TestCase):
-    def test_USE_HACKS(self):
-        self.assertIsInstance(gsthelpers.USE_HACKS, bool)
-        if Gst.version() < (1, 4):
-            self.assertIs(gsthelpers.USE_HACKS, True)
-        else:
-            self.assertIs(gsthelpers.USE_HACKS, False)
-
     def test_VIDEOSCALE_METHOD(self):
         self.assertIsInstance(gsthelpers.VIDEOSCALE_METHOD, int)
-        self.assertIn(gsthelpers.VIDEOSCALE_METHOD, {2, 5})
-        if Gst.version() < (1, 5, 90):
-            self.assertEqual(gsthelpers.VIDEOSCALE_METHOD, 2)
-        else:
-            self.assertEqual(gsthelpers.VIDEOSCALE_METHOD, 5)
+        self.assertEqual(gsthelpers.VIDEOSCALE_METHOD, 5)
 
     def test_FLAGS_ACCURATE(self):
         self.assertEqual(gsthelpers.FLAGS_ACCURATE,

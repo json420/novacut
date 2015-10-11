@@ -28,7 +28,6 @@ from gi.repository import Gst
 
 from .timefuncs import nanosecond_to_frame, video_pts_and_duration
 from .gsthelpers import (
-    USE_HACKS,
     VIDEOSCALE_METHOD,
     Pipeline,
     Decoder,
@@ -116,8 +115,7 @@ class Input(Decoder):
             s = self.s
             log.info('Playing: %s[%s:%s]', s.src, s.start, s.stop)
             self.set_state(Gst.State.PAUSED, sync=True)
-            stop = (None if USE_HACKS else s.stop)
-            self.seek_by_frame(s.start, stop)
+            self.seek_by_frame(s.start, s.stop)
             self.set_state(Gst.State.PLAYING)
         except:
             log.exception('%s.run():', self.__class__.__name__)
@@ -133,17 +131,11 @@ class Input(Decoder):
     def on_new_sample(self, appsink):
         try:
             buf = appsink.emit('pull-sample').get_buffer()
-            if USE_HACKS:
-                # FIXME: work-around needed for GStreamer 1.2
-                buf = buf.copy()
             self.check_frame(buf)
             self.frame += 1
             while self.success is None:
                 try:
                     self.buffer_queue.put(buf, timeout=0.1)
-                    if USE_HACKS and self.frame == self.s.stop:
-                        log.info('Gst 1.2 hack for end of slice')
-                        self.complete(True)
                     return Gst.FlowReturn.OK
                 except queue.Full:
                     pass
