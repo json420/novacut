@@ -27,6 +27,8 @@ import logging
 from base64 import b64encode
 from collections import namedtuple
 
+from gi.repository import GLib
+
 from .timefuncs import nanosecond_to_frame
 from .gsthelpers import (
     VIDEOSCALE_METHOD,
@@ -38,6 +40,7 @@ from .gsthelpers import (
 
 
 log = logging.getLogger(__name__)
+MAX_WORKERS = 4
 StartStop = namedtuple('StartStop', 'start stop')
 
 
@@ -81,10 +84,30 @@ class GenericThumbnailer(Decoder):
         self.data = buf.extract_dup(0, buf.get_size())
         self.complete(True)
 
-    def on_eos(self, bus, msg):
-        log.debug('Got EOS from message bus')
-        self.complete(False)
 
+class ThumbnailerManager:
+    def __init__(self):
+        self.workers = {}
+
+    def resolve_file(self, file_id):
+        pass
+
+    def add(self, file_id):
+        pass
+
+    def remove(self, file_id):
+        worker = self.workers.pop(file_id)
+        worker.destroy()
+
+    def do_request_thumbnail(self, q, file_id, frame):
+        pass
+
+    def request_thumbnail(self, q, file_id, frame):
+        GLib.idle_add(self.do_request_thumbnail, q, file_id, frame)
+
+    def on_callback(self, worker, success):
+        pass
+    
 
 def walk_backward(existing, frame, steps=1):
     assert frame >= 0
@@ -235,4 +258,5 @@ class Thumbnailer(Decoder):
         else:
             log.info('finished [%d:%d]', s.start, s.stop)
             self.next()
+
 
