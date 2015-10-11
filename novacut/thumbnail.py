@@ -27,8 +27,6 @@ import logging
 from base64 import b64encode
 from collections import namedtuple
 
-from gi.repository import Gst
-
 from .timefuncs import nanosecond_to_frame
 from .gsthelpers import (
     VIDEOSCALE_METHOD,
@@ -74,7 +72,7 @@ class GenericThumbnailer(Decoder):
         self.connect(self.sink, 'preroll-handoff', self.on_preroll_handoff)
 
     def run(self):
-        self.set_state(Gst.State.PAUSED, sync=True)
+        self.pause()
         self.sink.set_property('signal-handoffs', True)
         self.seek_by_frame(self.frame)
 
@@ -177,12 +175,12 @@ class Thumbnailer(Decoder):
 
     def run(self):
         try:
-            self.set_state(Gst.State.PAUSED, sync=True)
+            self.pause()
             ns = self.get_duration()
             self.file_stop = nanosecond_to_frame(ns, self.framerate)
             log.info('duration: %d frames, %d nanoseconds', self.file_stop, ns)
             self.next()
-            self.set_state(Gst.State.PLAYING)
+            self.play()
         except:
             log.exception('%s.run()', self.__class__.__name__)
             self.complete(False)
