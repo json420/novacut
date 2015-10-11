@@ -324,11 +324,18 @@ class Pipeline:
         """
         GLib.idle_add(self.do_complete, success)
 
-    def set_state(self, state, sync=False):
-        assert isinstance(sync, bool)
-        self.pipeline.set_state(state)
-        if sync is True:
-            self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
+    def pause(self):
+        """
+        Synchronously go to Gst.State.PAUSED.
+        """
+        self.pipeline.set_state(Gst.State.PAUSED)
+        self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
+
+    def play(self):
+        """
+        Asynchronously go to Gst.State.PLAYING.
+        """
+        self.pipeline.set_state(Gst.State.PLAYING)
 
     def on_error(self, bus, msg):
         log.error('%s.on_error(): %s',
@@ -349,6 +356,7 @@ class Pipeline:
 class Decoder(Pipeline):
     def __init__(self, callback, filename, video=False, audio=False):
         super().__init__(callback)
+        self.filename = filename
         self.framerate = None
         self.rate = None
 
@@ -369,9 +377,11 @@ class Decoder(Pipeline):
 
     def get_duration(self):
         (success, ns) = self.pipeline.query_duration(Gst.Format.TIME)
-        if success:
+        if success is True:
             return ns
-        raise ValueError('could not query duration')
+        raise ValueError(
+            'Could not query duration: {!r}'.format(self.filename)
+        )
 
     def frame_to_nanosecond(self, frame):
         return frame_to_nanosecond(frame, self.framerate)

@@ -31,6 +31,7 @@ import sys
 from gi.repository import Gst
 from dbase32 import random_id
 
+from .helpers import random_filename
 from ..timefuncs import frame_to_nanosecond
 from .. import gsthelpers
 
@@ -433,8 +434,8 @@ class TestPipeline(TestCase):
             self.assertEqual(inst._destroy_calls, 1)
             self.assertEqual(callback._calls, [(inst, success)])
 
-    def test_set_state(self):
-        class DummyPipeline:
+    def test_pause(self):
+        class MockPipeline:
             def __init__(self):
                 self._calls = []
 
@@ -448,24 +449,48 @@ class TestPipeline(TestCase):
             def __init__(self, pipeline):
                 self.pipeline = pipeline
 
-        # When sync is False:
-        pipeline = DummyPipeline()
+        pipeline = MockPipeline()
         inst = Subclass(pipeline)
-        state = random_id()
-        self.assertIsNone(inst.set_state(state))
-        self.assertEqual(pipeline._calls, [('set_state', state)])
+        self.assertIsNone(inst.pause())
+        self.assertEqual(pipeline._calls, [
+            ('set_state', Gst.State.PAUSED),
+            ('get_state', Gst.CLOCK_TIME_NONE),
+        ])
 
-        # When sync is True:
-        pipeline = DummyPipeline()
+        # Test again to make sure there are no side-effects or state:
+        self.assertIsNone(inst.pause())
+        self.assertEqual(pipeline._calls, [
+            ('set_state', Gst.State.PAUSED),
+            ('get_state', Gst.CLOCK_TIME_NONE),
+            ('set_state', Gst.State.PAUSED),
+            ('get_state', Gst.CLOCK_TIME_NONE),
+        ])
+
+    def test_play(self):
+        class MockPipeline:
+            def __init__(self):
+                self._calls = []
+
+            def set_state(self, state):
+                self._calls.append(state)
+
+        class Subclass(gsthelpers.Pipeline):
+            def __init__(self, pipeline):
+                self.pipeline = pipeline
+
+        pipeline = MockPipeline()
         inst = Subclass(pipeline)
-        state = random_id()
-        self.assertIsNone(inst.set_state(state, sync=True))
+        self.assertIsNone(inst.play())
+        self.assertEqual(pipeline._calls, [Gst.State.PLAYING])
+
+        # Test again to make sure there are no side-effects or state:
+        self.assertIsNone(inst.play())
         self.assertEqual(pipeline._calls,
-            [('set_state', state), ('get_state', Gst.CLOCK_TIME_NONE)]
+            [Gst.State.PLAYING, Gst.State.PLAYING]
         )
 
     def test_on_error(self):
-        class DummyMessage:
+        class MockMessage:
             def __init__(self, error):
                 self._error = error
                 self._calls = 0
@@ -473,7 +498,6 @@ class TestPipeline(TestCase):
             def parse_error(self):
                 self._calls += 1
                 return self._error
-
 
         class Subclass(gsthelpers.Pipeline):
             def __init__(self):
@@ -483,7 +507,7 @@ class TestPipeline(TestCase):
                 self._complete_calls.append(success)
 
         inst = Subclass() 
-        msg = DummyMessage(random_id())
+        msg = MockMessage(random_id())
         self.assertIsNone(inst.on_error('bus', msg))
         self.assertEqual(msg._calls, 1)
         self.assertEqual(inst._complete_calls, [False])
@@ -524,8 +548,9 @@ class TestDecoder(TestCase):
     def test_init(self):
         def callback(inst, success):
             pass
-        filename = '/tmp/' + random_id() + '.mov'
+        filename = random_filename()
         inst = gsthelpers.Decoder(callback, filename)
+        self.assertIs(inst.filename, filename)
         self.assertIsNone(inst.framerate)
         self.assertIsNone(inst.rate)
         self.assertIsNone(inst.video_q)
@@ -596,8 +621,44 @@ class TestDecoder(TestCase):
         self.assertEqual(inst.handlers, [])
         self.assertEqual(sys.getrefcount(inst), 2)
 
+    def test_get_duration(self):
+        class MockPipeline:
+            def __init__(self, success, duration):
+                self._success = success
+                self._duration = duration
+                self._calls = []
+
+            def query_duration(self, frmt):
+                self._calls.append(frmt)
+                return (self._success, self._duration)
+
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self, pipeline):
+                self.pipeline = pipeline
+
+        duration = random.randrange(1234567890)
+
+        # success is True:
+        pipeline = MockPipeline(True, duration)
+        inst = Subclass(pipeline)
+        self.assertIs(inst.get_duration(), duration)
+        self.assertEqual(pipeline._calls, [Gst.Format.TIME])
+
+        # success is not True:
+        for success in (1, False, None, 'hello'):
+            filename = random_filename()
+            pipeline = MockPipeline(success, duration)
+            inst = Subclass(pipeline)
+            inst.filename = filename
+            with self.assertRaises(ValueError) as cm:
+                inst.get_duration()
+            self.assertEqual(str(cm.exception),
+                'Could not query duration: {!r}'.format(filename)
+            )
+            self.assertEqual(pipeline._calls, [Gst.Format.TIME])
+
     def test_seek_simple(self):
-        class DummyPipeline:
+        class MockPipeline:
             def __init__(self):
                 self._calls = []
 
@@ -608,7 +669,7 @@ class TestDecoder(TestCase):
             def __init__(self, pipeline):
                 self.pipeline = pipeline
 
-        pipeline = DummyPipeline()
+        pipeline = MockPipeline()
         inst = Subclass(pipeline)
         ns = random.randrange(0, 1234567890)
         self.assertIsNone(inst.seek_simple(ns))
@@ -616,12 +677,45 @@ class TestDecoder(TestCase):
             (Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE, ns),
         ])
 
-        pipeline = DummyPipeline()
+        pipeline = MockPipeline()
         inst = Subclass(pipeline)
         ns = random.randrange(0, 1234567890)
         self.assertIsNone(inst.seek_simple(ns, key_unit=True))
         self.assertEqual(pipeline._calls, [
             (Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, ns),
+        ])
+
+    def test_seek(self):
+        class MockPipeline:
+            def __init__(self):
+                self._calls = []
+
+            def seek(self, *args):
+                self._calls.append(args)
+
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self, pipeline):
+                self.pipeline = pipeline
+
+        unit = Gst.Format.TIME
+        mode = Gst.SeekType.SET
+        start_ns = random.randrange(0, 1234567890)
+        stop_ns = random.randrange(0, 1234567890)
+
+        flags = Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
+        pipeline = MockPipeline()
+        inst = Subclass(pipeline)
+        self.assertIsNone(inst.seek(start_ns, stop_ns))
+        self.assertEqual(pipeline._calls, [
+            (1.0, unit, flags, mode, start_ns, mode, stop_ns)
+        ])
+
+        flags = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
+        pipeline = MockPipeline()
+        inst = Subclass(pipeline)
+        self.assertIsNone(inst.seek(start_ns, stop_ns, key_unit=True))
+        self.assertEqual(pipeline._calls, [
+            (1.0, unit, flags, mode, start_ns, mode, stop_ns)
         ])
 
     def test_seek_by_frame(self):

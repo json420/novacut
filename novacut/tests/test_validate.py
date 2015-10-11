@@ -42,6 +42,18 @@ from .. import validate
 random = SystemRandom()
 
 
+class TestNamedTuples(TestCase):
+    def test_BufferInfo(self):
+        args = tuple(random_id() for i in range(3))
+        tup = validate.BufferInfo(*args)
+        self.assertIsInstance(tup, tuple)
+        self.assertIsInstance(tup, validate.BufferInfo)
+        self.assertIs(args[0], tup.sha1)
+        self.assertIs(args[1], tup.duration)
+        self.assertIs(args[2], tup.pts)
+        self.assertEqual(tup, args)
+
+
 class TestFunctions(TestCase):
     def test_get_buffer_info(self):
         class MockBuffer:
