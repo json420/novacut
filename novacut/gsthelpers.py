@@ -37,11 +37,7 @@ from .timefuncs import frame_to_nanosecond, nanosecond_to_frame
 log = logging.getLogger(__name__)
 Gst.init()
 
-# This flag is used to turn on various hacks needed for GStreamer 1.2:
-USE_HACKS = (True if Gst.version() < (1, 4) else False)
-
 VIDEOSCALE_METHOD = 5  # Use sinc (multi-tap) videoscale method
-
 FLAGS_ACCURATE = Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
 FLAGS_KEY_UNIT = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
