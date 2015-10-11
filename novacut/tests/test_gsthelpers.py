@@ -658,7 +658,7 @@ class TestDecoder(TestCase):
             self.assertEqual(pipeline._calls, [Gst.Format.TIME])
 
     def test_seek_simple(self):
-        class DummyPipeline:
+        class MockPipeline:
             def __init__(self):
                 self._calls = []
 
@@ -669,7 +669,7 @@ class TestDecoder(TestCase):
             def __init__(self, pipeline):
                 self.pipeline = pipeline
 
-        pipeline = DummyPipeline()
+        pipeline = MockPipeline()
         inst = Subclass(pipeline)
         ns = random.randrange(0, 1234567890)
         self.assertIsNone(inst.seek_simple(ns))
@@ -677,12 +677,45 @@ class TestDecoder(TestCase):
             (Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE, ns),
         ])
 
-        pipeline = DummyPipeline()
+        pipeline = MockPipeline()
         inst = Subclass(pipeline)
         ns = random.randrange(0, 1234567890)
         self.assertIsNone(inst.seek_simple(ns, key_unit=True))
         self.assertEqual(pipeline._calls, [
             (Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, ns),
+        ])
+
+    def test_seek(self):
+        class MockPipeline:
+            def __init__(self):
+                self._calls = []
+
+            def seek(self, *args):
+                self._calls.append(args)
+
+        class Subclass(gsthelpers.Decoder):
+            def __init__(self, pipeline):
+                self.pipeline = pipeline
+
+        unit = Gst.Format.TIME
+        mode = Gst.SeekType.SET
+        start_ns = random.randrange(0, 1234567890)
+        stop_ns = random.randrange(0, 1234567890)
+
+        flags = Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE
+        pipeline = MockPipeline()
+        inst = Subclass(pipeline)
+        self.assertIsNone(inst.seek(start_ns, stop_ns))
+        self.assertEqual(pipeline._calls, [
+            (1.0, unit, flags, mode, start_ns, mode, stop_ns)
+        ])
+
+        flags = Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT
+        pipeline = MockPipeline()
+        inst = Subclass(pipeline)
+        self.assertIsNone(inst.seek(start_ns, stop_ns, key_unit=True))
+        self.assertEqual(pipeline._calls, [
+            (1.0, unit, flags, mode, start_ns, mode, stop_ns)
         ])
 
     def test_seek_by_frame(self):
