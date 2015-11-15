@@ -26,7 +26,7 @@ Unit tests for the `novacut.timefuncs` module.
 from unittest import TestCase
 from fractions import Fraction
 
-from novacut.misc import random_slice
+from novacut.misc import random_start_stop
 from novacut import timefuncs
 
 
@@ -218,7 +218,7 @@ class TestFunctions(TestCase):
         accum = 0
         offset = 0
         for i in range(2000):
-            s = random_slice(count)
+            s = random_start_stop(count)
             samples = s.stop - s.start
 
             # The slice

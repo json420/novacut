@@ -33,7 +33,7 @@ from dbase32 import db32enc, random_id
 import filestore
 from skein import skein512
 
-from ..misc import random_slice
+from ..misc import random_start_stop
 from .. import schema
 
 
@@ -468,7 +468,7 @@ class TestFunctions(TestCase):
     def test_create_video_slice(self):
         src_id = random_file_id()
         frames = 24 * 60
-        (start, stop) = random_slice(frames)
+        (start, stop) = random_start_stop(frames)
         doc = schema.create_video_slice(src_id, start, stop)
         schema.check_video_slice(doc)
         self.assertEqual(doc['node']['type'], 'video/slice')
@@ -527,7 +527,7 @@ class TestFunctions(TestCase):
     def test_create_audio_slice(self):
         src_id = random_file_id()
         samples = 48000 * 60
-        (start, stop) = random_slice(samples)
+        (start, stop) = random_start_stop(samples)
         doc = schema.create_audio_slice(src_id, start, stop)
         schema.check_audio_slice(doc)
         self.assertEqual(doc['node']['type'], 'audio/slice')

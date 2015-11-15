@@ -29,23 +29,6 @@ from .. import misc
 
 
 class TestFunctions(TestCase):
-    def test_random_slice(self):
-        for i in range(100):
-            s = misc.random_slice(1)
-            self.assertEqual(s, (0, 1))
-            self.assertIsInstance(s, misc.Slice)
-            self.assertEqual(s.start, 0)
-            self.assertEqual(s.stop, 1)
-        for count in range(1, 10000):
-            s = misc.random_slice(count)
-            self.assertIsInstance(s, misc.Slice)
-            self.assertEqual(s, (s.start, s.stop))
-            self.assertLessEqual(0, s.start)
-            self.assertLess(s.start, s.stop)
-            self.assertLessEqual(s.stop, count)
-            # Just so the above is clearer:
-            assert 0 <= s.start < s.stop <= count
-
     def test_random_start_stop(self):
         # count=0 should always return (0, 1):
         for i in range(10):
