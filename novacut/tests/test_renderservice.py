@@ -31,7 +31,7 @@ from usercouch.misc import CouchTestCase
 from microfiber import Database, NotFound
 
 from ..misc import random_slice as random_start_stop
-from ..render import Slice
+from ..renderservice import Slice
 from .. import renderservice
 
 
