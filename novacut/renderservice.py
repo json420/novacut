@@ -27,12 +27,11 @@ import os
 from os import path
 from datetime import datetime
 import logging
-from collections import namedtuple
 
 from gi.repository import GLib
 from microfiber import Database, dumps
 
-from .render import Renderer
+from .render import Slice, Renderer
 
 
 log = logging.getLogger(__name__)
@@ -42,7 +41,6 @@ log = logging.getLogger(__name__)
 MAX_DEPTH = 10
 
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
-Slice = namedtuple('Slice', 'id src start stop filename')
 
 
 ################################################################################
@@ -146,7 +144,7 @@ def get_slices(Dmedia, db, root_id):
     files = sorted(set(r[1] for r in raw_slices))
     _map = resolve_files(Dmedia, files)
     return tuple(
-        Slice(_id, src, start, stop, _map[src])
+        Slice(start, stop, _map[src])
         for (_id, src, start, stop) in raw_slices
     )
 
