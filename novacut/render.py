@@ -42,8 +42,7 @@ from .gsthelpers import (
 log = logging.getLogger(__name__)
 QUEUE_SIZE = 8
 TYPE_ERROR = '{}: need a {!r}; got a {!r}: {!r}'
-# FIXME: Remove Slice.id, Slice.src as they're `novacut.renderservice` domain:
-Slice = namedtuple('Slice', 'id src start stop filename')
+Slice = namedtuple('Slice', 'start stop filename')
 
 
 def _get(d, key, t):
@@ -114,7 +113,7 @@ class Input(Decoder):
     def run(self):
         try:
             s = self.s
-            log.info('Playing: %s[%s:%s]', s.src, s.start, s.stop)
+            log.info('START [%d:%d] %r', s.start, s.stop, s.filename)
             self.pause()
             self.seek_by_frame(s.start, s.stop)
             self.play()
@@ -147,11 +146,12 @@ class Input(Decoder):
             return Gst.FlowReturn.ERROR
 
     def on_eos(self, bus, msg):
-        if self.frame != self.s.stop:
-            log.error('Did not receive all frames in slice %r', self.s)
+        s = self.s
+        if self.frame != s.stop:
+            log.error('Did not receive all frames in slice %r', s)
             self.complete(False)
         else:
-            log.info('Finished: %s[%s:%s]', self.s.src, self.s.start, self.s.stop)
+            log.info('END [%d:%d] %r', s.start, s.stop, s.filename)
             self.complete(True)
 
 

@@ -48,5 +48,5 @@ def random_filename():
 def random_slice():
     (start, stop) = random_start_stop()
     filename = random_filename()
-    return Slice(random_id(), random_id(30), start, stop, filename)
+    return Slice(start, stop, filename)
 
