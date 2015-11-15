@@ -29,40 +29,34 @@ from .. import misc
 
 
 class TestFunctions(TestCase):
-    def test_random_slice(self):
-        for i in range(100):
-            s = misc.random_slice(1)
+    def test_random_start_stop(self):
+        # count=0 should always return (0, 1):
+        for i in range(10):
+            s = misc.random_start_stop(1)
+            self.assertIsInstance(s, misc.StartStop)
             self.assertEqual(s, (0, 1))
-            self.assertIsInstance(s, misc.Slice)
             self.assertEqual(s.start, 0)
             self.assertEqual(s.stop, 1)
-        for count in range(1, 10000):
-            s = misc.random_slice(count)
-            self.assertIsInstance(s, misc.Slice)
+
+        # Test with count of 1 through 1000:
+        for count in range(1, 1001):
+            s = misc.random_start_stop(count)
+            self.assertIsInstance(s, misc.StartStop)
             self.assertEqual(s, (s.start, s.stop))
-            self.assertLessEqual(0, s.start)
+            self.assertGreaterEqual(s.start, 0)
             self.assertLess(s.start, s.stop)
             self.assertLessEqual(s.stop, count)
             # Just so the above is clearer:
-            assert 0 <= s.start < s.stop <= count
+            self.assertTrue(0 <= s.start < s.stop <= count)
 
-    def test_random_start_stop(self):
-        for i in range(100):
-            (start, stop) = misc.random_start_stop(1)
-            self.assertEqual(start, 0)
-            self.assertEqual(stop, 1)
-        for count in range(1, 1000):
-            (start, stop) = misc.random_start_stop(count)
-            self.assertGreaterEqual(start, 0)
-            self.assertLess(start, stop)
-            self.assertLessEqual(stop, count)
-            # Just so the above is clearer:
-            self.assertTrue(0 <= start < stop <= count)
+        # Test with default count=123456
         for i in range(1000):
-            (start, stop) = misc.random_start_stop()
-            self.assertGreaterEqual(start, 0)
-            self.assertLess(start, stop)
-            self.assertLessEqual(stop, 123456)
+            s = misc.random_start_stop(count)
+            self.assertIsInstance(s, misc.StartStop)
+            self.assertEqual(s, (s.start, s.stop))
+            self.assertGreaterEqual(s.start, 0)
+            self.assertLess(s.start, s.stop)
+            self.assertLessEqual(s.stop, 123456)
             # Just so the above is clearer:
-            self.assertTrue(0 <= start < stop <= 123456)
+            self.assertTrue(0 <= s.start < s.stop <= 123456)
 
