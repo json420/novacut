@@ -30,7 +30,7 @@ from dbase32 import random_id
 from usercouch.misc import CouchTestCase
 from microfiber import Database, NotFound
 
-from ..misc import random_slice as random_start_stop
+from ..misc import random_start_stop
 from ..render import Slice
 from .. import renderservice
 
@@ -298,14 +298,12 @@ class TestFunctions(TestCase):
 def random_slice(Dmedia, src):
     (start, stop) = random_start_stop(123456)
     s = Slice(
-        random_id(),
-        src,
         start,
         stop,
         Dmedia._path(src),
     )
     doc = {
-        '_id': s.id,
+        '_id': random_id(),
         'node': {
             'type': 'video/slice',
             'src': src,
@@ -407,7 +405,7 @@ class TestCouchFunctions(CouchTestCase):
                 (s, d) = random_slice(Dmedia, file_id)
                 slices.append(s)
                 docs.append(d)
-                seq_src.append(s.id)
+                seq_src.append(d['_id'])
             docs.append({
                 '_id': seq_id,
                 'node': {

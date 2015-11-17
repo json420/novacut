@@ -28,17 +28,17 @@ from collections import namedtuple
 
 
 random = SystemRandom()
-Slice = namedtuple('Slice', 'start stop')
+StartStop = namedtuple('StartStop', 'start stop')
 
 
-def random_slice(count):
+def random_start_stop(count=123456):
     """
-    Generate a random slice of media that is *count* units long.
+    Generate a random ``(start, stop)`` within media that is *count* units long.
 
     For example, there is only one possible slice in a one-frame-long video:
 
-    >>> random_slice(1)
-    Slice(start=0, stop=1)
+    >>> random_start_stop(1)
+    StartStop(start=0, stop=1)
 
     This function returns a ``(start,stop)`` tuple such that::
 
@@ -47,12 +47,5 @@ def random_slice(count):
     assert count >= 1
     start = random.randrange(0, count)
     stop = random.randrange(start + 1, count + 1)
-    return Slice(start, stop)
-
-
-def random_start_stop(count=123456):
-    assert count >= 1
-    start = random.randrange(0, count)
-    stop = random.randrange(start + 1, count + 1)
-    return Slice(start, stop)
+    return StartStop(start, stop)
 

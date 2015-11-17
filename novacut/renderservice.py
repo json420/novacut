@@ -144,7 +144,7 @@ def get_slices(Dmedia, db, root_id):
     files = sorted(set(r[1] for r in raw_slices))
     _map = resolve_files(Dmedia, files)
     return tuple(
-        Slice(_id, src, start, stop, _map[src])
+        Slice(start, stop, _map[src])
         for (_id, src, start, stop) in raw_slices
     )
 
