@@ -69,7 +69,6 @@ def run_pyflakes3():
         'setup.py',
         'novacut-gtk',
         'novacut-cli',
-        'novacut-v0-v1-upgrade',
         'novacut-reset',
         'novacut-video-checker',
         'novacut-service',
@@ -117,7 +116,6 @@ setup(
     scripts=[
         'novacut-gtk',
         'novacut-cli',
-        'novacut-v0-v1-upgrade',
         'novacut-reset',
         'novacut-video-checker',
     ],
