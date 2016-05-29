@@ -14,7 +14,7 @@ Build-Depends: debhelper (>= 9),
     gstreamer1.0-plugins-good,
     gstreamer1.0-plugins-ugly,
     gstreamer1.0-libav,
-Standards-Version: 3.9.5
+Standards-Version: 3.9.7
 X-Python3-Version: >= 3.4
 Homepage: https://launchpad.net/novacut
 
