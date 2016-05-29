@@ -315,13 +315,13 @@ class TestPlayThrough(TestCase):
         # dec (decodebin):
         self.assertIsInstance(inst.dec, Gst.Element)
         self.assertEqual(inst.dec.get_factory().get_name(), 'decodebin')
-        self.assertEqual(inst.dec.get_property('max-size-buffers'), 1)
+        self.assertEqual(inst.dec.get_property('max-size-buffers'), 2)
 
         # video_q (queue):
         self.assertIsInstance(inst.video_q, Gst.Element)
         self.assertEqual(inst.video_q.get_factory().get_name(), 'queue')
         self.assertEqual(inst.video_q.get_property('silent'), True)
-        self.assertEqual(inst.video_q.get_property('max-size-buffers'), 1)
+        self.assertEqual(inst.video_q.get_property('max-size-buffers'), 2)
 
         # audio_q:
         self.assertIsNone(inst.audio_q)
@@ -376,13 +376,13 @@ class TestPrerollTester(TestCase):
         # dec (decodebin):
         self.assertIsInstance(inst.dec, Gst.Element)
         self.assertEqual(inst.dec.get_factory().get_name(), 'decodebin')
-        self.assertEqual(inst.dec.get_property('max-size-buffers'), 1)
+        self.assertEqual(inst.dec.get_property('max-size-buffers'), 2)
 
         # video_q (queue):
         self.assertIsInstance(inst.video_q, Gst.Element)
         self.assertEqual(inst.video_q.get_factory().get_name(), 'queue')
         self.assertEqual(inst.video_q.get_property('silent'), True)
-        self.assertEqual(inst.video_q.get_property('max-size-buffers'), 1)
+        self.assertEqual(inst.video_q.get_property('max-size-buffers'), 2)
 
         # audio_q:
         self.assertIsNone(inst.audio_q)
@@ -440,13 +440,13 @@ class TestSeekTester(TestCase):
         # dec (decodebin):
         self.assertIsInstance(inst.dec, Gst.Element)
         self.assertEqual(inst.dec.get_factory().get_name(), 'decodebin')
-        self.assertEqual(inst.dec.get_property('max-size-buffers'), 1)
+        self.assertEqual(inst.dec.get_property('max-size-buffers'), 2)
 
         # video_q (queue):
         self.assertIsInstance(inst.video_q, Gst.Element)
         self.assertEqual(inst.video_q.get_factory().get_name(), 'queue')
         self.assertEqual(inst.video_q.get_property('silent'), True)
-        self.assertEqual(inst.video_q.get_property('max-size-buffers'), 1)
+        self.assertEqual(inst.video_q.get_property('max-size-buffers'), 2)
 
         # audio_q:
         self.assertIsNone(inst.audio_q)

@@ -111,7 +111,7 @@ def make_element(name, props=None):
 
 
 def make_queue():
-    return make_element('queue', {'silent': True, 'max-size-buffers': 1})
+    return make_element('queue', {'silent': True, 'max-size-buffers': 2})
 
 
 def make_element_from_desc(desc):
@@ -362,7 +362,7 @@ class Decoder(Pipeline):
 
         # Create elements:
         self.src = make_element('filesrc', {'location': filename})
-        self.dec = make_element('decodebin', {'max-size-buffers': 1})
+        self.dec = make_element('decodebin', {'max-size-buffers': 2})
         self.video_q = (make_queue() if video is True else None)
         self.audio_q = (make_queue() if audio is True else None)
 

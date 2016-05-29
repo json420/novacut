@@ -208,7 +208,7 @@ class TestOutput(TestCase):
         self.assertIsInstance(inst.q, Gst.Element)
         self.assertEqual(inst.q.get_factory().get_name(), 'queue')
         self.assertEqual(inst.q.get_property('silent'), True)
-        self.assertEqual(inst.q.get_property('max-size-buffers'), 1)
+        self.assertEqual(inst.q.get_property('max-size-buffers'), 2)
 
         # x264enc:
         self.assertIsInstance(inst.enc, Gst.Element)
