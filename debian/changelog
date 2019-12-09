@@ -1,5 +1,5 @@
-novacut (16.05.0) xenial; urgency=low
+novacut (19.12.0~alpha) focal; urgency=low
 
-  * Upstream 16.05.0 release
+  * Upstream 19.12.0 release
 
- -- Jason Gerard DeRose <jderose@novacut.com>  Sun, 29 May 2016 13:39:26 -0600
+ -- Jason Gerard DeRose <jasonderose@gmail.com>  Mon, 09 Dec 2019 14:02:02 -0700
