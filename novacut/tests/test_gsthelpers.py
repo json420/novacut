@@ -764,15 +764,19 @@ class TestDecoder(TestCase):
         class Subclass(gsthelpers.Decoder):
             def __init__(self):
                 self.framerate = None
+                self.height = None
+                self.width = None
 
         num = random.randrange(1, 1234567890)
         denom = random.randrange(1, 1234567890)
-        s = MockStructure({'framerate': (True, num, denom)})
+        height = [1080, 1088]
+        width = [1920, 3840]
+        s = MockStructure({'framerate': (True, num, denom), 'height': height, 'width': width})
         inst = Subclass()
         self.assertIsNone(inst.extract_video_info(s))
         self.assertEqual(inst.framerate, Fraction(num, denom))
         self.assertEqual(s._ret, {})
-        self.assertEqual(s._calls, [('get_fraction', 'framerate')])
+        self.assertEqual(s._calls, [('get_fraction', 'framerate'), ('get_int', 'height'), ('get_int', 'width')])
 
         s = MockStructure({'framerate': (False, num, denom)})
         inst = Subclass()

@@ -359,6 +359,8 @@ class Decoder(Pipeline):
         self.filename = filename
         self.framerate = None
         self.rate = None
+        self.height = None
+        self.width = None
 
         # Create elements:
         self.src = make_element('filesrc', {'location': filename})
@@ -415,6 +417,8 @@ class Decoder(Pipeline):
 
     def extract_video_info(self, structure):
         self.framerate = get_fraction(structure, 'framerate')
+        self.height = get_int(structure, 'height')
+        self.width = get_int(structure, 'width')
 
     def extract_audio_info(self, structure):
         self.rate = get_int(structure, 'rate')

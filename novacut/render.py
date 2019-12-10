@@ -97,18 +97,18 @@ class Input(Decoder):
         # Create elements
         self.convert = make_element('videoconvert')
         self.scale = make_element('videoscale', {'method': VIDEOSCALE_METHOD})
+        self.crop = None
         self.sink = make_element('appsink',
             {'caps': input_caps, 'emit-signals': True, 'max-buffers': 1}
         )
 
-        # Add elements to pipeline and link:
-        add_and_link_elements(self.pipeline,
-            self.convert, self.scale, self.sink
-        )
-        self.video_q.link(self.convert)
-
         # Connect signal handlers using Pipeline.connect():
         self.connect(self.sink, 'new-sample', self.on_new_sample)
+        
+        # Wait until decode element's pad capabilities are known to
+        # add elements and link pipeline.  Must be in paused state for this.
+        self.connect(self.dec, 'pad-added', self.link_pipeline)
+        self.pause()
 
     def run(self):
         try:
@@ -120,6 +120,28 @@ class Input(Decoder):
         except:
             log.exception('%s.run():', self.__class__.__name__)
             self.complete(False)
+
+    def link_pipeline(self, element, pad):
+        try:
+            caps = pad.get_current_caps()
+            string = caps.to_string()
+            if string.startswith('video/x-raw'):
+                if self.height == 1088 and self.width == 1920: # 1088 -> 1080 lines
+                    self.crop = make_element('videocrop', {'left': 0, 'top': 0, 'bottom': 8, 'right': 0})
+                    # Add elements to pipeline and link with crop element:
+                    add_and_link_elements(self.pipeline,
+                        self.convert, self.scale, self.crop, self.sink
+                    )
+                else:
+                    # Add elements to pipeline and link without crop element:
+                    add_and_link_elements(self.pipeline,
+                        self.convert, self.scale, self.sink
+                    )
+                self.video_q.link(self.convert)
+        except:
+            log.exception('%s.link_pipeline():', self.__class__.__name__)
+            self.complete(False)
+            raise
 
     def check_frame(self, buf):
         frame = nanosecond_to_frame(buf.pts, self.framerate)
